@@ -5,7 +5,7 @@ import (
 
 	"github.com/kamalshkeir/kago/core/admin/models"
 	"github.com/kamalshkeir/kago/core/kamux"
-	"github.com/kamalshkeir/kago/core/korm"
+	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
@@ -13,15 +13,15 @@ import (
 func init() {
 	r := kamux.Router{}
 	r.LoadEnv("../../../.env")
-	_ = korm.InitDB()
+	_ = orm.InitDB()
 	//migrate
-	err := korm.Migrate()
+	err := orm.Migrate()
 	if logger.CheckError(err) {return}
-	users,_ := korm.Database().Table("users").All()
+	users,_ := orm.Database().Table("users").All()
 	if len(users) ==0 {
-		korm.CreateUser("kago@gmail.com","olaola",1)
+		orm.CreateUser("kago@gmail.com","olaola",1)
 	}
-	korm.LinkModel[models.User]("users")
+	orm.LinkModel[models.User]("users")
 }
 
 
@@ -75,7 +75,7 @@ func BenchmarkGetAllS(b *testing.B) {
 	b.ReportAllocs()
     b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_,err := korm.Model[models.User]().All()
+		_,err := orm.Model[models.User]().All()
 		if err != nil {
 			b.Error("error BenchmarkGetAllS:",err)
 		}
@@ -86,7 +86,7 @@ func BenchmarkGetAllM(b *testing.B) {
 	b.ReportAllocs()
     b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_,err := korm.Database().Table("users").All()
+		_,err := orm.Database().Table("users").All()
 		if err != nil {
 			b.Error("error BenchmarkGetAllM:",err)
 		}
@@ -98,7 +98,7 @@ func BenchmarkGetRowS(b *testing.B) {
 	b.ReportAllocs()
     b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_,err := korm.Model[models.User]().Where("email = ?","kago@gmail.com").One()
+		_,err := orm.Model[models.User]().Where("email = ?","kago@gmail.com").One()
 		if err != nil {
 			b.Error("error BenchmarkGetRowS:",err)
 		}
@@ -109,7 +109,7 @@ func BenchmarkGetRowM(b *testing.B) {
 	b.ReportAllocs()
     b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_,err := korm.Database().Table("users").Where("email = ?","kago@gmail.com").One()
+		_,err := orm.Database().Table("users").Where("email = ?","kago@gmail.com").One()
 		if err != nil {
 			b.Error("error BenchmarkGetRowM:",err)
 		}
@@ -122,7 +122,7 @@ func BenchmarkGetAllTables(b *testing.B) {
 	b.ReportAllocs()
     b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		t := korm.GetAllTables()
+		t := orm.GetAllTables()
 		if len(t) == 0 {
 			b.Error("error BenchmarkGetAllTables: no data",)
 		}
@@ -133,7 +133,7 @@ func BenchmarkGetAllColumns(b *testing.B) {
 	b.ReportAllocs()
     b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c := korm.GetAllColumns("users")
+		c := orm.GetAllColumns("users")
 		if len(c) == 0 {
 			b.Error("error BenchmarkGetAllColumns: no data",)
 		}

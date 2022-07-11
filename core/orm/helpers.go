@@ -31,7 +31,7 @@ type dbCache struct {
 }
 
 // LinkModel link a struct model to a  db_table_name
-// Usage: korm.LinkModel[User]("users")
+// Usage: orm.LinkModel[User]("users")
 func LinkModel[T comparable](to_table_name string, dbNames ...string) {
 	var dbName string
 	if len(dbNames) == 0 {
@@ -347,7 +347,7 @@ func getStructInfos[T comparable](strct *T) (fnames []string,fvalues []any,ftype
 	typeOfT := s.Type()
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
-		if ftag,ok := typeOfT.Field(i).Tag.Lookup("korm");ok {
+		if ftag,ok := typeOfT.Field(i).Tag.Lookup("orm");ok {
 			ftags = append(ftags, ftag)
 		} else {
 			ftags = append(ftags, "")
@@ -377,7 +377,7 @@ func getFieldTypesAndTags[T comparable]() (fields []string,fieldType map[string]
 
 		fields = append(fields, fname)
 		fieldType[fname]=ftype
-		if ftag,ok := typeOfT.Field(i).Tag.Lookup("korm");ok {
+		if ftag,ok := typeOfT.Field(i).Tag.Lookup("orm");ok {
 			tags := strings.Split(ftag,";")
 			fieldTags[fname]=tags
 		} 

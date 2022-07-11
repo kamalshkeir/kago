@@ -50,7 +50,7 @@ func DatabaseS[T comparable](dbName string) *Builder[T] {
 			}
 		}
 	}
-	logger.Error("database not found for this model, try korm.LinkModel before")
+	logger.Error("database not found for this model, try orm.LinkModel before")
 	return nil
 }
 
@@ -68,7 +68,7 @@ func Model[T comparable]() *Builder[T] {
 			tableName: tName,
 		}
 	} else {
-		logger.Error("database not found for this model, try korm.LinkModel before")
+		logger.Error("database not found for this model, try orm.LinkModel before")
 		return nil
 	}
 }
@@ -85,7 +85,7 @@ func Insert[T comparable](model *T) (int,error) {
 		b.dialect=v.dialect
 		b.tableName=tName
 	} else {
-		return 0,errors.New("database not found for this model, try korm.LinkModel before")
+		return 0,errors.New("database not found for this model, try orm.LinkModel before")
 	}
 	
 	if UseCache {
@@ -390,7 +390,7 @@ func (b *Builder[T]) Debug() *Builder[T] {
 
 func (b *Builder[T]) All() ([]T,error) {
 	if b.database == "" || b.tableName == "" {
-		return nil,errors.New("Error: this model is not linked, execute korm.LinkModel first")
+		return nil,errors.New("Error: this model is not linked, execute orm.LinkModel first")
 	}
 	c := dbCache{}
 	if UseCache {
@@ -412,7 +412,7 @@ func (b *Builder[T]) All() ([]T,error) {
 	}
 	
 	if b.tableName == "" {
-		return nil,errors.New("unable to find model, try korm.LinkModel before")
+		return nil,errors.New("unable to find model, try orm.LinkModel before")
 	}
 
 	if b.selected != "" && b.selected != "*" {
@@ -460,7 +460,7 @@ func (b *Builder[T]) All() ([]T,error) {
 
 func (b *Builder[T]) One() (T,error) {
 	if b.database == "" || b.tableName == "" {
-		return *new(T),errors.New("Error: this model is not linked, execute korm.LinkModel first")
+		return *new(T),errors.New("Error: this model is not linked, execute orm.LinkModel first")
 	}
 	c := dbCache{}
 	if UseCache {
@@ -482,7 +482,7 @@ func (b *Builder[T]) One() (T,error) {
 	}
 	
 	if b.tableName == "" {
-		return *new(T),errors.New("unable to find model, try korm.LinkModel before")
+		return *new(T),errors.New("unable to find model, try orm.LinkModel before")
 	}
 
 	if b.selected != "" && b.selected != "*" {

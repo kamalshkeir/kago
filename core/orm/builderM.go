@@ -405,7 +405,7 @@ func (b *BuilderM) Set(query string, args ...any) (int, error) {
 
 func (b *BuilderM) Delete() (int, error) {
 	if b.tableName == "" {
-		return 0, errors.New("unable to find model, try korm.LinkModel before")
+		return 0, errors.New("unable to find model, try orm.LinkModel before")
 	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC,map[string]string{
@@ -445,7 +445,7 @@ func (b *BuilderM) Delete() (int, error) {
 
 func (b *BuilderM) Drop() (int, error) {
 	if b.tableName == "" {
-		return 0, errors.New("unable to find model, try korm.LinkModel before Update")
+		return 0, errors.New("unable to find model, try orm.LinkModel before Update")
 	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC,map[string]string{
