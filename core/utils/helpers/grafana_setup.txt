@@ -1,0 +1,10 @@
+docker run -d --name prometheus -v C:\Users\kago\Desktop\kago\core\utils\helpers\prometheus.yml:/etc/prometheus/prometheus.yml -p 9090:9090 prom/prometheus
+
+docker run -d --name grafana -p 3000:3000 grafana/grafana-enterprise
+docker exec -it grafana grafana-cli admin reset-admin-password olaola
+
+defaults:
+data source: http://host.docker.internal:9090
+username: admin
+pass: the same
+use dashboard 14061 or 10826 or 240
