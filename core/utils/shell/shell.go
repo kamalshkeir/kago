@@ -1,14 +1,12 @@
 package shell
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/settings"
@@ -30,27 +28,21 @@ func InitShell() bool {
 	case "migrate":
 		_ = orm.InitDB()
 		defer orm.GetConnection().Close()
-		fmt.Printf(input.Blue,"available commands: 1:new, 2:up, 3:down, 4:file, 5:init \n")
+		fmt.Printf(input.Blue,"available commands: 1:init, 2:file \n")
 		choice := input.Input(input.Blue,"command> ")
 		switch choice {
-		case "new","1":
-			newmigration()
-		case "up","2":
-			migrationup()
-		case "down","3":
-			migrationdown()
-		case "file","4":
+		case "file","2":
 			path := input.Input(input.Blue,"path: ")
 			err := migratefromfile(path)
 			if logger.CheckError(err) {
 				return true
 			}
-		case "init","5":
+		case "init","1":
 			err := orm.Migrate()
 			if logger.CheckError(err) {
 				return true
 			}
-			fmt.Printf(logger.Green,"Users and schema_migrations migrated successfully")
+			fmt.Printf(logger.Green,"users table migrated successfully")
 		}
 	case "createsuperuser":
 		_ = orm.InitDB()
@@ -170,195 +162,6 @@ func migratefromfile(path string) error {
 	return nil
 }
 
-var newmigrationWG sync.WaitGroup
-func newmigration() {
-	if settings.GlobalConfig.DbType != "postgres" && settings.GlobalConfig.DbType != "sqlite" && settings.GlobalConfig.DbType != "mysql" {
-		logger.Error("database is neither postgres, sqlite or mysql !")
-		os.Exit(1)
-	}
-	if _,err := os.Stat(orm.MIGRATION_FOLDER);err != nil {
-		err := os.Mkdir(orm.MIGRATION_FOLDER,0770)
-		if err != nil {
-			logger.Error(err)
-			os.Exit(1)
-		}
-	}
-
-	var version int
-	var up_path string
-	var down_path string
-	mg_name := input.Input(input.Blue,"migration name : ")
-	if mg_name == "" {
-		logger.Error("migration name cannot be empty !")
-		mg_name = input.Input(input.Blue,"migration name : ")
-	}
-
-	//check if migration with the same name exist in orm
-	s,err := orm.Database().Table("schema_migrations").Where("name = ?",mg_name).One()
-	if err == nil {
-		logger.Error("schema_migrations with the same name already exist",s)
-		mg_name = input.Input(input.Blue,"migration name : ")
-	}
-	
-	// get last version
-	row := orm.GetConnection().QueryRow("select version from schema_migrations order by -version limit 1")
-	err = row.Scan(&version)
-	if errors.Is(err,sql.ErrNoRows) {
-		up_path = orm.MIGRATION_FOLDER + fmt.Sprintf("/%d-%s-up.sql",1,mg_name)
-		down_path = orm.MIGRATION_FOLDER + fmt.Sprintf("/%d-%s-down.sql",1,mg_name)
-		newmigrationWG.Add(3)
-		go func() {
-			_,err := orm.Database().Table("schema_migrations").Insert(
-				"version,name,up_path,down_path,executed",
-				1,mg_name,up_path,down_path,false,
-			)
-			logger.CheckError(err)
-			newmigrationWG.Done()
-		}()
-
-		go func() {
-			defer newmigrationWG.Done()
-			f,err := os.Create(up_path)
-			logger.CheckError(err)
-			defer f.Close()
-		}()
-
-		go func() {
-			defer newmigrationWG.Done()
-			f,err := os.Create(down_path)
-			logger.CheckError(err)
-			defer f.Close()
-		}()
-		newmigrationWG.Wait()
-	} else if err != nil {
-		logger.Error("row scan error :",err)
-		os.Exit(1)
-	} else {
-		up_path = orm.MIGRATION_FOLDER + fmt.Sprintf("/%d-%s-up.sql",version+1,mg_name)
-		down_path = orm.MIGRATION_FOLDER + fmt.Sprintf("/%d-%s-down.sql",version+1,mg_name)
-		newmigrationWG.Add(3)
-		go func() {
-			_,err := orm.Database().Table("schema_migrations").Insert(
-				"version,name,up_path,down_path,executed",
-				version+1,mg_name,up_path,down_path,false,
-			)
-			logger.CheckError(err)
-			newmigrationWG.Done()
-		}()
-
-		go func() {
-			defer newmigrationWG.Done()
-			f,err := os.Create(up_path)
-			logger.CheckError(err)
-			defer f.Close()
-		}()
-
-		go func() {
-			defer newmigrationWG.Done()
-			f,err := os.Create(down_path)
-			logger.CheckError(err)
-			defer f.Close()
-		}()
-		newmigrationWG.Wait()		
-	}
-}
-
-func migrationup() {
-	if settings.GlobalConfig.DbType != "postgres" && settings.GlobalConfig.DbType != "sqlite" && settings.GlobalConfig.DbType != "mysql" {
-		logger.Error("database is neither postgres, sqlite or mysql !")
-		os.Exit(1)
-	}
-	if _,err := os.Stat(orm.MIGRATION_FOLDER);err != nil {
-		logger.Error("migrations folder not found !, execute migrate new before migrate up")
-		os.Exit(0)
-	}
-	migrations,err := orm.Database().Table("schema_migrations").All()
-	if err != nil {
-		logger.Error("getall migration error:",err)
-		os.Exit(1)
-	}
-
-	notExecutedList := []map[string]interface{}{}
-	for _,mg := range migrations {
-		if mg["executed"] == int64(0) || mg["executed"] == 0 || mg["executed"] == false {
-			notExecutedList = append(notExecutedList, mg)
-		}
-	}
-
-	if len(notExecutedList)  > 0 {
-		fmt.Printf(logger.Blue,"version | name")
-		for _,mg := range notExecutedList {
-			fmt.Printf(logger.Red,fmt.Sprintf("   %v    |  %v    DOWN",mg["version"],mg["name"]))
-		}
-		v := input.Input(input.Blue,"choose version to migrate up: ")
-		if v == "" {return}
-		mg,err := orm.Database().Table("schema_migrations").Where("version = ?",v).One()
-		if logger.CheckError(err) {return}
-		if path,ok := mg["up_path"];ok {
-			if v,ok := path.(string);ok {
-				migratefromfile(v)
-				_,err := orm.Database().Table("schema_migrations").Where("up_path = ?",v).Set("executed = ?",1)
-				if !logger.CheckError(err) {
-					fmt.Printf(logger.Green,v+" Migrated Up successfully")
-				}
-			}
-		} else {
-			logger.Error("no up_path found in db for :",mg)
-			return
-		}
-	} else {
-		fmt.Printf(logger.Green,"All migrations are already executed, nothing change")
-		return
-	}
-}
-
-func migrationdown() {
-	if settings.GlobalConfig.DbType != "postgres" && settings.GlobalConfig.DbType != "sqlite" && settings.GlobalConfig.DbType != "mysql" {
-		logger.Error("database is neither postgres, sqlite or mysql !")
-		os.Exit(1)
-	}
-	if _,err := os.Stat(orm.MIGRATION_FOLDER);err != nil {
-		logger.Error("migrations folder not found !, execute migrate new before migrate up")
-		os.Exit(0)
-	}
-	migrations,err := orm.Database().Table("schema_migrations").All()
-	if err != nil {
-		logger.Error("getall migration error:",err)
-		os.Exit(1)
-	}
-	executedList := []map[string]interface{}{}
-	for _,mg := range migrations {
-		if mg["executed"] == 1 || mg["executed"] == int64(1) || mg["executed"] == true  {
-			executedList = append(executedList, mg)
-		} 
-	}
-
-	if len(executedList)  > 0 {
-		fmt.Printf(logger.Blue,"version | name")
-		for _,mg := range executedList {
-			fmt.Printf(logger.Green,fmt.Sprintf("   %v    |  %v   UP",mg["version"],mg["name"]))
-		}
-		v := input.Input(input.Blue,"choose version to migrate down: ")
-		if v == "" {return}
-		mg,err := orm.Database().Table("schema_migrations").Where("version = ?",v).One()
-		if logger.CheckError(err) {return}
-		if path,ok := mg["down_path"];ok {
-			if v,ok := path.(string);ok {
-				migratefromfile(v)
-				_,err := orm.Database().Table("schema_migrations").Where("down_path = ?",v).Set("executed = ?",0)
-				if !logger.CheckError(err) {
-					fmt.Printf(logger.Green,v+" Migrated Down successfully")
-				}
-			}
-		} else {
-			logger.Error("no down_path found in db for :",mg)
-			return
-		}
-	} else {
-		fmt.Printf(logger.Green,"All migrations are already executed, nothing change")
-		return
-	}
-}
 
 func dropTable() {
 	tableName := input.Input(input.Blue,"Table to drop : ") 
