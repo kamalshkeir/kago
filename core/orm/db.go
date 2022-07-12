@@ -31,7 +31,6 @@ var (
 	cacheGetAllColumns = safemap.New[string,map[string]string]()
 	cachesOneM = safemap.New[dbCache,map[string]any]()
 	cachesAllM = safemap.New[dbCache,[]map[string]any]()
-	
 )
 
 const (
@@ -43,15 +42,6 @@ type database struct {
 	name string
 	conn *sql.DB
 	dialect string
-	tables []table
-}
-
-type table struct {
-	name string
-	columns []string
-	columnsType map[string]string
-	columnsStructType map[string]string
-	columnsTags map[string][]string
 }
 
 func InitDB() (error) {
@@ -115,7 +105,6 @@ func InitDB() (error) {
 		name: settings.GlobalConfig.DbName,
 		conn: dbConn,
 		dialect: settings.GlobalConfig.DbType,
-		tables: []table{},
 	})
 	mDbNameConnection[settings.GlobalConfig.DbName]=dbConn
 	mDbNameDialect[settings.GlobalConfig.DbName]=settings.GlobalConfig.DbType
@@ -180,7 +169,6 @@ func NewDb(dbType,dbName,dbDSN string) (error) {
 		name: dbName,
 		conn: conn,
 		dialect: dbType,
-		tables: []table{},
 	})
 	mDbNameConnection[dbName]=conn
 	mDbNameDialect[dbName]=dbType

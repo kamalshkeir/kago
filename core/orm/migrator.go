@@ -84,10 +84,10 @@ func AutoMigrate[T comparable](dbName,tableName,dialect string, debug ...bool) e
 		if len(tables) > 0 {
 			for _,t := range tables {
 				if t == tableName {
-					LinkModel[T](tableName)
+					LinkModel[T](tableName,dbName)
 				}
 			}
-		}
+		} 
 	} else {
 		logger.Info(mDbNameConnection)
 		return errors.New("no connection found for "+dbName)

@@ -527,14 +527,6 @@ func (b *Builder[T]) One() (T,error) {
 
 func (b *Builder[T])queryS(query string,args ...any) ([]T,error) {
 	adaptPlaceholdersToDialect(&query,b.dialect)
-	var tabl *table
-	if db,ok := mModelDatabase[*new(T)];ok {
-		for _,t := range db.tables {
-			if t.name == b.tableName {
-				tabl=&t
-			}
-		}
-	}
 	res := make([]T,0)
 
 	var rows *sql.Rows
@@ -584,10 +576,11 @@ func (b *Builder[T])queryS(query string,args ...any) ([]T,error) {
 		}
 
 		row := new(T)
-		if b.selected == "" {
-			b.selected=strings.Join(cols,",")
-		} 
-		fillStructColumns(b.tableName,row,b.selected,tabl.columnsType,tabl.columnsStructType,values...)
+		if b.selected != "" && b.selected != "*" {
+			fillStructColumns(row,b.selected,values...)
+		} else {
+			fillStruct(row,values...)
+		}
 
 		res = append(res, *row)
 	}
