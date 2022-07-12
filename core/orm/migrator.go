@@ -97,7 +97,7 @@ func AutoMigrate[T comparable](dbName,tableName,dialect string, debug ...bool) e
 }
 
 func handleMigrationInt(dialect, fName,ty string,mFieldName_Tags *map[string][]string,fkeys *[]string,res *map[string]string) {
-	primary,autoinc,unique,notnull,defaultt:="","","","",""			
+	primary,autoinc,unique,notnull,defaultt,check:="","","","","",""			
 	tags := (*mFieldName_Tags)[fName]
 	for _,tag := range tags {
 		switch tag {
@@ -123,7 +123,7 @@ func handleMigrationInt(dialect, fName,ty string,mFieldName_Tags *map[string][]s
 				sp := strings.Split(tag,":")
 				switch sp[0] {
 				case "default":
-					defaultt=sp[1]
+					defaultt=" DEFAULT "+sp[1]
 				case "fk":
 					ref := strings.Split(sp[1],".")
 					if len(ref) == 2 {
@@ -139,7 +139,18 @@ func handleMigrationInt(dialect, fName,ty string,mFieldName_Tags *map[string][]s
 					} else {
 						logger.Error("wtf ?, it should be fk:users.id:cascade/donothing")
 					}
-					
+				case "check":
+					if strings.Contains(strings.ToLower(sp[1]),"len") {
+						switch dialect {
+						case "sqlite","":
+							sp[1] = strings.Replace(strings.ToLower(sp[1]),"len","length",1)
+						case "postgres","mysql":
+							sp[1] = strings.Replace(strings.ToLower(sp[1]),"len","char_length",1)
+						default:
+							logger.Error("check not handled for dialect:",dialect)
+						}
+					}
+					check=" CHECK (" +sp[1]+")"	
 				default:
 					logger.Error("not handled",sp[0],"for",tag,",field:",fName)
 				}
@@ -158,15 +169,19 @@ func handleMigrationInt(dialect, fName,ty string,mFieldName_Tags *map[string][]s
 		(*res)[fName]="INTEGER"
 		if primary != "" {
 			(*res)[fName]+=primary
-		}
-		if unique != "" {
-			(*res)[fName]+=unique
-		}
-		if notnull != "" {
-			(*res)[fName]+=notnull
+		} else {
+			if unique != "" {
+				(*res)[fName]+=unique
+			}
+			if notnull != "" {
+				(*res)[fName]+=notnull
+			}
 		}
 		if defaultt != "" {
-			(*res)[fName]+=" DEFAULT " + defaultt
+			(*res)[fName]+= defaultt
+		}
+		if check != "" {
+			(*res)[fName]+= check
 		}
 	}
 }
@@ -213,118 +228,177 @@ func handleMigrationBool(dialect, fName,ty string,mFieldName_Tags *map[string][]
 }
 
 func handleMigrationString(dialect, fName,ty string,mFieldName_Tags *map[string][]string,fkeys *[]string,res *map[string]string) {
-	unique,notnull,text,defaultt,size:="","","","",""				
-				tags := (*mFieldName_Tags)[fName]
-				for _,tag := range tags {
-					switch tag {
-					case "unique":
-						unique=" UNIQUE"
-					case "text":
-						text=" TEXT"
-					case "notnull":
-						notnull=" NOT NULL"				
-					default:
-						if strings.Contains(tag,":") {
-							sp := strings.Split(tag,":")
-							switch sp[0] {
-							case "default":
-								if sp[1] == "" {
-									defaultt=" DEFAULT "+sp[1]
-								}								
-							case "fk":
-								ref := strings.Split(sp[1],".")
-								if len(ref) == 2 {
-									fkey := "FOREIGN KEY(\""+fName+"\") REFERENCES "+ref[0]+"(\""+ref[1]+"\")"
-									if len(sp) > 2 {
-										if sp[2] == "cascade" {
-											fkey += " ON DELETE CASCADE"
-										} else if sp[2] == "donothing" || sp[2] == "noaction" {
-											fkey += " ON DELETE NO ACTION"
-										}
-									}
-									*fkeys = append(*fkeys, fkey)
-								} else {
-									logger.Error("foreign key should be like fk:table.column:[cascade/donothing]")
-								}	
-							case "size":
-								sp := strings.Split(tag,":")
-								if sp[0] == "size" {
-									size=sp[1]
-								}				
-							default:
-								logger.Error("not handled",sp[0],"for",tag,",field:",fName)
-							}					
-						} else {
-							logger.Error("tag",tag,"not handled for",fName,"of type",ty)
+	unique,notnull,text,defaultt,size,pk,check:="","","","","","",""			
+	tags := (*mFieldName_Tags)[fName]
+	for _,tag := range tags {
+		switch tag {
+		case "unique":
+			unique=" UNIQUE"
+		case "text":
+			text=" TEXT"
+		case "notnull":
+			notnull=" NOT NULL"	
+		case "pk":
+			pk=" PRIMARY KEY"			
+		default:
+			if strings.Contains(tag,":") {
+				sp := strings.Split(tag,":")
+				switch sp[0] {
+				case "default":
+					if sp[1] == "" {
+						defaultt=" DEFAULT "+sp[1]
+					}								
+				case "fk":
+					ref := strings.Split(sp[1],".")
+					if len(ref) == 2 {
+						fkey := "FOREIGN KEY(\""+fName+"\") REFERENCES "+ref[0]+"(\""+ref[1]+"\")"
+						if len(sp) > 2 {
+							if sp[2] == "cascade" {
+								fkey += " ON DELETE CASCADE"
+							} else if sp[2] == "donothing" || sp[2] == "noaction" {
+								fkey += " ON DELETE NO ACTION"
+							}
+						}
+						*fkeys = append(*fkeys, fkey)
+					} else {
+						logger.Error("foreign key should be like fk:table.column:[cascade/donothing]")
+					}	
+				case "size":
+					sp := strings.Split(tag,":")
+					if sp[0] == "size" {
+						size=sp[1]
+					}
+				case "check":
+					if strings.Contains(strings.ToLower(sp[1]),"len") {
+						switch dialect {
+						case "sqlite","":
+							sp[1] = strings.Replace(strings.ToLower(sp[1]),"len","length",1)
+						case "postgres","mysql":
+							sp[1] = strings.Replace(strings.ToLower(sp[1]),"len","char_length",1)
+						default:
+							logger.Error("check not handled for dialect:",dialect)
 						}
 					}
-				}
+					check=" CHECK (" +sp[1]+")"	
+				default:
+					logger.Error("not handled",sp[0],"for",tag,",field:",fName)
+				}					
+			} else {
+				logger.Error("tag",tag,"not handled for",fName,"of type",ty)
+			}
+		}
+	}
 
-				if text != "" {
-					(*res)[fName]=text
-				} else {
-					if size != "" {
-						(*res)[fName]="VARCHAR("+size+")"
-					} else {
-						(*res)[fName]="VARCHAR(255)"
-					}
-				}
+	if text != "" {
+		(*res)[fName]=text
+	} else {
+		if size != "" {
+			(*res)[fName]="VARCHAR("+size+")"
+		} else {
+			(*res)[fName]="VARCHAR(255)"
+		}
+	}
 
-				if unique != "" {
-					(*res)[fName]+=unique
-				}
-				if notnull != "" {
-					(*res)[fName]+=notnull
-				}
-				if defaultt !=  "" {
-					(*res)[fName]+=defaultt
-				}
+	if unique != "" && pk == "" {
+		(*res)[fName]+=unique
+	}
+	if notnull != "" && pk == "" {
+		(*res)[fName]+=notnull
+	}
+	if pk != "" {
+		(*res)[fName]+=pk
+	}
+	if defaultt !=  "" {
+		(*res)[fName]+=defaultt
+	}
+	if check !=  "" {
+		(*res)[fName]+=check
+	}
 }
 
 func handleMigrationFloat(dialect, fName,ty string,mFieldName_Tags *map[string][]string,fkeys *[]string,res *map[string]string) {
-	defaultt := ""
-	(*res)[fName]="DECIMAL(5,2)"
+	mtags := map[string]string{}
 	tags := (*mFieldName_Tags)[fName]
 	for _,tag := range tags {
-		if strings.Contains(tag,":") {
-			sp := strings.Split(tag,":")
-			switch sp[0] {
-			case "default":
-				if sp[1] != "" {
-					defaultt = " DEFAULT "+ sp[1]
-				}
-			case "fk":
-				ref := strings.Split(sp[1],".")
-				if len(ref) == 2 {
-					fkey := "FOREIGN KEY(\""+fName+"\") REFERENCES "+ref[0]+"(\""+ref[1]+"\")"
-					if len(sp) > 2 {
-						if sp[2] == "cascade" {
-							fkey += " ON DELETE CASCADE"
-						} else if sp[2] == "donothing" || sp[2] == "noaction" {
-							fkey += " ON DELETE NO ACTION"
+		switch tag {
+		case "notnull":
+			mtags["notnull"]=" NOT NULL"
+		case "unique":
+			mtags["unique"]=" UNIQUE"
+		case "pk":
+			mtags["pk"]=" PRIMARY KEY"
+		default:
+			if strings.Contains(tag,":") {
+				sp := strings.Split(tag,":")
+				switch sp[0] {
+				case "default":
+					if sp[1] != "" {
+						mtags["default"]=" DEFAULT "+sp[1]
+					}								
+				case "fk":
+					ref := strings.Split(sp[1],".")
+					if len(ref) == 2 {
+						fkey := "FOREIGN KEY(\""+fName+"\") REFERENCES "+ref[0]+"(\""+ref[1]+"\")"
+						if len(sp) > 2 {
+							if sp[2] == "cascade" {
+								fkey += " ON DELETE CASCADE"
+							} else if sp[2] == "donothing" || sp[2] == "noaction" {
+								fkey += " ON DELETE NO ACTION"
+							}
+						}
+						*fkeys = append(*fkeys, fkey)
+					} else {
+						logger.Error("foreign key should be like fk:table.column:[cascade/donothing]")
+					}
+				case "check":
+					if strings.Contains(strings.ToLower(sp[1]),"len") {
+						switch dialect {
+						case "sqlite","":
+							sp[1] = strings.Replace(strings.ToLower(sp[1]),"len","length",1)
+						case "postgres","mysql":
+							sp[1] = strings.Replace(strings.ToLower(sp[1]),"len","char_length",1)
+						default:
+							logger.Error("check not handled for dialect:",dialect)
 						}
 					}
-					*fkeys = append(*fkeys, fkey)
-				} else {
-					logger.Error("wtf ?, it should be fk:users.id:cascade/donothing")
-				}						
-			default:
-				logger.Error("not handled",sp[0],"for",tag,",field:",fName)
-			}					
-		} else {
-			logger.Error("tag",tag,"not handled for",fName,"of type",ty)
+					mtags["check"]=" CHECK (" +sp[1]+")"		
+				default:
+					logger.Error("not handled",sp[0],"for",tag,",field:",fName)
+				}	
+			}
 		}
-		if defaultt != "" {
-			(*res)[fName] += defaultt
+
+
+		(*res)[fName] ="DECIMAL(5,2)"
+		for k,v := range mtags {
+			switch k {
+			case "pk":
+				(*res)[fName]+=v
+			case "notnull":
+				if _,ok := mtags["pk"];!ok {
+					(*res)[fName]+=v
+				}
+			case "unique":
+				if _,ok := mtags["pk"];!ok {
+					(*res)[fName]+=v
+				}
+			case "default":
+				(*res)[fName]+=v
+			case "check":
+				(*res)[fName]+=v
+			default:
+				logger.Error("case",k,"not handled")
+			}
 		}
 	}
 }
 		
 func handleMigrationTime(dialect, fName,ty string,mFieldName_Tags *map[string][]string,fkeys *[]string,res *map[string]string) {
-	defaultt,notnull := "",""
+	defaultt,notnull,check := "","",""
 	tags := (*mFieldName_Tags)[fName]
 	for _,tag := range tags {
-		if tag == "now" {
+		switch tag {
+		case "now":
 			switch dialect {
 			case "sqlite","":
 				defaultt = "TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
@@ -335,41 +409,58 @@ func handleMigrationTime(dialect, fName,ty string,mFieldName_Tags *map[string][]
 			default:
 				logger.Error("not handled Time for ",fName,ty)
 			}
-		} else if tag == "notnull" {
-			notnull = " NOT NULL"
-		} else if strings.Contains(tag,":") {
-			sp := strings.Split(tag,":") 
-			if sp[0] == "fk" {
-				ref := strings.Split(sp[1],".")
-				if len(ref) == 2 {
-					fkey := "FOREIGN KEY(\""+fName+"\") REFERENCES "+ref[0]+"(\""+ref[1]+"\")"
-					if len(sp) > 2 {
-						if sp[2] == "cascade" {
-							fkey += " ON DELETE CASCADE"
-						} else if sp[2] == "donothing" || sp[2] == "noaction" {
-							fkey += " ON DELETE NO ACTION"
+		case "notnull":
+			if defaultt != "" {
+				notnull = " NOT NULL"
+			}
+		default:
+			if strings.Contains(tag,":") {
+				sp := strings.Split(tag,":") 
+				switch sp[0] {
+				case "fk":
+					ref := strings.Split(sp[1],".")
+					if len(ref) == 2 {
+						fkey := "FOREIGN KEY(\""+fName+"\") REFERENCES "+ref[0]+"(\""+ref[1]+"\")"
+						if len(sp) > 2 {
+							if sp[2] == "cascade" {
+								fkey += " ON DELETE CASCADE"
+							} else if sp[2] == "donothing" || sp[2] == "noaction" {
+								fkey += " ON DELETE NO ACTION"
+							}
+						}
+						*fkeys = append(*fkeys, fkey)
+					} else {
+						logger.Error("wtf ?, it should be fk:users.id:cascade/donothing")
+					}
+				case "check":
+					if strings.Contains(strings.ToLower(sp[1]),"len") {
+						switch dialect {
+						case "sqlite","":
+							sp[1] = strings.Replace(strings.ToLower(sp[1]),"len","length",1)
+						case "postgres","mysql":
+							sp[1] = strings.Replace(strings.ToLower(sp[1]),"len","char_length",1)
+						default:
+							logger.Error("check not handled for dialect:",dialect)
 						}
 					}
-					*fkeys = append(*fkeys, fkey)
-				} else {
-					logger.Error("wtf ?, it should be fk:users.id:cascade/donothing")
-				}
-			} else if sp[0] == "default" {
-				if sp[1] == "" {
-					switch dialect {
-					case "sqlite","":
-						defaultt = "TEXT NOT NULL DEFAULT "+sp[1]
-					case "postgres":
-						defaultt = "TIMESTAMP with time zone NOT NULL DEFAULT "+sp[1]
-					case "mysql":
-						defaultt = "TIMESTAMP with time zone NOT NULL DEFAULT "+sp[1]
-					default:
-						logger.Error("default for field",fName,"not handled")
+					check=" CHECK (" +sp[1]+")"
+				case "default":
+					if sp[1] != "" {
+						switch dialect {
+						case "sqlite","":
+							defaultt = "TEXT NOT NULL DEFAULT "+sp[1]
+						case "postgres":
+							defaultt = "TIMESTAMP with time zone NOT NULL DEFAULT "+sp[1]
+						case "mysql":
+							defaultt = "TIMESTAMP with time zone NOT NULL DEFAULT "+sp[1]
+						default:
+							logger.Error("default for field",fName,"not handled")
+						}
 					}
-				}	
+				default:
+					logger.Error("case",sp[0],"not handled")
+				}
 			}
-		} else {
-			logger.Error("tag",tag,"not handled")
 		}
 	}
 	if defaultt != "" {
@@ -380,8 +471,12 @@ func handleMigrationTime(dialect, fName,ty string,mFieldName_Tags *map[string][]
 		} else {
 			(*res)[fName]="TIMESTAMP with time zone"
 		}
+
 		if notnull != "" {
 			(*res)[fName] += notnull
+		}
+		if check != "" {
+			(*res)[fName] += check
 		}
 	}
 }
@@ -412,3 +507,4 @@ func prepareCreateStatement(tbName string,fields map[string]string,fkeys,cols []
 	st += ");"
 	return st
 }
+

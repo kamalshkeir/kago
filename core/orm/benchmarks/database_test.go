@@ -19,7 +19,7 @@ func init() {
 	if logger.CheckError(err) {return}
 	users,_ := orm.Database().Table("users").All()
 	if len(users) ==0 {
-		orm.CreateUser("kago@gmail.com","olaola",1)
+		orm.CreateUser("kamal@gmail.com","olaola",1)
 	}
 	orm.LinkModel[models.User]("users")
 }
@@ -98,7 +98,7 @@ func BenchmarkGetRowS(b *testing.B) {
 	b.ReportAllocs()
     b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_,err := orm.Model[models.User]().Where("email = ?","kago@gmail.com").One()
+		_,err := orm.Model[models.User]().Where("email = ?","kamal@gmail.com").One()
 		if err != nil {
 			b.Error("error BenchmarkGetRowS:",err)
 		}
@@ -109,7 +109,7 @@ func BenchmarkGetRowM(b *testing.B) {
 	b.ReportAllocs()
     b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_,err := orm.Database().Table("users").Where("email = ?","kago@gmail.com").One()
+		_,err := orm.Database().Table("users").Where("email = ?","kamal@gmail.com").One()
 		if err != nil {
 			b.Error("error BenchmarkGetRowM:",err)
 		}

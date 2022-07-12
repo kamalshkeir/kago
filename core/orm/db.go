@@ -50,6 +50,7 @@ type table struct {
 	name string
 	columns []string
 	columnsType map[string]string
+	columnsStructType map[string]string
 	columnsTags map[string][]string
 }
 

@@ -40,7 +40,7 @@ func LinkModel[T comparable](to_table_name string, dbNames ...string) {
 		dbName=dbNames[0]
 	}
 
-	fields, _,fieldsTags := getFieldTypesAndTags[T]()
+	fields, fieldTypes,fieldsTags := getFieldTypesAndTags[T]()
 
 
 	
@@ -82,11 +82,34 @@ func LinkModel[T comparable](to_table_name string, dbNames ...string) {
 		logger.Info("db columns:",names)
 		return
 	}
-
+	// columns from database
+	for col,ty := range colsNameType {
+		typ := strings.ToLower(ty)
+		if strings.Contains(typ,"text") || strings.Contains(typ,"char") || typ == "string" {
+			colsNameType[col]="string"
+		} else if strings.Contains(typ,"int") {
+			colsNameType[col]="int64"
+		} else if strings.Contains(typ,"bool") {
+			colsNameType[col]="bool"
+		} else if strings.Contains(typ,"time") {
+			colsNameType[col]="time"
+		} else {
+			logger.Error("column with type",typ,"not handled")
+		}
+	}
+	// struct fields
+	for col,ty := range fieldTypes {
+		typ := strings.ToLower(ty)
+		if strings.Contains(typ,"time") {
+			fieldTypes[col]="time"
+		} 
+	}
+	
 	if v,ok := mModelDatabase[*new(T)];ok {
 		v.tables = append(v.tables, table{
 			name: to_table_name,
 			columnsType: colsNameType,
+			columnsStructType: fieldTypes,
 			columns: names,
 			columnsTags: fieldsTags,
 		})
@@ -100,6 +123,7 @@ func LinkModel[T comparable](to_table_name string, dbNames ...string) {
 				{
 					name: to_table_name,
 					columnsType: colsNameType,
+					columnsStructType: fieldTypes,
 					columns: names,
 				},
 			},
@@ -116,8 +140,9 @@ func getTableName[T comparable]() string {
 	return ""
 }
 
-func fillStruct[T comparable](struct_to_fill *T,values_to_fill ...any) {
+func fillStruct[T comparable](tableName string,struct_to_fill *T,columnsType,columnsStructType map[string]string,values_to_fill ...any) {
 	rs := reflect.ValueOf(struct_to_fill).Elem()
+	//tt := reflect.TypeOf(struct_to_fill).Elem()
 	if len(values_to_fill) != rs.NumField() {
 		logger.Error("values to fill and struct fields are not the same length")
 		logger.Info("len(values_to_fill)=",len(values_to_fill))
@@ -127,7 +152,7 @@ func fillStruct[T comparable](struct_to_fill *T,values_to_fill ...any) {
 	for i := 0; i < rs.NumField() ;i++  {
 		field := rs.Field(i) 
 		valueToSet := reflect.ValueOf(&values_to_fill[i]).Elem()
-		//logger.Info(tt.FieldByIndex(append([]int{},i)).Name,"fieldType=", field.Kind(),",valueType=",reflect.ValueOf(values_to_fill[i]).Kind()) 
+		//logger.Info(tt.FieldByIndex([]int{i}).Name,"fieldType=", field.Kind(),",valueType=",reflect.ValueOf(values_to_fill[i]).Kind()) 
 		switch field.Kind() {
 			case reflect.String:
 				switch v := valueToSet.Interface().(type) {
@@ -135,7 +160,9 @@ func fillStruct[T comparable](struct_to_fill *T,values_to_fill ...any) {
 					field.SetString(v)
 				case time.Time:
 					field.SetString(v.String())
-				
+				default:
+					logger.Error("not handled:",v)
+					field.Set(reflect.ValueOf(valueToSet.Interface()))
 				}
 			case reflect.Int:
 				switch v := valueToSet.Interface().(type) {
@@ -148,8 +175,8 @@ func fillStruct[T comparable](struct_to_fill *T,values_to_fill ...any) {
 				case int:
 					field.SetInt(int64(v))
 				default:
-					logger.Info("field kind:",field.Kind())
 					logger.Error("not handled:",v)
+					field.Set(reflect.ValueOf(valueToSet.Interface()))
 				}
 			case reflect.Int64:
 				switch v := valueToSet.Interface().(type) {
@@ -166,6 +193,7 @@ func fillStruct[T comparable](struct_to_fill *T,values_to_fill ...any) {
 				case int:
 					field.SetInt(int64(v))
 				default:
+					field.Set(reflect.ValueOf(valueToSet.Interface()))
 					logger.Error(v,"not handled")
 				}
 			case reflect.Bool:
@@ -184,12 +212,32 @@ func fillStruct[T comparable](struct_to_fill *T,values_to_fill ...any) {
 					field.SetBool(v)
 				}
 			case reflect.Uint:
-				if v,ok := valueToSet.Interface().(uint);ok {
+				switch v := valueToSet.Interface().(type) {
+				case uint:
 					field.SetUint(uint64(v))
-				}
-			case reflect.Uint64:
-				if v,ok := valueToSet.Interface().(uint64);ok {
+				case uint64:
 					field.SetUint(v)
+				case int64:
+					field.SetUint(uint64(v))
+				case int:
+					field.SetUint(uint64(v))
+				default:
+					logger.Error("type of valueToSet:")
+					fmt.Printf("%T\n",valueToSet.Interface())
+				}			
+			case reflect.Uint64:
+				switch v := valueToSet.Interface().(type) {
+				case uint:
+					field.SetUint(uint64(v))
+				case uint64:
+					field.SetUint(v)
+				case int64:
+					field.SetUint(uint64(v))
+				case int:
+					field.SetUint(uint64(v))
+				default:
+					logger.Error("type of valueToSet:")
+					fmt.Printf("%T\n",valueToSet.Interface())
 				}
 			case reflect.Float64:
 				if v,ok := valueToSet.Interface().(float64);ok {
@@ -217,8 +265,7 @@ func fillStruct[T comparable](struct_to_fill *T,values_to_fill ...any) {
 					}
 				} else {
 					logger.Error("field struct not string time.Time",v)
-				}
-				
+				}			
 			default:
 				field.Set(reflect.ValueOf(valueToSet.Interface()))
 				logger.Error("type not handled for fieldType",field.Kind(),"value=",valueToSet.Interface())
@@ -226,7 +273,7 @@ func fillStruct[T comparable](struct_to_fill *T,values_to_fill ...any) {
 	}
 }
 
-func fillStructColumns[T comparable](struct_to_fill *T,columns_to_fill string,values_to_fill ...any) {
+func fillStructColumns[T comparable](tableName string,struct_to_fill *T,columns_to_fill string,columnsType,columnsStructType map[string]string,values_to_fill ...any) {
 	cols := strings.Split(columns_to_fill,",")
 	if len(values_to_fill) != len(cols) && columns_to_fill != "*" && columns_to_fill != ""{
 		logger.Error("len(values_to_fill) not the same of len(struct fields)")
@@ -242,95 +289,137 @@ func fillStructColumns[T comparable](struct_to_fill *T,columns_to_fill string,va
 	if s.Kind() == reflect.Struct {
 		for i,col := range cols {
 			valueToSet := reflect.ValueOf(&values_to_fill[i]).Elem()
-
-			var fieldToUpdate reflect.Value
+			var fieldToUpdate *reflect.Value
 			if f := s.FieldByName(SnakeCaseToCamelCase(col)); f.IsValid() && f.CanSet() {
-				fieldToUpdate = f
+				fieldToUpdate = &f
 			} else if  f := s.FieldByName(col); f.IsValid() &&  f.CanSet(){
 				// usually here
-				fieldToUpdate=f
+				fieldToUpdate=&f
 			} else if f := s.FieldByName(ToSnakeCase(col)); f.IsValid() && f.CanSet(){
-				fieldToUpdate=f
+				fieldToUpdate=&f
 			}
 
-			if &fieldToUpdate != nil {
-				switch fieldToUpdate.Kind() {
-				case reflect.ValueOf(values_to_fill[i]).Kind():
+			if fieldToUpdate != nil {
+				//logger.Info(typeOfS.FieldByIndex([]int{i}).Name,"fieldType=", fieldToUpdate.Kind(),",valueType=",reflect.ValueOf(values_to_fill[i]).Kind())
+				if fieldToUpdate.Kind() == reflect.ValueOf(values_to_fill[i]).Kind() {
 					fieldToUpdate.Set(reflect.ValueOf(valueToSet.Interface()))
-				case reflect.String:
-					switch v := valueToSet.Interface().(type) {
-					case string:
-						fieldToUpdate.SetString(v)
-					case time.Time:
-						fieldToUpdate.SetString(v.String())
-					case bool:
-						fieldToUpdate.SetString(strconv.FormatBool(v))
+					continue
+				}
+
+				v := valueToSet.Interface()
+				switch columnsStructType[col] {
+				case "string":
+					// field string
+					switch columnsType[col] {
+					case "string":
+						fieldToUpdate.SetString(v.(string))
+					case "time":
+						fieldToUpdate.SetString(v.(time.Time).String())
+					case "bool":
+						fieldToUpdate.SetString(strconv.FormatBool(v.(bool)))
 					default:
 						logger.Error("String doeesn't match anything")
 					}
-				case reflect.Int:
-					switch reflect.ValueOf(values_to_fill[i]).Kind() {
-					case reflect.String:
-						i,err := strconv.Atoi(values_to_fill[i].(string))
+				case "int":
+					// field int
+					switch columnsType[col] {
+					case "string":
+						i,err := strconv.Atoi(v.(string))
 						if err == nil {
 							fieldToUpdate.SetInt(int64(i))
 						}
-					case reflect.Int64:
-						fieldToUpdate.SetInt(values_to_fill[i].(int64))
-					case reflect.Uint64:
-						fieldToUpdate.SetInt(int64(values_to_fill[i].(uint64)))
+					case "int64":
+						fieldToUpdate.SetInt(v.(int64))
+					case "uint64":
+						fieldToUpdate.SetInt(int64(v.(uint64)))
 					default:
-						fmt.Printf("%T\n",values_to_fill[i])
-						logger.Error("Int doeesn't match anything,type should be",fieldToUpdate.Kind(),"but got",values_to_fill[i])
+						fmt.Printf("%T\n",v)
+						logger.Error("Int doeesn't match anything,type should be",fieldToUpdate.Kind(),"but got",v)
 					}
-				case reflect.Int64:
-					switch reflect.ValueOf(values_to_fill[i]).Kind() {
-					case reflect.String:
-						i,err := strconv.Atoi(values_to_fill[i].(string))
+				case "int64":
+					switch columnsType[col] {
+					case "string":
+						i,err := strconv.Atoi(v.(string))
 						if err == nil {
 							fieldToUpdate.SetInt(int64(i))
 						}
-					case reflect.Int:
-						fieldToUpdate.SetInt(int64(values_to_fill[i].(int)))
-					case reflect.Uint64:
-						fieldToUpdate.SetInt(int64(values_to_fill[i].(uint64)))
+					case "int":
+						fieldToUpdate.SetInt(int64(v.(int)))
+					case "uint64":
+						fieldToUpdate.SetInt(int64(v.(uint64)))
 					default:
 						logger.Error("Int64 doeesn't match anything")
 					}
-				case reflect.Struct:
-					if v,ok := valueToSet.Interface().(string);ok {
-						if strings.Contains(v,"T") && len(v) == len("2006-01-02T15:04") {
-							t,err := time.Parse("2006-01-02T15:04",v)
+				case "uint":
+					switch columnsType[col] {
+					case "uint":
+						fieldToUpdate.SetUint(uint64(v.(uint)))
+					case "uint64":
+						fieldToUpdate.SetUint(v.(uint64))
+					case "int64":
+						fieldToUpdate.SetUint(uint64(v.(int64)))
+					case "int":
+						if vv,ok := v.(int);ok {
+							fieldToUpdate.SetUint(uint64(vv))
+						} 
+					default:
+						logger.Error("not handled")
+						logger.Info("columnsStructType of",col,":",columnsStructType[col])
+						logger.Info("columnsType of",col,":",columnsType[col])
+						logger.Info("value",v)
+						logger.Printf("yltype of value:%T\n",v)
+					}			
+				case "uint64":
+					switch columnsType[col] {
+					case "uint":
+						fieldToUpdate.SetUint(uint64(v.(uint)))
+					case "uint64":
+						fieldToUpdate.SetUint(v.(uint64))
+					case "int64":
+						fieldToUpdate.SetUint(uint64(v.(int64)))
+					case "int":
+						fieldToUpdate.SetUint(uint64(v.(int)))
+					default:
+						logger.Error("type of valueToSet:")
+						fmt.Printf("%T\n",valueToSet.Interface())
+					}
+				case "float64":
+					if vv,ok := v.(float64);ok {
+						fieldToUpdate.SetFloat(vv)
+					}
+				case "bool":
+					switch columnsType[col] {
+					case "int":
+						if v == 1 {fieldToUpdate.SetBool(true)}
+					case "int64":
+						if v == int64(1) {fieldToUpdate.SetBool(true)}
+					case "uint64":
+						if v == uint64(1) {fieldToUpdate.SetBool(true)}
+					case "string":
+						if v == "1" {fieldToUpdate.SetBool(true)}
+					default:
+						logger.Error("not handled BOOL")
+					}	
+				case "time":
+					if vv,ok := v.(string);ok {
+						if strings.Contains(vv,"T") && len(vv) == len("2006-01-02T15:04") {
+							t,err := time.Parse("2006-01-02T15:04",vv)
 							if !logger.CheckError(err) {
 								fieldToUpdate.Set(reflect.ValueOf(t))
 							}
-						} else if len(v) == len("2006-01-02 15:04:05"){
-							t,err := time.Parse("2006-01-02 15:04:05",v)
+						} else if len(vv) >= len("2006-01-02 15:04:05"){
+							t,err := time.Parse("2006-01-02 15:04:05",vv[:len("2006-01-02 15:04:05")])
 							if !logger.CheckError(err) {
 								fieldToUpdate.Set(reflect.ValueOf(t))
 							}
 						} else {
-							logger.Info("timestamp doesn't match any case")
+							logger.Info("timestamp doesn't match any case:",v)
 						}
-					}
-				case reflect.Bool:
-					switch reflect.ValueOf(values_to_fill[i]).Kind() {
-					case reflect.Int:
-						if values_to_fill[i] == 1 {fieldToUpdate.SetBool(true)}
-					case reflect.Int64:
-						if values_to_fill[i] == int64(1) {fieldToUpdate.SetBool(true)}
-					case reflect.Uint64:
-						if values_to_fill[i] == uint64(1) {fieldToUpdate.SetBool(true)}
-					case reflect.String:
-						if values_to_fill[i] == "1" {fieldToUpdate.SetBool(true)}
-					default:
-						logger.Error("not handled BOOL")
-					}	
+					}			
 				default:
-					switch v := valueToSet.Interface().(type) {
-					case []byte:
+					if v,ok := v.([]byte);ok {
 						fieldToUpdate.SetString(string(v))
-					default:
+					} else {
 						logger.Error("case not handled , unable to fill struct,field kind:", fieldToUpdate.Kind(),",value to fill:",values_to_fill[i])
 					}
 				}
