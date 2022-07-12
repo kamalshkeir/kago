@@ -22,6 +22,8 @@ import (
 )
 
 var allTemplates = template.New("")
+var repo_name = "kago-assets"
+
 
 // InitTemplatesAndAssets init templates from a folder and download admin skeleton html files
 func (router *Router) InitTemplatesAndAssets() {
@@ -54,7 +56,7 @@ func (router *Router) NewFuncMap(funcName string, function any) {
 
 func (router *Router) cloneTemplatesAndStatic()  {
     var generated bool
-    repo_name := "kamal_assets"
+    
     new_name := "assets"
     if _,err := os.Stat(new_name);err != nil && !settings.GlobalConfig.EmbedStatic && !settings.GlobalConfig.EmbedTemplates {
         // if not generated
