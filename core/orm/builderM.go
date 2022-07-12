@@ -13,7 +13,6 @@ import (
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
-
 type BuilderM struct {
 	debug      bool
 	limit      int
@@ -26,42 +25,41 @@ type BuilderM struct {
 	query      string
 	offset     string
 	statement  string
-	dialect	   string
+	dialect    string
 	database   string
 	args       []any
 	order      []string
-	ctx 	   context.Context
+	ctx        context.Context
 }
-
 
 func Database(dbName ...string) *BuilderM {
 	var dName string
 	if len(dbName) == 0 {
-		dName=settings.GlobalConfig.DbName
+		dName = settings.GlobalConfig.DbName
 	} else {
-		dName=dbName[0]
+		dName = dbName[0]
 	}
 
-	for _,db := range databases {
+	for _, db := range databases {
 		if db.name == dName {
 			return &BuilderM{
-				conn: db.conn,
-				dialect: db.dialect,
+				conn:     db.conn,
+				dialect:  db.dialect,
 				database: dName,
 			}
 		}
 	}
 
 	var b *BuilderM
-	if conn,ok := mDbNameConnection[dName];ok {
+	if conn, ok := mDbNameConnection[dName]; ok {
 		b.conn = conn
 	}
-	if dial,ok := mDbNameDialect[dName];ok {
-		b.dialect=dial
+	if dial, ok := mDbNameDialect[dName]; ok {
+		b.dialect = dial
 	}
 
 	if b.conn == nil {
-		logger.Error(dName,"not found")
+		logger.Error(dName, "not found")
 		return nil
 	}
 	return b
@@ -69,16 +67,16 @@ func Database(dbName ...string) *BuilderM {
 
 func (b *BuilderM) Table(tableName string) *BuilderM {
 	if b.conn != nil && b.dialect != "" {
-		b.tableName=tableName
+		b.tableName = tableName
 		return b
 	}
-	b.tableName=tableName
+	b.tableName = tableName
 	if b.database != "" {
-		if conn,ok := mDbNameConnection[b.database];ok {
+		if conn, ok := mDbNameConnection[b.database]; ok {
 			b.conn = conn
 		}
-		if dial,ok := mDbNameDialect[b.database];ok {
-			b.dialect=dial
+		if dial, ok := mDbNameDialect[b.database]; ok {
+			b.dialect = dial
 		}
 	}
 	return b
@@ -90,9 +88,7 @@ func (b *BuilderM) Select(columns ...string) *BuilderM {
 		return nil
 	}
 	s := []string{}
-	for _, col := range columns {
-		s = append(s, col)
-	}
+	s = append(s, columns...)
 	b.selected = strings.Join(s, ",")
 	b.order = append(b.order, "select")
 	return b
@@ -166,7 +162,7 @@ func (b *BuilderM) Context(ctx context.Context) *BuilderM {
 		logger.Error("Use db.Table before Context")
 		return nil
 	}
-	b.ctx=ctx
+	b.ctx = ctx
 	return b
 }
 
@@ -183,22 +179,22 @@ func (b *BuilderM) All() ([]map[string]any, error) {
 	c := dbCache{}
 	if UseCache {
 		c = dbCache{
-			table: b.tableName,
-			selected: b.selected,
-			statement: b.statement,
-			orderBys: b.orderBys,
+			table:      b.tableName,
+			selected:   b.selected,
+			statement:  b.statement,
+			orderBys:   b.orderBys,
 			whereQuery: b.whereQuery,
-			query: b.query,
-			offset: b.offset,
-			limit: b.limit,
-			page: b.page,
-			args: fmt.Sprintf("%v",b.args...),
+			query:      b.query,
+			offset:     b.offset,
+			limit:      b.limit,
+			page:       b.page,
+			args:       fmt.Sprintf("%v", b.args...),
 		}
-		if v,ok := cachesAllM.Get(c);ok {
-			return v,nil
+		if v, ok := cachesAllM.Get(c); ok {
+			return v, nil
 		}
 	}
-	
+
 	if b.tableName == "" {
 		return nil, errors.New("unable to find table, try db.Table before")
 	}
@@ -217,7 +213,7 @@ func (b *BuilderM) All() ([]map[string]any, error) {
 		b.orderBys = ""
 		b.statement = b.query
 	}
-	
+
 	if b.orderBys != "" {
 		b.statement += " " + b.orderBys
 	}
@@ -236,14 +232,13 @@ func (b *BuilderM) All() ([]map[string]any, error) {
 		logger.Debug("args:", b.args)
 	}
 
-
 	models, err := b.queryM(b.statement, b.args...)
 	if err != nil {
 		return nil, err
 	}
 
 	if UseCache {
-		cachesAllM.Set(c,models)
+		cachesAllM.Set(c, models)
 	}
 	return models, nil
 }
@@ -252,22 +247,22 @@ func (b *BuilderM) One() (map[string]any, error) {
 	c := dbCache{}
 	if UseCache {
 		c = dbCache{
-			table: b.tableName,
-			selected: b.selected,
-			statement: b.statement,
-			orderBys: b.orderBys,
+			table:      b.tableName,
+			selected:   b.selected,
+			statement:  b.statement,
+			orderBys:   b.orderBys,
 			whereQuery: b.whereQuery,
-			query: b.query,
-			offset: b.offset,
-			limit: b.limit,
-			page: b.page,
-			args: fmt.Sprintf("%v",b.args...),
+			query:      b.query,
+			offset:     b.offset,
+			limit:      b.limit,
+			page:       b.page,
+			args:       fmt.Sprintf("%v", b.args...),
 		}
-		if v,ok := cachesOneM.Get(c);ok {
-			return v,nil
+		if v, ok := cachesOneM.Get(c); ok {
+			return v, nil
 		}
 	}
-	
+
 	if b.tableName == "" {
 		return nil, errors.New("unable to find table, try db.Table before")
 	}
@@ -296,7 +291,6 @@ func (b *BuilderM) One() (map[string]any, error) {
 		logger.Debug("args:", b.args)
 	}
 
-	
 	models, err := b.queryM(b.statement, b.args...)
 	if err != nil {
 		return nil, err
@@ -306,7 +300,7 @@ func (b *BuilderM) One() (map[string]any, error) {
 		return nil, errors.New("no data")
 	}
 	if UseCache {
-		cachesOneM.Set(c,models[0])
+		cachesOneM.Set(c, models[0])
 	}
 
 	return models[0], nil
@@ -317,27 +311,27 @@ func (b *BuilderM) Insert(fields_comma_separated string, fields_values ...any) (
 		return 0, errors.New("unable to find table, try db.Table before")
 	}
 	if UseCache {
-		eventbus.Publish(CACHE_TOPIC,map[string]string{
-			"type":"create",
-			"table":b.tableName,
+		eventbus.Publish(CACHE_TOPIC, map[string]string{
+			"type":  "create",
+			"table": b.tableName,
 		})
 	}
-	split := strings.Split(fields_comma_separated,",")
+	split := strings.Split(fields_comma_separated, ",")
 	if len(split) != len(fields_values) {
-		return 0,errors.New("fields and fields_values doesn't have the same length")
+		return 0, errors.New("fields and fields_values doesn't have the same length")
 	}
 	placeholdersSlice := []string{}
 	for i := range split {
 		switch settings.GlobalConfig.DbType {
-		case "postgres","sqlite":
+		case "postgres", "sqlite":
 			placeholdersSlice = append(placeholdersSlice, "$"+strconv.Itoa(i+1))
 		case "mysql":
 			placeholdersSlice = append(placeholdersSlice, "?")
 		default:
-			return 0,errors.New("database is neither sqlite, postgres or mysql")
+			return 0, errors.New("database is neither sqlite, postgres or mysql")
 		}
 	}
-	placeholders := strings.Join(placeholdersSlice,",")
+	placeholders := strings.Join(placeholdersSlice, ",")
 	var affectedRows int
 
 	stat := strings.Builder{}
@@ -350,18 +344,18 @@ func (b *BuilderM) Insert(fields_comma_separated string, fields_values ...any) (
 	var res sql.Result
 	var err error
 	if b.ctx != nil {
-		res,err = b.conn.ExecContext(b.ctx, statement, fields_values...)
+		res, err = b.conn.ExecContext(b.ctx, statement, fields_values...)
 	} else {
-		res,err = b.conn.Exec(statement,fields_values...)
+		res, err = b.conn.Exec(statement, fields_values...)
 	}
 	if err != nil {
-		return affectedRows,err
+		return affectedRows, err
 	}
 	rows, err := res.RowsAffected()
 	if err != nil {
-		return int(rows),err
+		return int(rows), err
 	}
-	return int(rows),nil
+	return int(rows), nil
 }
 
 func (b *BuilderM) Set(query string, args ...any) (int, error) {
@@ -369,17 +363,17 @@ func (b *BuilderM) Set(query string, args ...any) (int, error) {
 		return 0, errors.New("unable to find model, try db.Table before")
 	}
 	if UseCache {
-		eventbus.Publish(CACHE_TOPIC,map[string]string{
-			"type":"update",
-			"table":b.tableName,
+		eventbus.Publish(CACHE_TOPIC, map[string]string{
+			"type":  "update",
+			"table": b.tableName,
 		})
 	}
 	if b.whereQuery == "" {
-		return 0, errors.New("You should use Where before Update")
+		return 0, errors.New("you should use Where before Update")
 	}
 
 	b.statement = "UPDATE " + b.tableName + " SET " + query + " WHERE " + b.whereQuery
-	adaptPlaceholdersToDialect(&b.statement,b.dialect)
+	adaptPlaceholdersToDialect(&b.statement, b.dialect)
 	args = append(args, b.args...)
 	if b.debug {
 		logger.Debug("statement:", b.statement)
@@ -408,9 +402,9 @@ func (b *BuilderM) Delete() (int, error) {
 		return 0, errors.New("unable to find model, try orm.LinkModel before")
 	}
 	if UseCache {
-		eventbus.Publish(CACHE_TOPIC,map[string]string{
-			"type":"delete",
-			"table":b.tableName,
+		eventbus.Publish(CACHE_TOPIC, map[string]string{
+			"type":  "delete",
+			"table": b.tableName,
 		})
 	}
 
@@ -420,7 +414,7 @@ func (b *BuilderM) Delete() (int, error) {
 	} else {
 		return 0, errors.New("no Where was given for this query:" + b.whereQuery)
 	}
-	adaptPlaceholdersToDialect(&b.statement,b.dialect)
+	adaptPlaceholdersToDialect(&b.statement, b.dialect)
 	if b.debug {
 		logger.Debug("statement:", b.statement)
 		logger.Debug("args:", b.args)
@@ -448,16 +442,16 @@ func (b *BuilderM) Drop() (int, error) {
 		return 0, errors.New("unable to find model, try orm.LinkModel before Update")
 	}
 	if UseCache {
-		eventbus.Publish(CACHE_TOPIC,map[string]string{
-			"type":"drop",
-			"table":b.tableName,
+		eventbus.Publish(CACHE_TOPIC, map[string]string{
+			"type":  "drop",
+			"table": b.tableName,
 		})
 	}
 	b.statement = "DROP TABLE " + b.tableName
 	var res sql.Result
 	var err error
 	if b.ctx != nil {
-		res, err = b.conn.ExecContext(b.ctx,b.statement)
+		res, err = b.conn.ExecContext(b.ctx, b.statement)
 	} else {
 		res, err = b.conn.Exec(b.statement)
 	}
@@ -471,18 +465,18 @@ func (b *BuilderM) Drop() (int, error) {
 	return int(aff), err
 }
 
-func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface{}, error) {	
-	adaptPlaceholdersToDialect(&statement,b.dialect)
+func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface{}, error) {
+	adaptPlaceholdersToDialect(&statement, b.dialect)
 	if b.conn == nil {
-		return nil,errors.New("no connection to db")
+		return nil, errors.New("no connection to db")
 	}
 
 	var rows *sql.Rows
 	var err error
 	if b.ctx != nil {
-		rows, err = b.conn.QueryContext(b.ctx,statement,args...)
+		rows, err = b.conn.QueryContext(b.ctx, statement, args...)
 	} else {
-		rows, err = b.conn.Query(statement,args...)
+		rows, err = b.conn.Query(statement, args...)
 	}
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("no data found")
@@ -494,7 +488,7 @@ func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface
 	if err != nil {
 		return nil, err
 	}
-	
+
 	models := make([]interface{}, len(columns))
 	modelsPtrs := make([]interface{}, len(columns))
 
@@ -513,8 +507,8 @@ func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface
 		m := map[string]interface{}{}
 		for i := range columns {
 			if settings.GlobalConfig.DbType == "mysql" {
-				if v,ok := modelsPtrs[i].([]byte);ok {
-					modelsPtrs[i]=string(v)
+				if v, ok := modelsPtrs[i].([]byte); ok {
+					modelsPtrs[i] = string(v)
 				}
 			}
 			m[columns[i]] = modelsPtrs[i]
@@ -523,7 +517,7 @@ func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface
 	}
 
 	if len(listMap) == 0 {
-		return nil,errors.New("no data found")
+		return nil, errors.New("no data found")
 	}
 
 	return listMap, nil
