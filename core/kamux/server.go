@@ -52,7 +52,7 @@ func (router *Router) initServer() {
 		WriteTimeout: 20 * time.Second,
 		IdleTimeout:  20 * time.Second,
 	}
-	fmt.Printf(logger.Yellow, logger.Ascii8)
+	fmt.Printf(logger.Yellow, logger.Ascii7)
 	fmt.Printf(logger.Blue, "-------⚡🚀 http://"+host+":"+port+" 🚀⚡-------")
 	router.Server=&server
 }
