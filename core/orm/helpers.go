@@ -102,29 +102,30 @@ func getTableName[T comparable]() string {
 
 func fillStruct[T comparable](struct_to_fill *T, values_to_fill ...any) {
 	rs := reflect.ValueOf(struct_to_fill).Elem()
-	tt := reflect.TypeOf(struct_to_fill).Elem()
 	if len(values_to_fill) != rs.NumField() {
 		logger.Error("values to fill and struct fields are not the same length")
 		logger.Info("len(values_to_fill)=", len(values_to_fill))
 		logger.Info("NumField=", rs.NumField())
 		return
 	}
+
+	//tt := reflect.TypeOf(struct_to_fill).Elem()
 	for i := 0; i < rs.NumField(); i++ {
 		field := rs.Field(i)
 		valueToSet := reflect.ValueOf(values_to_fill[i])
 		//logger.Info(tt.FieldByIndex([]int{i}).Name,"fieldType=", field.Kind(),",valueType=",reflect.ValueOf(values_to_fill[i]).Kind())
 		switch field.Kind() {
 		case reflect.ValueOf(values_to_fill[i]).Kind():
-			field.Set(reflect.ValueOf(valueToSet.Interface()))
+			field.Set(valueToSet)
 		case reflect.String:
-			switch v := valueToSet.Interface().(type) {
-			case string:
-				field.SetString(v)
-			case time.Time:
-				field.SetString(v.String())
+			switch valueToSet.Kind() {
+			case reflect.String:
+				field.SetString(valueToSet.String())
+			case reflect.Struct:
+				field.SetString(valueToSet.String())
 			default:
-				if !valueToSet.IsZero() {
-					field.Set(reflect.ValueOf(v))
+				if valueToSet.IsValid() {
+					field.Set(valueToSet)
 				} else {
 					field.SetString("")
 				}
@@ -163,7 +164,7 @@ func fillStruct[T comparable](struct_to_fill *T, values_to_fill ...any) {
 				logger.Error(v, "not handled")
 			}
 		case reflect.Bool:
-			logger.Info("Bool", tt.Field(i).Name, ":", valueToSet.Interface(), fmt.Sprintf("%T", valueToSet.Interface()))
+			//logger.Info("Bool", tt.Field(i).Name, ":", valueToSet.Interface(), fmt.Sprintf("%T", valueToSet.Interface()))
 			switch reflect.ValueOf(values_to_fill[i]).Kind() {
 			case reflect.Int:
 				if values_to_fill[i] == 1 {
