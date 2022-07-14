@@ -14,14 +14,20 @@ import (
 )
 
 func Migrate() error {
-	err := AutoMigrate[models.User](settings.GlobalConfig.DbName, "users", settings.GlobalConfig.DbType)
+	err := AutoMigrate[models.User](settings.GlobalConfig.DbName, "users")
 	if logger.CheckError(err) {
 		return err
 	}
 	return nil
 }
 
-func AutoMigrate[T comparable](dbName, tableName, dialect string, debug ...bool) error {
+func AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error {
+	var dialect string
+	if dia,ok := mDbNameDialect[dbName];ok {
+		dialect = dia
+	} else {
+		dialect = settings.GlobalConfig.DbType
+	}
 	s := reflect.ValueOf(new(T)).Elem()
 	typeOfT := s.Type()
 	mFieldName_Type := map[string]string{}

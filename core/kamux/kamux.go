@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kamalshkeir/kago/core/admin/models"
 	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils/logger"
@@ -99,9 +98,6 @@ func New(envFiles ...string) *Router {
 	} else {
 		// init orm shell
 		if shell.InitShell() {os.Exit(0)}
-	}
-	if len(orm.GetAllTables()) > 0 {
-		orm.LinkModel[models.User]("users")
 	}
 	return app
 }

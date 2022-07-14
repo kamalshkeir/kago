@@ -80,6 +80,18 @@ func CopyDir(source, destination string) error {
     return err
 }
 
+
+func SliceContains[T comparable](elems []T, vs ...T) bool {
+    for _, s := range elems {
+		for _,v := range vs {
+			if v == s {
+				return true
+			}
+		}
+    }
+    return false
+}
+
 // Send Email
 func SendEmail(to_email string,subject string,textToSend string) {
 	from := settings.GlobalConfig.SmtpEmail

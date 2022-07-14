@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/kamalshkeir/kago/core/settings"
+	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/eventbus"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 	"github.com/kamalshkeir/kago/core/utils/safemap"
@@ -93,17 +94,21 @@ func Insert[T comparable](model *T) (int, error) {
 		})
 	}
 
-	names, values, _, _ := getStructInfos(model)
-
-	if len(names) < len(values) {
+	names, mvalues, _, mtags := getStructInfos(model)
+	values := []any{}
+	if len(names) < len(mvalues) {
 		return 0, errors.New("there is more values than fields")
 	}
-
 	placeholdersSlice := []string{}
 	index := 999
-	for i := range names {
-		names[i] = ToSnakeCase(names[i])
-		if names[i] == "id" && i == 0 {
+	for i,name := range names {
+		if v,ok := mvalues[name];ok {
+			values = append(values, v)
+		} else {
+			logger.Error(v,"not found in fields")
+			return 0, errors.New("field not found")
+		}
+		if utils.SliceContains(mtags[name],"autoinc","pk") || (strings.Contains(name,"id") && i == 0) {
 			index = i
 		} else {
 			placeholdersSlice = append(placeholdersSlice, "?")
@@ -112,6 +117,7 @@ func Insert[T comparable](model *T) (int, error) {
 	if index != 999 {
 		names = append(names[:index], names[index+1:]...)
 		values = append(values[:index], values[index+1:]...)
+		delete(mvalues,names[index])
 	}
 
 	placeholders := strings.Join(placeholdersSlice, ",")
@@ -133,7 +139,7 @@ func Insert[T comparable](model *T) (int, error) {
 		res, err = b.conn.Exec(b.statement, values...)
 	}
 	if err != nil {
-		logger.Info(b.statement)
+		logger.Info(b.statement,values)
 		return affectedRows, err
 	}
 	rows, err := res.RowsAffected()

@@ -16,6 +16,9 @@ import (
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
+var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
+var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
+
 type dbCache struct {
 	table      string
 	selected   string
@@ -39,7 +42,7 @@ func LinkModel[T comparable](to_table_name string, dbNames ...string) {
 		dbName = dbNames[0]
 	}
 
-	fields, _, _ := getFieldTypesAndTags[T]()
+	fields, _, _,_ := getStructInfos(new(T))
 
 	var dialect string
 	conn := GetConnection(dbNames...)
@@ -48,7 +51,11 @@ func LinkModel[T comparable](to_table_name string, dbNames ...string) {
 			dialect = dialct
 		} else {
 			logger.Error("unable to find dialect")
+			return
 		}
+	} else {
+		logger.Error("no connection found for db",dbName)
+		return
 	}
 
 	tables := GetAllTables(dbName)
@@ -77,7 +84,6 @@ func LinkModel[T comparable](to_table_name string, dbNames ...string) {
 		logger.Info("db columns:", names)
 		return
 	}
-
 	mModelTablename[*new(T)] = to_table_name
 	if v, ok := mModelDatabase[*new(T)]; ok {
 		v.conn = conn
@@ -90,7 +96,56 @@ func LinkModel[T comparable](to_table_name string, dbNames ...string) {
 			dialect: dialect,
 		}
 	}
+}
 
+
+func ShutdownDatabases(databasesName ...string) error {
+	if len(databasesName) > 0 {
+		for i := range databasesName {
+			for _, db := range databases {
+				if db.name == databasesName[i] {
+					if err := db.conn.Close(); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	} else {
+		for i := range databases {
+			if err := databases[i].conn.Close(); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func ToSnakeCase(str string) string {
+	snake := matchFirstCap.ReplaceAllString(str, "${1}_${2}")
+	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
+	return strings.ToLower(snake)
+}
+
+func SnakeCaseToTitle(inputUnderScoreStr string) (camelCase string) {
+	//snake_case to camelCase
+	isToUpper := false
+	for k, v := range inputUnderScoreStr {
+		if k == 0 {
+			camelCase = strings.ToUpper(string(inputUnderScoreStr[0]))
+		} else {
+			if isToUpper {
+				camelCase += strings.ToUpper(string(v))
+				isToUpper = false
+			} else {
+				if v == '_' {
+					isToUpper = true
+				} else {
+					camelCase += string(v)
+				}
+			}
+		}
+	}
+	return
 }
 
 func getTableName[T comparable]() string {
@@ -267,7 +322,7 @@ func fillStructColumns[T comparable](struct_to_fill *T, columns_to_fill string, 
 		for i, col := range cols {
 			valueToSet := reflect.ValueOf(&values_to_fill[i]).Elem()
 			var fieldToUpdate *reflect.Value
-			if f := s.FieldByName(SnakeCaseToCamelCase(col)); f.IsValid() && f.CanSet() {
+			if f := s.FieldByName(SnakeCaseToTitle(col)); f.IsValid() && f.CanSet() {
 				fieldToUpdate = &f
 			} else if f := s.FieldByName(col); f.IsValid() && f.CanSet() {
 				// usually here
@@ -418,47 +473,30 @@ func fillStructColumns[T comparable](struct_to_fill *T, columns_to_fill string, 
 }
 
 // getStructInfos very useful to access all struct fields data using reflect package
-func getStructInfos[T comparable](strct *T) (fnames []string, fvalues []any, ftypes []reflect.Type, ftags []string) {
-	s := reflect.ValueOf(strct).Elem()
-	typeOfT := s.Type()
-	for i := 0; i < s.NumField(); i++ {
-		f := s.Field(i)
-		if ftag, ok := typeOfT.Field(i).Tag.Lookup("orm"); ok {
-			ftags = append(ftags, ftag)
-		} else {
-			ftags = append(ftags, "")
-		}
-		fname := typeOfT.Field(i).Name
-		ftype := f.Type()
-		fvalue := f.Interface()
-		fnames = append(fnames, fname)
-		ftypes = append(ftypes, ftype)
-		fvalues = append(fvalues, fvalue)
-	}
-	return fnames, fvalues, ftypes, ftags
-}
-
-// getStructInfos very useful to access all struct fields data using reflect package
-func getFieldTypesAndTags[T comparable]() (fields []string, fieldType map[string]string, fieldTags map[string][]string) {
+func getStructInfos[T comparable](strct *T) (fields []string, fValues map[string]any, fTypes map[string]string, fTags map[string][]string) {
 	fields = []string{}
-	fieldType = map[string]string{}
-	fieldTags = map[string][]string{}
-	s := reflect.ValueOf(new(T)).Elem()
+	fValues = map[string]any{}
+	fTypes = map[string]string{}
+	fTags = map[string][]string{}
+
+	s := reflect.ValueOf(strct).Elem()
 	typeOfT := s.Type()
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		fname := typeOfT.Field(i).Name
 		fname = ToSnakeCase(fname)
+		fvalue := f.Interface()
 		ftype := f.Type().Name()
 
 		fields = append(fields, fname)
-		fieldType[fname] = ftype
+		fTypes[fname] = ftype
+		fValues[fname]=fvalue
 		if ftag, ok := typeOfT.Field(i).Tag.Lookup("orm"); ok {
 			tags := strings.Split(ftag, ";")
-			fieldTags[fname] = tags
+			fTags[fname] = tags
 		}
 	}
-	return fields, fieldType, fieldTags
+	return fields,fValues, fTypes, fTags
 }
 
 func adaptPlaceholdersToDialect(query *string, dialect string) *string {
@@ -476,48 +514,9 @@ func adaptPlaceholdersToDialect(query *string, dialect string) *string {
 	return query
 }
 
-func encodeHex(dst []byte, uuid [16]byte) {
-	hex.Encode(dst, uuid[:4])
-	dst[8] = '-'
-	hex.Encode(dst[9:13], uuid[4:6])
-	dst[13] = '-'
-	hex.Encode(dst[14:18], uuid[6:8])
-	dst[18] = '-'
-	hex.Encode(dst[19:23], uuid[8:10])
-	dst[23] = '-'
-	hex.Encode(dst[24:], uuid[10:])
-}
 
-var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
-var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
 
-func ToSnakeCase(str string) string {
-	snake := matchFirstCap.ReplaceAllString(str, "${1}_${2}")
-	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
-	return strings.ToLower(snake)
-}
 
-func SnakeCaseToCamelCase(inputUnderScoreStr string) (camelCase string) {
-	//snake_case to camelCase
-	isToUpper := false
-	for k, v := range inputUnderScoreStr {
-		if k == 0 {
-			camelCase = strings.ToUpper(string(inputUnderScoreStr[0]))
-		} else {
-			if isToUpper {
-				camelCase += strings.ToUpper(string(v))
-				isToUpper = false
-			} else {
-				if v == '_' {
-					isToUpper = true
-				} else {
-					camelCase += string(v)
-				}
-			}
-		}
-	}
-	return
-}
 
 func GenerateUUID() (string, error) {
 	var uuid [16]byte
@@ -531,24 +530,14 @@ func GenerateUUID() (string, error) {
 	encodeHex(buf[:], uuid)
 	return string(buf[:]), nil
 }
-
-func ShutdownDatabases(databasesName ...string) error {
-	if len(databasesName) > 0 {
-		for i := range databasesName {
-			for _, db := range databases {
-				if db.name == databasesName[i] {
-					if err := db.conn.Close(); err != nil {
-						return err
-					}
-				}
-			}
-		}
-	} else {
-		for i := range databases {
-			if err := databases[i].conn.Close(); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+func encodeHex(dst []byte, uuid [16]byte) {
+	hex.Encode(dst, uuid[:4])
+	dst[8] = '-'
+	hex.Encode(dst[9:13], uuid[4:6])
+	dst[13] = '-'
+	hex.Encode(dst[14:18], uuid[6:8])
+	dst[18] = '-'
+	hex.Encode(dst[19:23], uuid[8:10])
+	dst[23] = '-'
+	hex.Encode(dst[24:], uuid[10:])
 }
