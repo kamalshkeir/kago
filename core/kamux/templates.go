@@ -91,10 +91,7 @@ func (router *Router) cloneTemplatesAndStatic()  {
 	} 
 	
     if generated && !found {
-		// migrate initial models
-		err := orm.Migrate()
-		logger.CheckError(err)
-		fmt.Printf(logger.Green,"assets generated, initital models migrated")
+		fmt.Printf(logger.Green,"assets generated")
 		fmt.Printf(logger.Blue,"exec: go run main.go createsuperuser to create your admin account")
         os.Exit(0)
     } else if generated {

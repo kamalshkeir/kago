@@ -2,6 +2,7 @@ package kamux
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
 	"os"
 	"regexp"
@@ -98,6 +99,13 @@ func New(envFiles ...string) *Router {
 	} else {
 		// init orm shell
 		if shell.InitShell() {os.Exit(0)}
+	}
+	if len(orm.GetAllTables()) > 0 {
+		// migrate initial models
+		err := orm.Migrate()
+		if !logger.CheckError(err) {
+			fmt.Printf(logger.Green,"initital models migrated")
+		}
 	}
 	return app
 }

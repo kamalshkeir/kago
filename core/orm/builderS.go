@@ -56,7 +56,7 @@ func DatabaseS[T comparable](dbName string) *Builder[T] {
 func Model[T comparable]() *Builder[T] {
 	tName := getTableName[T]()
 	if tName == "" {
-		logger.Error("unable to find tableName from model")
+		logger.Error("unable to find tableName from model, restart the app if you just migrated")
 		return nil
 	}
 	if db, ok := mModelDatabase[*new(T)]; ok {
@@ -75,7 +75,7 @@ func Model[T comparable]() *Builder[T] {
 func Insert[T comparable](model *T) (int, error) {
 	tName := getTableName[T]()
 	if tName == "" {
-		return 0, errors.New("unable to find tableName from model")
+		return 0, errors.New("unable to find tableName from model, restart the app if you just migrated")
 	}
 	b := &Builder[T]{}
 	if v, ok := mModelDatabase[*new(T)]; ok {
