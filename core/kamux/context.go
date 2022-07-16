@@ -3,7 +3,6 @@ package kamux
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -19,8 +18,17 @@ type Context struct {
 	*http.Request
 	Params map[string]string
 }
-// Json return json indented to the client
+// Json return json to the client
 func (c *Context) Json(code int, body interface{}) {
+	c.ResponseWriter.Header().Set("Content-Type","application/json")
+	c.WriteHeader(code)
+	enc := json.NewEncoder(c.ResponseWriter)
+	err := enc.Encode(body)
+	if logger.CheckError(err) {return}
+}
+
+// JsonIndent return json indented to the client
+func (c *Context) JsonIndent(code int, body interface{}) {
 	c.ResponseWriter.Header().Set("Content-Type","application/json")
 	c.WriteHeader(code)
 	enc := json.NewEncoder(c.ResponseWriter)
@@ -33,11 +41,15 @@ func (c *Context) Json(code int, body interface{}) {
 func (c *Context) Text(code int, body string) {
 	c.ResponseWriter.Header().Set("Content-Type", "text/plain")
 	c.WriteHeader(code)
-	io.WriteString(c.ResponseWriter, fmt.Sprintf("%s\n", body))
+	c.ResponseWriter.Write([]byte(body))
+}
+
+func (c *Context) StatusCode(code int) {
+	c.WriteHeader(code)
 }
 
 // Html return template_name with data to the client
-func (c *Context) Html(template_name string, data map[string]interface{}) {
+func (c *Context) Html(template_name string, data map[string]interface{},status ...int) {
 	const key utils.ContextKey = "user"
 	if data == nil { data = make(map[string]interface{}) }
 	
@@ -53,6 +65,9 @@ func (c *Context) Html(template_name string, data map[string]interface{}) {
 	}
 
 	c.ResponseWriter.Header().Set("Content-Type","text/html; charset=utf-8")
+	if len(status) > 0 {
+		c.StatusCode(status[0])
+	}
 	err := allTemplates.ExecuteTemplate(c.ResponseWriter,template_name,data)
 	logger.CheckError(err)
 }
@@ -86,13 +101,13 @@ func (c *Context) File(content_type,path_to_file string) {
 }
 
 // EmbedFile serve an embeded file from handler
-func (c *Context) EmbedFile(content_type string,embed_file []byte) {
+func (c *Context) EmbededFile(content_type string,embed_file []byte) {
 	c.ResponseWriter.Header().Set("Content-Type", content_type)
 		_,_ = c.ResponseWriter.Write(embed_file)
 }
 
 // UploadFileFromFormData upload received_filename into folder_out and return url,fileByte,error
-func (c *Context) UploadFileFromFormData(received_filename,folder_out string) (string,[]byte,error) {
+func (c *Context) UploadFile(received_filename,folder_out string) (string,[]byte,error) {
 	c.Request.ParseMultipartForm(10<<20) //10Mb
 	var buff bytes.Buffer
 	file, header , err := c.Request.FormFile(received_filename)

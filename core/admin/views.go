@@ -387,7 +387,7 @@ var ImportView= func(c *kamux.Context) {
 		return
 	}
 	// upload file and return bytes of file
-	_,dataBytes,err := c.UploadFileFromFormData("thefile","backup")
+	_,dataBytes,err := c.UploadFile("thefile","backup")
 	if logger.CheckError(err) {
 		c.Json(200,map[string]interface{}{
 			"error":err.Error(),
@@ -428,7 +428,7 @@ var ManifestView= func (c *kamux.Context) {
 			logger.Error("cannot embed manifest.json from static",err)
 			return
 		}
-		c.EmbedFile("application/json; charset=utf-8",f)
+		c.EmbededFile("application/json; charset=utf-8",f)
 	} else {
 		c.File("application/json; charset=utf-8","./assets/static/manifest.json")
 	}
@@ -441,7 +441,7 @@ var ServiceWorkerView = func(c *kamux.Context) {
 			logger.Error("cannot embed sw.js from static",err)
 			return
 		}
-		c.EmbedFile("application/javascript; charset=utf-8",f)
+		c.EmbededFile("application/javascript; charset=utf-8",f)
 	} else {
 		c.File("application/javascript; charset=utf-8","./assets/static/sw.js")
 	}
