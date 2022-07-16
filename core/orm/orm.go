@@ -22,11 +22,12 @@ import (
 
 var (
 	UseCache=true
-	databases= []database{}
+	databases= []DatabaseEntity{}
 	mDbNameConnection = map[string]*sql.DB{}
 	mDbNameDialect = map[string]string{}
 	mModelTablename = map[any]string{}
-	mModelDatabase = map[any]database{}
+	mModelDatabase = map[any]DatabaseEntity{}
+	mTablenameDatabasename = map[string][]string{}
 	cacheGetAllTables = safemap.New[string,[]string]()
 	cacheGetAllColumns = safemap.New[string,map[string]string]()
 	cachesOneM = safemap.New[dbCache,map[string]any]()
@@ -38,10 +39,10 @@ const (
 	CACHE_TOPIC = "internale-db-cache"
 )
 
-type database struct {
-	name string
-	conn *sql.DB
-	dialect string
+type DatabaseEntity struct {
+	Name string
+	Conn *sql.DB
+	Dialect string
 }
 
 func InitDB() (error) {
@@ -101,13 +102,21 @@ func InitDB() (error) {
 		}
 	}
 	
-	databases = append(databases, database{
-		name: settings.GlobalConfig.DbName,
-		conn: dbConn,
-		dialect: settings.GlobalConfig.DbType,
+	// if db exist return
+	for _,db := range databases {
+		if db.Name == settings.GlobalConfig.DbName {
+			return nil
+		}
+	}
+	
+	databases = append(databases, DatabaseEntity{
+		Name: settings.GlobalConfig.DbName,
+		Conn: dbConn,
+		Dialect: settings.GlobalConfig.DbType,
 	})
 	mDbNameConnection[settings.GlobalConfig.DbName]=dbConn
 	mDbNameDialect[settings.GlobalConfig.DbName]=settings.GlobalConfig.DbType
+	
 	dbConn.SetMaxOpenConns(5)
 	dbConn.SetMaxIdleConns(2)
 	dbConn.SetConnMaxLifetime(30 * time.Minute)
@@ -124,7 +133,7 @@ func InitDB() (error) {
 	return nil
 }
 
-func NewDb(dbType,dbName,dbDSN string) (error) {
+func NewDatabaseFromDSN(dbType,dbName,dbDSN string) (error) {
 	var dsn string
 	switch dbType {
 	case "postgres":
@@ -157,18 +166,44 @@ func NewDb(dbType,dbName,dbDSN string) (error) {
 		return err
 	}
 	for _,dbb := range databases {
-		if dbb.name == dbName {
-			logger.Error("another database with the same name already registered")
+		if dbb.Name == dbName {
 			if err := conn.Close();err != nil {
 				logger.Error(err)
 			}
 			return errors.New("another database with the same name already registered")
 		}
 	}
-	databases = append(databases, database{
-		name: dbName,
-		conn: conn,
-		dialect: dbType,
+	databases = append(databases, DatabaseEntity{
+		Name: dbName,
+		Conn: conn,
+		Dialect: dbType,
+	})
+	mDbNameConnection[dbName]=conn
+	mDbNameDialect[dbName]=dbType
+	conn.SetMaxOpenConns(10)
+	conn.SetMaxIdleConns(5)
+	conn.SetConnMaxLifetime(3 * time.Hour)
+	conn.SetConnMaxIdleTime(10 * time.Second)
+	return nil
+}
+
+func NewDatabaseFromConnection(dbType,dbName string,conn *sql.DB) (error) {
+	err := conn.Ping()
+	if logger.CheckError(err) {
+		return err
+	}
+	for _,dbb := range databases {
+		if dbb.Name == dbName {
+			if err := conn.Close();err != nil {
+				logger.Error(err)
+			}
+			return errors.New("another database with the same name already registered")
+		}
+	}
+	databases = append(databases, DatabaseEntity{
+		Name: dbName,
+		Conn: conn,
+		Dialect: dbType,
 	})
 	mDbNameConnection[dbName]=conn
 	mDbNameDialect[dbName]=dbType
@@ -182,15 +217,19 @@ func NewDb(dbType,dbName,dbDSN string) (error) {
 func GetConnection(dbName ...string) *sql.DB {
 	if len(dbName) > 0 {
 		for _,db := range databases {
-			if db.name == dbName[0] {
-				return db.conn
+			if db.Name == dbName[0] {
+				return db.Conn
 			}
 		}
 	}
 	if len(databases) > 0 {
-		return databases[0].conn
+		return databases[0].Conn
 	}
 	return nil
+}
+
+func GetDatabases() []DatabaseEntity {
+	return databases
 }
 
 func GetAllTables(dbName ...string) []string {
@@ -279,9 +318,9 @@ func GetAllColumns(table string, dbName ...string) map[string]string {
 	
 	
 	for _,d := range databases {
-		if d.name == dName {
-			dbType=d.dialect
-			conn=d.conn
+		if d.Name == dName {
+			dbType=d.Dialect
+			conn=d.Conn
 		}
 	}
 
@@ -352,13 +391,10 @@ func CreateUser(email,password string,isAdmin int) error {
 	if logger.CheckError(err) {
 		return err
 	}
-
-	_,err = Database().Table("users").Insert(
+	
+	_,err = Table("users").Database(settings.GlobalConfig.DbName).Insert(
 		"uuid,email,password,is_admin",
-		uuid,
-		email,
-		hash1,
-		isAdmin,
+		[]any{uuid,email,hash1,isAdmin},
 	)
 	
 	if err != nil {

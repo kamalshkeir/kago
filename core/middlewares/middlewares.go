@@ -43,7 +43,7 @@ func Auth(handler kamux.Handler) kamux.Handler {
 			}
 		}
 		// Check session
-		user,err := orm.Database().Table("users").Where("uuid = ?",session).One()
+		user,err := orm.Table("users").Where("uuid = ?",session).One()
 		if err != nil {
 			// session fail
 			handler(c)
@@ -78,7 +78,7 @@ func Admin(handler kamux.Handler) kamux.Handler {
 				return
 			}
 		}
-		user,err := orm.Database().Table("users").Where("uuid = ?",session).One()
+		user,err := orm.Table("users").Where("uuid = ?",session).One()
 		
 		if err != nil {
 			// AUTHENTICATED BUT NOT FOUND IN DB

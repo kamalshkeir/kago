@@ -32,59 +32,20 @@ type BuilderM struct {
 	ctx        context.Context
 }
 
-func Database(dbName ...string) *BuilderM {
-	var dName string
-	if len(dbName) == 0 {
-		dName = settings.GlobalConfig.DbName
-	} else {
-		dName = dbName[0]
+func Table(tableName string) *BuilderM {
+	return &BuilderM{
+		tableName: tableName,
 	}
-
-	for _, db := range databases {
-		if db.name == dName {
-			return &BuilderM{
-				conn:     db.conn,
-				dialect:  db.dialect,
-				database: dName,
-			}
-		}
-	}
-
-	var b *BuilderM
-	if conn, ok := mDbNameConnection[dName]; ok {
-		b.conn = conn
-	}
-	if dial, ok := mDbNameDialect[dName]; ok {
-		b.dialect = dial
-	}
-
-	if b.conn == nil {
-		logger.Error(dName, "not found")
-		return nil
-	}
-	return b
 }
 
-func (b *BuilderM) Table(tableName string) *BuilderM {
-	if b.conn != nil && b.dialect != "" {
-		b.tableName = tableName
-		return b
-	}
-	b.tableName = tableName
-	if b.database != "" {
-		if conn, ok := mDbNameConnection[b.database]; ok {
-			b.conn = conn
-		}
-		if dial, ok := mDbNameDialect[b.database]; ok {
-			b.dialect = dial
-		}
-	}
+func (b *BuilderM) Database(dbName string) *BuilderM {
+	b.database = dbName
 	return b
 }
 
 func (b *BuilderM) Select(columns ...string) *BuilderM {
 	if b.tableName == "" {
-		logger.Error("Use db.Table before Select")
+		logger.Error("Use .Table before .Select")
 		return nil
 	}
 	s := []string{}
@@ -96,7 +57,7 @@ func (b *BuilderM) Select(columns ...string) *BuilderM {
 
 func (b *BuilderM) Where(query string, args ...any) *BuilderM {
 	if b.tableName == "" {
-		logger.Error("Use db.Table before Where")
+		logger.Error("Use .Table before .Where")
 		return nil
 	}
 	b.whereQuery = query
@@ -176,27 +137,26 @@ func (b *BuilderM) Debug() *BuilderM {
 }
 
 func (b *BuilderM) All() ([]map[string]any, error) {
-	c := dbCache{}
+	if b.tableName == "" {
+		return nil, errors.New("unable to find table, try db.Table before")
+	}
+	c := dbCache{
+		database:   b.database,
+		table:      b.tableName,
+		selected:   b.selected,
+		statement:  b.statement,
+		orderBys:   b.orderBys,
+		whereQuery: b.whereQuery,
+		query:      b.query,
+		offset:     b.offset,
+		limit:      b.limit,
+		page:       b.page,
+		args:       fmt.Sprintf("%v", b.args...),
+	}
 	if UseCache {
-		c = dbCache{
-			table:      b.tableName,
-			selected:   b.selected,
-			statement:  b.statement,
-			orderBys:   b.orderBys,
-			whereQuery: b.whereQuery,
-			query:      b.query,
-			offset:     b.offset,
-			limit:      b.limit,
-			page:       b.page,
-			args:       fmt.Sprintf("%v", b.args...),
-		}
 		if v, ok := cachesAllM.Get(c); ok {
 			return v, nil
 		}
-	}
-
-	if b.tableName == "" {
-		return nil, errors.New("unable to find table, try db.Table before")
 	}
 
 	if b.selected != "" {
@@ -244,27 +204,26 @@ func (b *BuilderM) All() ([]map[string]any, error) {
 }
 
 func (b *BuilderM) One() (map[string]any, error) {
-	c := dbCache{}
+	if b.tableName == "" {
+		return nil, errors.New("unable to find table, try db.Table before")
+	}
+	c := dbCache{
+		database:   b.database,
+		table:      b.tableName,
+		selected:   b.selected,
+		statement:  b.statement,
+		orderBys:   b.orderBys,
+		whereQuery: b.whereQuery,
+		query:      b.query,
+		offset:     b.offset,
+		limit:      b.limit,
+		page:       b.page,
+		args:       fmt.Sprintf("%v", b.args...),
+	}
 	if UseCache {
-		c = dbCache{
-			table:      b.tableName,
-			selected:   b.selected,
-			statement:  b.statement,
-			orderBys:   b.orderBys,
-			whereQuery: b.whereQuery,
-			query:      b.query,
-			offset:     b.offset,
-			limit:      b.limit,
-			page:       b.page,
-			args:       fmt.Sprintf("%v", b.args...),
-		}
 		if v, ok := cachesOneM.Get(c); ok {
 			return v, nil
 		}
-	}
-
-	if b.tableName == "" {
-		return nil, errors.New("unable to find table, try db.Table before")
 	}
 
 	if b.selected != "" && b.selected != "*" {
@@ -306,14 +265,43 @@ func (b *BuilderM) One() (map[string]any, error) {
 	return models[0], nil
 }
 
-func (b *BuilderM) Insert(fields_comma_separated string, fields_values ...any) (int, error) {
+func (b *BuilderM) Insert(fields_comma_separated string, fields_values []any) (int, error) {
 	if b.tableName == "" {
 		return 0, errors.New("unable to find table, try db.Table before")
 	}
+	if b.database == ""  {
+		if dbs, ok := mTablenameDatabasename[b.tableName]; ok {
+			 if len(dbs) == 0 {
+				return 0,errors.New("no database attached to this table " + b.tableName)
+			 }
+			 if len(dbs) > 0 {
+				b.database=dbs[0]
+			 } 
+		}
+	}
+	if b.conn == nil {
+		if con, ok := mDbNameConnection[b.database]; ok {
+			b.conn = con
+		} else {
+			
+			b.conn = databases[0].Conn
+		}
+	}	
+	if b.dialect == "" {
+		if dial, ok := mDbNameDialect[b.database]; ok {
+			b.dialect = dial
+		} else {
+			b.dialect = databases[0].Dialect
+		}
+	}
+	
+	
+
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
-			"type":  "create",
-			"table": b.tableName,
+			"type":     "create",
+			"table":    b.tableName,
+			"database": b.database,
 		})
 	}
 	split := strings.Split(fields_comma_separated, ",")
@@ -362,10 +350,36 @@ func (b *BuilderM) Set(query string, args ...any) (int, error) {
 	if b.tableName == "" {
 		return 0, errors.New("unable to find model, try db.Table before")
 	}
+	if b.database == ""  {
+		if dbs, ok := mTablenameDatabasename[b.tableName]; ok {
+			 if len(dbs) == 0 {
+				return 0,errors.New("no database attached to this table " + b.tableName)
+			 }
+			 if len(dbs) > 0 {
+				b.database=dbs[0]
+			 } 
+		}
+	}
+	if b.conn == nil {
+		if con, ok := mDbNameConnection[b.database]; ok {
+			b.conn = con
+		} else {
+			
+			b.conn = databases[0].Conn
+		}
+	}	
+	if b.dialect == "" {
+		if dial, ok := mDbNameDialect[b.database]; ok {
+			b.dialect = dial
+		} else {
+			b.dialect = databases[0].Dialect
+		}
+	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
-			"type":  "update",
-			"table": b.tableName,
+			"type":     "update",
+			"table":    b.tableName,
+			"database": b.database,
 		})
 	}
 	if b.whereQuery == "" {
@@ -401,10 +415,36 @@ func (b *BuilderM) Delete() (int, error) {
 	if b.tableName == "" {
 		return 0, errors.New("unable to find model, try orm.LinkModel before")
 	}
+	if b.database == ""  {
+		if dbs, ok := mTablenameDatabasename[b.tableName]; ok {
+			 if len(dbs) == 0 {
+				return 0,errors.New("no database attached to this table " + b.tableName)
+			 }
+			 if len(dbs) > 0 {
+				b.database=dbs[0]
+			 } 
+		}
+	}
+	if b.conn == nil {
+		if con, ok := mDbNameConnection[b.database]; ok {
+			b.conn = con
+		} else {
+			
+			b.conn = databases[0].Conn
+		}
+	}	
+	if b.dialect == "" {
+		if dial, ok := mDbNameDialect[b.database]; ok {
+			b.dialect = dial
+		} else {
+			b.dialect = databases[0].Dialect
+		}
+	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
-			"type":  "delete",
-			"table": b.tableName,
+			"type":     "delete",
+			"table":    b.tableName,
+			"database": b.database,
 		})
 	}
 
@@ -441,10 +481,37 @@ func (b *BuilderM) Drop() (int, error) {
 	if b.tableName == "" {
 		return 0, errors.New("unable to find model, try orm.LinkModel before Update")
 	}
+	if b.database == ""  {
+		if dbs, ok := mTablenameDatabasename[b.tableName]; ok {
+			 if len(dbs) == 0 {
+				return 0,errors.New("no database attached to this table " + b.tableName)
+			 }
+			 if len(dbs) > 0 {
+				b.database=dbs[0]
+			 } 
+		}
+	}
+	if b.conn == nil {
+		if con, ok := mDbNameConnection[b.database]; ok {
+			b.conn = con
+		} else {
+			
+			b.conn = databases[0].Conn
+		}
+	}	
+	if b.dialect == "" {
+		if dial, ok := mDbNameDialect[b.database]; ok {
+			b.dialect = dial
+		} else {
+			b.dialect = databases[0].Dialect
+		}
+	}
+
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
-			"type":  "drop",
-			"table": b.tableName,
+			"type":     "drop",
+			"table":    b.tableName,
+			"database": b.database,
 		})
 	}
 	b.statement = "DROP TABLE " + b.tableName
@@ -467,10 +534,34 @@ func (b *BuilderM) Drop() (int, error) {
 
 func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface{}, error) {
 	adaptPlaceholdersToDialect(&statement, b.dialect)
-	if b.conn == nil {
-		return nil, errors.New("no connection to db")
+	if b.database == ""  {
+		if dbs, ok := mTablenameDatabasename[b.tableName]; ok {
+			 if len(dbs) == 0 {
+				return nil,errors.New("no database attached to this table " + b.tableName)
+			 }
+			 if len(dbs) > 0 {
+				b.database=dbs[0]
+			 } 
+		}
 	}
-
+	if b.conn == nil {
+		if con, ok := mDbNameConnection[b.database]; ok {
+			b.conn = con
+		} else {
+			
+			b.conn = databases[0].Conn
+		}
+	}	
+	if b.dialect == "" {
+		if dial, ok := mDbNameDialect[b.database]; ok {
+			b.dialect = dial
+		} else {
+			b.dialect = databases[0].Dialect
+		}
+	}
+	if b.conn == nil {
+		return nil, errors.New("queryM: no connection found")
+	}
 	var rows *sql.Rows
 	var err error
 	if b.ctx != nil {
@@ -479,7 +570,7 @@ func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface
 		rows, err = b.conn.Query(statement, args...)
 	}
 	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("no data found")
+		return nil, fmt.Errorf("queryM: no data found")
 	} else if err != nil {
 		return nil, err
 	}
@@ -506,7 +597,7 @@ func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface
 
 		m := map[string]interface{}{}
 		for i := range columns {
-			if settings.GlobalConfig.DbType == "mysql" {
+			if b.dialect == "mysql" {
 				if v, ok := modelsPtrs[i].([]byte); ok {
 					modelsPtrs[i] = string(v)
 				}
@@ -515,7 +606,6 @@ func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface
 		}
 		listMap = append(listMap, m)
 	}
-
 	if len(listMap) == 0 {
 		return nil, errors.New("no data found")
 	}

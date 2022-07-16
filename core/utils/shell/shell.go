@@ -10,6 +10,7 @@ import (
 
 	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/settings"
+	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/input"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
@@ -77,7 +78,7 @@ func InitShell() bool {
 func getAll() {
 	tableName,err := input.String(input.Blue,"Enter a table name: ")
 	if err == nil {
-		data,err := orm.Database().Table(tableName).All()
+		data,err := orm.Table(tableName).Database(settings.GlobalConfig.DbName).All()
 		if err == nil {
 			d,_ := json.MarshalIndent(data,"","    ")
 			fmt.Printf(logger.Green,string(d))
@@ -96,7 +97,7 @@ func getRow() {
 	if tableName != "" && whereField != "" && equalTo != ""{
 		var data map[string]interface{}
 		var err error
-		data,err = orm.Database().Table(tableName).Where(whereField+" = ?",equalTo).One()
+		data,err = orm.Table(tableName).Database(settings.GlobalConfig.DbName).Where(whereField+" = ?",equalTo).One()
 		if err == nil {
 			d,_ := json.MarshalIndent(data,"","    ")
 			fmt.Printf(logger.Green,string(d))
@@ -136,13 +137,13 @@ func createsuperuser() {
 
 
 func migratefromfile(path string) error {
-	if settings.GlobalConfig.DbType != "postgres" && settings.GlobalConfig.DbType != "sqlite" && settings.GlobalConfig.DbType != "mysql" {
-		logger.Error("database is neither postgres, sqlite or mysql !")
-		return errors.New("database is neither postgres, sqlite or mysql !")
+	if !utils.SliceContains([]string{"postgres","sqlite","mysql"},settings.GlobalConfig.DbType) {
+		logger.Error("database is neither postgres, sqlite or mysql ")
+		return errors.New("database is neither postgres, sqlite or mysql ")
 	}
 	if path == "" {
-		logger.Error("path cannot be empty !")
-		return errors.New("path cannot be empty !")
+		logger.Error("path cannot be empty ")
+		return errors.New("path cannot be empty ")
 	}
 	statements := []string{}
 	b,err := os.ReadFile(path)
@@ -166,7 +167,7 @@ func migratefromfile(path string) error {
 func dropTable() {
 	tableName := input.Input(input.Blue,"Table to drop : ") 
 	if tableName != "" {
-		_,err := orm.Database().Table(tableName).Drop()
+		_,err := orm.Table(tableName).Database(settings.GlobalConfig.DbName).Drop()
 		if err != nil {
 			fmt.Printf(logger.Red,"error dropping table :"+err.Error())
 		} else {
@@ -184,14 +185,14 @@ func deleteRow() {
 	if tableName != "" && whereField != "" && equalTo != "" {
 		equal,err := strconv.Atoi(equalTo)
 		if err != nil {
-			_,err := orm.Database().Table(tableName).Where(whereField + " = ?",equalTo).Delete()
+			_,err := orm.Table(tableName).Database(settings.GlobalConfig.DbName).Where(whereField + " = ?",equalTo).Delete()
 			if err == nil {
 				fmt.Printf(logger.Green,tableName+"with"+whereField+"="+equalTo+"deleted.")
 			} else {
 				fmt.Printf(logger.Red,"error deleting row: "+err.Error())
 			}
 		} else {
-			_,err = orm.Database().Table(tableName).Where(whereField+" = ?",equal).Delete()
+			_,err = orm.Table(tableName).Where(whereField+" = ?",equal).Delete()
 			if err == nil {
 				fmt.Printf(logger.Green,tableName+" with "+whereField+" = "+equalTo+" deleted.")
 			} else {

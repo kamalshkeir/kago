@@ -34,9 +34,7 @@ func (sm *SafeMap[K, V]) Set(key K, value V) {
 
 func (sm *SafeMap[K, V]) Delete(key K) {
 	sm.mutex.Lock()
-	if _,ok := sm.m[key];ok {
-		delete(sm.m,key)
-	}
+	delete(sm.m,key)
 	sm.mutex.Unlock()
 }
 

@@ -36,7 +36,7 @@ var LoginPOSTView = func(c *kamux.Context) {
 	email := requestData["email"]
 	passRequest := requestData["password"]
 
-	data,err := orm.Database().Table("users").Where("email = ?",email).One()
+	data,err := orm.Table("users").Where("email = ?",email).One()
 	if err != nil {
 		c.Json(500,map[string]interface{}{
 			"error":err.Error(),
@@ -93,9 +93,9 @@ var AllModelsGet = func(c *kamux.Context) {
 		})
 		return
 	}
-	rows,err :=orm.Database().Table(model).OrderBy("-id").Limit(PAGINATION_PER).Page(1).All()
+	rows,err :=orm.Table(model).OrderBy("-id").Limit(PAGINATION_PER).Page(1).All()
 	if err != nil {
-		rows,_ =orm.Database().Table(model).All()
+		rows,_ =orm.Table(model).All()
 	}
 	columns := orm.GetAllColumns(model)
 	if settings.GlobalConfig.DbType != "" {
@@ -126,7 +126,7 @@ var AllModelsPost = func(c *kamux.Context) {
 	if logger.CheckError(err) {
 		return
 	}
-	rows,err :=orm.Database().Table(model).OrderBy("-id").Limit(PAGINATION_PER).Page(pagenum).All()
+	rows,err :=orm.Table(model).OrderBy("-id").Limit(PAGINATION_PER).Page(pagenum).All()
 	if err != nil {
 		return
 	}
@@ -139,7 +139,7 @@ var DeleteRowPost = func(c *kamux.Context) {
 	data := c.GetJson()
 	if data["mission"] == "delete_row" {
 		model := data["model_name"]
-		modelDB,err := orm.Database().Table(model.(string)).Where("id = ?",data["id"]).One() 
+		modelDB,err := orm.Table(model.(string)).Where("id = ?",data["id"]).One() 
 
 		if err != nil {
 			logger.Error("data received:", data)
@@ -155,7 +155,7 @@ var DeleteRowPost = func(c *kamux.Context) {
 		}
 
 		
-		_,err = orm.Database().Table(model.(string)).Where("id = ?",data["id"].(string)).Delete()
+		_,err = orm.Table(model.(string)).Where("id = ?",data["id"].(string)).Delete()
 
 		if err != nil {
 			c.Json(200, map[string]interface{}{
@@ -201,9 +201,9 @@ var CreateModelView = func(c *kamux.Context) {
 		}
 
 	}
-	_,err := orm.Database().Table(model).Insert(
+	_,err := orm.Table(model).Insert(
 		strings.Join(fields,","),		
-		values...
+		values,
 	)
 	if logger.CheckError(err) {
 		c.Json(200, map[string]interface{}{
@@ -232,7 +232,7 @@ var SingleModelGet = func(c *kamux.Context) {
 		})
 		return
 	}
-	modelRow,err := orm.Database().Table(model).Where("id = ?",id).One()
+	modelRow,err := orm.Table(model).Where("id = ?",id).One()
 	if logger.CheckError(err) {
 		c.Json(http.StatusBadRequest,map[string]interface{}{
 			"error":err.Error(),
@@ -261,7 +261,7 @@ var UpdateRowPost = func(c *kamux.Context) {
 	//handle file upload
 	handleFilesUpload(files,data["table"][0],id,c)
 	//get model from database
-	modelDB,err := orm.Database().Table(data["table"][0]).Where("id = ?",id).One()
+	modelDB,err := orm.Table(data["table"][0]).Where("id = ?",id).One()
 	
 	if err != nil {
 		c.Json(200,map[string]interface{}{
@@ -279,7 +279,7 @@ var UpdateRowPost = func(c *kamux.Context) {
 			if isAdminString == val[0] {
 				continue
 			} else {
-				_,err := orm.Database().Table(data["table"][0]).Where("id = ?",id).Set(key+" = ?",val[0])
+				_,err := orm.Table(data["table"][0]).Where("id = ?",id).Set(key+" = ?",val[0])
 				
 				if err != nil {
 					c.Json(200, map[string]interface{}{
@@ -294,7 +294,7 @@ var UpdateRowPost = func(c *kamux.Context) {
 			}
 		default:
 			if modelDB[key] != val[0] {
-				_,err := orm.Database().Table(data["table"][0]).Where("id = ?",id).Set(key+" = ?",val[0])
+				_,err := orm.Table(data["table"][0]).Where("id = ?",id).Set(key+" = ?",val[0])
 				logger.CheckError(err)
 			}
 		}//switch
@@ -311,7 +311,7 @@ func handleFilesUpload(files map[string][]*multipart.FileHeader,model string,id 
 		for key,val := range files {
 			file,_ := val[0].Open()
 			uploadedImage := utils.UploadFile(file,val[0].Filename)
-			row,err := orm.Database().Table(model).Where("id = ?",id).One()
+			row,err := orm.Table(model).Where("id = ?",id).One()
 			if err != nil {
 				c.Json(200,map[string]interface{}{
 					"error":err.Error(),
@@ -328,12 +328,12 @@ func handleFilesUpload(files map[string][]*multipart.FileHeader,model string,id 
 				err := c.DeleteFile(database_image.(string))
 				if err != nil {
 					//le fichier existe pas
-					_,err := orm.Database().Table(model).Where("id = ?",id).Set(key+" = ?",uploadedImage)
+					_,err := orm.Table(model).Where("id = ?",id).Set(key+" = ?",uploadedImage)
 					logger.CheckError(err)
 					continue
 				} else {
 					//le fichier existe et donc supprimer
-					_,err := orm.Database().Table(model).Where("id = ?",id).Set(key+" = ?",uploadedImage)
+					_,err := orm.Table(model).Where("id = ?",id).Set(key+" = ?",uploadedImage)
 					logger.CheckError(err)
 					continue
 				}
@@ -346,7 +346,7 @@ func handleFilesUpload(files map[string][]*multipart.FileHeader,model string,id 
 var DropTablePost = func(c *kamux.Context) {
 	data := c.GetJson()
 	if data["table"] != "" {
-		_,err := orm.Database().Table(data["table"].(string)).Drop()
+		_,err := orm.Table(data["table"].(string)).Drop()
 		if logger.CheckError(err) {
 			c.Json(200,map[string]interface{}{
 				"error":err.Error(),
@@ -368,7 +368,7 @@ var ExportView= func(c *kamux.Context) {
 		})
 		return
 	}
-	data,err := orm.Database().Table(table).All()
+	data,err := orm.Table(table).All()
 	logger.CheckError(err)
 
 	data_bytes,err := json.Marshal(data)
@@ -405,7 +405,7 @@ var ImportView= func(c *kamux.Context) {
 			cols = append(cols, k)
 			values = append(values, v)
 		}
-		_,err := orm.Database().Table(table).Insert(strings.Join(cols,","),values...)
+		_,err := orm.Table(table).Insert(strings.Join(cols,","),values)
 		if logger.CheckError(err) {
 			c.Json(200,map[string]interface{}{
 				"error":err.Error(),

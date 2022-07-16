@@ -20,10 +20,11 @@ var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
 var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
 
 type dbCache struct {
-	table      string
-	selected   string
 	limit      int
 	page       int
+	database   string
+	table      string
+	selected   string
 	orderBys   string
 	whereQuery string
 	query      string
@@ -42,7 +43,7 @@ func LinkModel[T comparable](to_table_name string, dbNames ...string) {
 		dbName = dbNames[0]
 	}
 
-	fields, _, _,_ := getStructInfos(new(T))
+	fields, _, _, _ := getStructInfos(new(T))
 
 	var dialect string
 	conn := GetConnection(dbNames...)
@@ -54,7 +55,7 @@ func LinkModel[T comparable](to_table_name string, dbNames ...string) {
 			return
 		}
 	} else {
-		logger.Error("no connection found for db",dbName)
+		logger.Error("no connection found for db", dbName)
 		return
 	}
 
@@ -71,7 +72,7 @@ func LinkModel[T comparable](to_table_name string, dbNames ...string) {
 	}
 
 	// get columns from db
-	colsNameType := GetAllColumns(to_table_name)
+	colsNameType := GetAllColumns(to_table_name,dbName)
 	names := []string{}
 	for k := range colsNameType {
 		names = append(names, k)
@@ -85,26 +86,28 @@ func LinkModel[T comparable](to_table_name string, dbNames ...string) {
 		return
 	}
 	mModelTablename[*new(T)] = to_table_name
+	mTablenameDatabasename[to_table_name]=append(mTablenameDatabasename[to_table_name], dbName)
+	dbEntity := DatabaseEntity{
+		Name:    dbName,
+		Conn:    conn,
+		Dialect: dialect,
+	}
+
 	if v, ok := mModelDatabase[*new(T)]; ok {
-		v.conn = conn
-		v.dialect = dialect
-		v.name = dbName
+		v.Conn = conn
+		v.Dialect = dialect
+		v.Name = dbName
 	} else {
-		mModelDatabase[*new(T)] = database{
-			name:    dbName,
-			conn:    conn,
-			dialect: dialect,
-		}
+		mModelDatabase[*new(T)] = dbEntity
 	}
 }
-
 
 func ShutdownDatabases(databasesName ...string) error {
 	if len(databasesName) > 0 {
 		for i := range databasesName {
 			for _, db := range databases {
-				if db.name == databasesName[i] {
-					if err := db.conn.Close(); err != nil {
+				if db.Name == databasesName[i] {
+					if err := db.Conn.Close(); err != nil {
 						return err
 					}
 				}
@@ -112,7 +115,7 @@ func ShutdownDatabases(databasesName ...string) error {
 		}
 	} else {
 		for i := range databases {
-			if err := databases[i].conn.Close(); err != nil {
+			if err := databases[i].Conn.Close(); err != nil {
 				return err
 			}
 		}
@@ -490,13 +493,13 @@ func getStructInfos[T comparable](strct *T) (fields []string, fValues map[string
 
 		fields = append(fields, fname)
 		fTypes[fname] = ftype
-		fValues[fname]=fvalue
+		fValues[fname] = fvalue
 		if ftag, ok := typeOfT.Field(i).Tag.Lookup("orm"); ok {
 			tags := strings.Split(ftag, ";")
 			fTags[fname] = tags
 		}
 	}
-	return fields,fValues, fTypes, fTags
+	return fields, fValues, fTypes, fTags
 }
 
 func adaptPlaceholdersToDialect(query *string, dialect string) *string {
@@ -513,10 +516,6 @@ func adaptPlaceholdersToDialect(query *string, dialect string) *string {
 	}
 	return query
 }
-
-
-
-
 
 func GenerateUUID() (string, error) {
 	var uuid [16]byte

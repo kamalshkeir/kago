@@ -72,7 +72,7 @@ func Info(anything ...interface{}) {
 	fmt.Printf(new,anything...)
 }
 
-// Info println anything with blue color 
+// Debug println anything with blue color 
 func Debug(anything ...interface{}) {
 	pc, _, line, _ := runtime.Caller(1)
 	placeholder := strings.Repeat("%v,",len(anything))

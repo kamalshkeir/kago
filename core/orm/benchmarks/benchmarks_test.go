@@ -1,4 +1,4 @@
-package tests
+package benchmarks
 
 import (
 	"testing"
@@ -17,11 +17,10 @@ func init() {
 	//migrate
 	err := orm.Migrate()
 	if logger.CheckError(err) {return}
-	users,_ := orm.Database().Table("users").All()
+	users,_ := orm.Table("users").All()
 	if len(users) ==0 {
 		orm.CreateUser("kamal@gmail.com","olaola",1)
 	}
-	orm.LinkModel[models.User]("users")
 }
 
 
@@ -86,7 +85,7 @@ func BenchmarkGetAllM(b *testing.B) {
 	b.ReportAllocs()
     b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_,err := orm.Database().Table("users").All()
+		_,err := orm.Table("users").All()
 		if err != nil {
 			b.Error("error BenchmarkGetAllM:",err)
 		}
@@ -109,7 +108,7 @@ func BenchmarkGetRowM(b *testing.B) {
 	b.ReportAllocs()
     b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_,err := orm.Database().Table("users").Where("email = ?","kamal@gmail.com").One()
+		_,err := orm.Table("users").Where("email = ?","kamal@gmail.com").One()
 		if err != nil {
 			b.Error("error BenchmarkGetRowM:",err)
 		}
