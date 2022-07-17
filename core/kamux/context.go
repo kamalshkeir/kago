@@ -19,7 +19,7 @@ type Context struct {
 	Params map[string]string
 }
 // Json return json to the client
-func (c *Context) Json(code int, body interface{}) {
+func (c *Context) Json(code int, body any) {
 	c.ResponseWriter.Header().Set("Content-Type","application/json")
 	c.SetStatus(code)
 	enc := json.NewEncoder(c.ResponseWriter)
@@ -28,7 +28,7 @@ func (c *Context) Json(code int, body interface{}) {
 }
 
 // JsonIndent return json indented to the client
-func (c *Context) JsonIndent(code int, body interface{}) {
+func (c *Context) JsonIndent(code int, body any) {
 	c.ResponseWriter.Header().Set("Content-Type","application/json")
 	c.SetStatus(code)
 	enc := json.NewEncoder(c.ResponseWriter)
@@ -49,11 +49,11 @@ func (c *Context) SetStatus(code int) {
 }
 
 // Html return template_name with data to the client
-func (c *Context) Html(template_name string, data map[string]interface{},status ...int) {
+func (c *Context) Html(template_name string, data map[string]any,status ...int) {
 	const key utils.ContextKey = "user"
-	if data == nil { data = make(map[string]interface{}) }
+	if data == nil { data = make(map[string]any) }
 	
-	user,ok := c.Request.Context().Value(key).(map[string]interface{})
+	user,ok := c.Request.Context().Value(key).(map[string]any)
 	if ok {		
 		data["request"] = c.Request
 		data["is_authenticated"] = true
@@ -73,7 +73,7 @@ func (c *Context) Html(template_name string, data map[string]interface{},status 
 }
 
 // GetJson get json body from request and return map
-func (c *Context) GetJson() map[string]interface{} {
+func (c *Context) GetJson() map[string]any {
 	// USAGE : data := template.GetJson(r)
 	body, err := io.ReadAll(c.Request.Body)
 	if logger.CheckError(err) {
@@ -81,7 +81,7 @@ func (c *Context) GetJson() map[string]interface{} {
 	}
 	defer c.Request.Body.Close()
 
-	request := map[string]interface{}{}
+	request := map[string]any{}
 	err = json.Unmarshal(body,&request)
 	if logger.CheckError(err) {
 		return nil

@@ -257,7 +257,7 @@ func Recovery(next http.Handler) http.Handler {
 		defer func() {
 			err := recover()
 			if err != nil {
-				logger.Error(err) // May be log this error? Send to sentry?
+				logger.Error(err) // May be log this error? 
 				jsonBody, _ := json.Marshal(map[string]string{
 					"error": "There was an internal server error",
 				})
@@ -303,7 +303,7 @@ func LOGS(h http.Handler) http.Handler {
 		res := fmt.Sprintf("[%s]  %s  [%d]  %v  from:%s",r.Method, r.URL.Path, recorder.Status,time.Since(t),r.RemoteAddr)
 		if recorder.Status >= 200 && recorder.Status < 400 {
 			fmt.Printf(logger.Green,res)
-		} else if recorder.Status > 400 || recorder.Status < 200 {
+		} else if recorder.Status >= 400 || recorder.Status < 200 {
 			fmt.Printf(logger.Red,res)
 		} else {
 			fmt.Printf(logger.Yellow,res)
