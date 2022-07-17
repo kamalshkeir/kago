@@ -1,8 +1,9 @@
-package kago
+package main
 
 import (
 	"github.com/kamalshkeir/kago/core/admin"
 	"github.com/kamalshkeir/kago/core/kamux"
+	"github.com/kamalshkeir/kago/core/middlewares"
 )
 
 func New(env_files ...string) *kamux.Router {
@@ -13,3 +14,8 @@ func New(env_files ...string) *kamux.Router {
 	return app
 }
 
+func main() {
+	app := New()
+	app.UseMiddlewares(middlewares.GZIP)
+	app.Run()
+}

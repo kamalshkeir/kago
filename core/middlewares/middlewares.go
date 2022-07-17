@@ -3,6 +3,8 @@ package middlewares
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -101,6 +103,49 @@ func Admin(handler kamux.Handler) kamux.Handler {
 		}
 
 		handler(c)
+	}
+}
+
+func BasicAuth(next kamux.Handler, user,pass string) kamux.Handler {
+	return func(c *kamux.Context) {
+        // Extract the username and password from the request 
+        // Authorization header. If no Authentication header is present 
+        // or the header value is invalid, then the 'ok' return value 
+        // will be false.
+		username, password, ok := c.Request.BasicAuth()
+		if ok {
+            // Calculate SHA-256 hashes for the provided and expected
+            // usernames and passwords.
+			usernameHash := sha256.Sum256([]byte(username))
+			passwordHash := sha256.Sum256([]byte(password))
+			expectedUsernameHash := sha256.Sum256([]byte(user))
+			expectedPasswordHash := sha256.Sum256([]byte(pass))
+
+            // Use the subtle.ConstantTimeCompare() function to check if 
+            // the provided username and password hashes equal the  
+            // expected username and password hashes. ConstantTimeCompare
+            // will return 1 if the values are equal, or 0 otherwise. 
+            // Importantly, we should to do the work to evaluate both the 
+            // username and password before checking the return values to 
+            // avoid leaking information.
+			usernameMatch := (subtle.ConstantTimeCompare(usernameHash[:], expectedUsernameHash[:]) == 1)
+			passwordMatch := (subtle.ConstantTimeCompare(passwordHash[:], expectedPasswordHash[:]) == 1)
+
+            // If the username and password are correct, then call
+            // the next handler in the chain. Make sure to return 
+            // afterwards, so that none of the code below is run.
+			if usernameMatch && passwordMatch {
+				next(c)
+				return
+			}
+		}
+
+        // If the Authentication header is not present, is invalid, or the
+        // username or password is wrong, then set a WWW-Authenticate 
+        // header to inform the client that we expect them to use basic
+        // authentication and send a 401 Unauthorized response.
+		c.ResponseWriter.Header().Set("WWW-Authenticate", `Basic realm="restricted", charset="UTF-8"`)
+		http.Error(c.ResponseWriter, "Unauthorized", http.StatusUnauthorized)
 	}
 }
 
