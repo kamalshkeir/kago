@@ -15,6 +15,8 @@ const (
 	Magenta = "\033[5;35m%s\033[0m\n"
 )
 
+var StreamLogs = []string{}
+
 // Printf take pattern(rd,gr,yl,bl,mg), varsString, varsValues
 func Printf(pattern string,anything ...interface{}) {
 	pc, _, line, _ := runtime.Caller(1)

@@ -22,6 +22,7 @@ const (
 	PATCH
 	DELETE
 	WS
+	SSE
 )
 var methods = map[int]string{
 	GET:"GET",
@@ -30,6 +31,7 @@ var methods = map[int]string{
 	PATCH:"PATCH",
 	DELETE:"DELETE",
 	WS:"WS",
+	SSE:"SSE",
 }
 // Handler
 type Handler func(c *Context)
@@ -162,6 +164,11 @@ func (router *Router) WS(pattern string, wsHandler WsHandler, allowed_origines .
 	router.handle(WS,pattern,nil,wsHandler,allowed_origines)
 }
 
+// Delete handle DELETE method on a pattern
+func (router *Router) SSE(pattern string, handler Handler, allowed_origines ...string) {
+	router.handle(SSE,pattern,handler,nil,allowed_origines)
+}
+
 // ServeHTTP serveHTTP by handling methods,pattern,and params
 func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c := &Context{Request: r, ResponseWriter: w, Params: map[string]string{}}
@@ -171,6 +178,8 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		if strings.Contains(r.URL.Path,"/ws/") {
 			allRoutes = router.Routes[WS]
+		} else if strings.Contains(r.URL.Path,"/sse/") {
+			allRoutes = router.Routes[SSE]
 		} else {
 			allRoutes = router.Routes[GET]
 		}
@@ -182,10 +191,8 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		allRoutes = router.Routes[PATCH]
 	case "DELETE":
 		allRoutes = router.Routes[DELETE]
-	case "WS":
-		allRoutes = router.Routes[WS]
 	default:
-		c.Text(200,"Method Not Allowed !")
+		c.Text(http.StatusBadRequest,"Method Not Allowed .")
 		return
 	}
 
@@ -325,12 +332,19 @@ func handleWebsockets(c *Context ,rt Route) {
 
 func handleHttp(c *Context,rt Route) {
 	if rt.Method == "GET" {
+		if rt.Method == "SSE" {
+			sseHeaders(c)
+		}
 		rt.Handler(c)
 		return
 	}
 	// check cross origin
 	if checkSameSite(*c) {
 		// same site
+		rt.Handler(c)
+		return
+	} else if rt.Method == "SSE" {
+		sseHeaders(c)
 		rt.Handler(c)
 		return
 	} else {
@@ -354,4 +368,12 @@ func handleHttp(c *Context,rt Route) {
 			}
 		}
 	}
+}
+
+func sseHeaders(c *Context) {
+	c.ResponseWriter.Header().Set("Access-Control-Allow-Origin", "*")
+    c.ResponseWriter.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+    c.ResponseWriter.Header().Set("Content-Type", "text/event-stream")
+    c.ResponseWriter.Header().Set("Cache-Control", "no-cache")
+    c.ResponseWriter.Header().Set("Connection", "keep-alive")
 }

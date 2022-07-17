@@ -20,7 +20,6 @@ func (c *WsContext) ReceiveText() (string,error) {
 	var messageRecv string
 	err := websocket.Message.Receive(c.Ws, &messageRecv)
 	if err != nil {
-		c.RemoveRequester()
 		return "",err
 	}
 	return messageRecv,nil
@@ -31,7 +30,6 @@ func (c *WsContext) ReceiveJson() (map[string]any,error) {
 	var data map[string]any
 	err := websocket.JSON.Receive(c.Ws, &data)
 	if err != nil {
-		c.RemoveRequester()
 		return nil,err
 	}
 	
@@ -42,7 +40,6 @@ func (c *WsContext) ReceiveJson() (map[string]any,error) {
 func (c *WsContext) Json(data map[string]any) error {
 	err := websocket.JSON.Send(c.Ws, data)
 	if err != nil {
-		c.RemoveRequester()
 		return err
 	}
 	return nil
@@ -54,7 +51,6 @@ func (c *WsContext) Broadcast(data any) error {
 	for _,ws := range c.Route.Clients {
 		err := websocket.JSON.Send(ws, data)
 		if err != nil {
-			c.RemoveRequester()
 			m.RUnlock()
 			return err
 		}
@@ -70,7 +66,6 @@ func (c *WsContext) BroadcastExceptCaller(data map[string]any) error {
 		if ws != c.Ws {
 			err := websocket.JSON.Send(ws, data)
 			if err != nil {
-				c.RemoveRequester()
 				m.RUnlock()
 				return err
 			}
@@ -84,7 +79,6 @@ func (c *WsContext) BroadcastExceptCaller(data map[string]any) error {
 func (c *WsContext) Text(data string) error {
 	err := websocket.Message.Send(c.Ws, data)
 	if err != nil {
-		c.RemoveRequester()
 		return err
 	}
 	return nil
@@ -119,6 +113,12 @@ func (c *WsContext) AddClient(key string) {
 	m.Lock()
 	if _,ok := c.Route.Clients[key];!ok {
 		c.Route.Clients[key]=c.Ws
+	} else {
+		for k,ws := range c.Route.Clients {
+			if ws == c.Ws {
+				c.Route.Clients[k]=c.Ws
+			} 
+		}
 	}
 	m.Unlock()
 }

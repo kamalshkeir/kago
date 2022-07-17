@@ -27,6 +27,15 @@ import (
 
 var SESSION_ENCRYPTION = true
 
+type StatusRecorder struct {
+    http.ResponseWriter
+    Status int
+}
+func (r *StatusRecorder) WriteHeader(status int) {
+    r.Status = status
+    r.ResponseWriter.WriteHeader(status)
+}
+
 // AuthMiddleware can be added to any handler to get user cookie authentication and pass it to handler and templates
 func Auth(handler kamux.Handler) kamux.Handler {
 	const key utils.ContextKey = "user"
@@ -270,19 +279,9 @@ func Recovery(next http.Handler) http.Handler {
 	})
 }
 
-
-
-type StatusRecorder struct {
-    http.ResponseWriter
-    Status int
-}
-func (r *StatusRecorder) WriteHeader(status int) {
-    r.Status = status
-    r.ResponseWriter.WriteHeader(status)
-}
 func LOGS(h http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {	
-		if utils.StringContains(r.URL.Path,"metrics","sw.js","favicon","/static/") {
+		if utils.StringContains(r.URL.Path,"metrics","sw.js","favicon","/static/","/sse/","/ws/","/wss/") {
 			h.ServeHTTP(w,r)
 			return
 		}
@@ -301,13 +300,23 @@ func LOGS(h http.Handler) http.Handler {
 		t := time.Now()
         h.ServeHTTP(recorder, r)
 		res := fmt.Sprintf("[%s]  %s  [%d]  %v  from:%s",r.Method, r.URL.Path, recorder.Status,time.Since(t),r.RemoteAddr)
-		if recorder.Status >= 200 && recorder.Status < 400 {
-			fmt.Printf(logger.Green,res)
-		} else if recorder.Status >= 400 || recorder.Status < 200 {
-			fmt.Printf(logger.Red,res)
-		} else {
-			fmt.Printf(logger.Yellow,res)
+		do := false
+		
+		if do {
+			if recorder.Status >= 200 && recorder.Status < 400 {
+				fmt.Printf(logger.Green,res)
+			} else if recorder.Status >= 400 || recorder.Status < 200 {
+				fmt.Printf(logger.Red,res)
+			} else {
+				fmt.Printf(logger.Yellow,res)
+			}
 		}
-        
+		
+        logger.StreamLogs = append(logger.StreamLogs, res)
     })
 }
+
+
+
+
+
