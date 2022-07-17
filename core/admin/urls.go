@@ -26,9 +26,10 @@ func UrlPatterns(r *kamux.Router) {
 	r.Get("/admin/get/model:string/id:int", middlewares.Admin(SingleModelGet))
 	r.Get("/admin/export/table:string", middlewares.Admin(ExportView))
 	r.Post("/admin/import", middlewares.Admin(ImportView))
-	r.Get("/logs",middlewares.Admin(LogsGetView))
-	r.SSE("/sse/logs",middlewares.Admin(LogsSSEView))
-	
+	if settings.GlobalConfig.Logs {
+		r.Get("/logs",middlewares.Admin(LogsGetView))
+		r.SSE("/sse/logs",middlewares.Admin(LogsSSEView))
+	}
 	if settings.GlobalConfig.Monitoring {
 		r.Get("/metrics", func(c *kamux.Context) {
 			promhttp.Handler().ServeHTTP(c.ResponseWriter,c.Request)

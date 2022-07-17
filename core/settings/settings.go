@@ -7,6 +7,7 @@ type config struct {
 	Port           string
 	Profiler       bool
 	Docs           bool
+	Logs           bool
 	Monitoring     bool
 	EmbedStatic    bool
 	EmbedTemplates bool
