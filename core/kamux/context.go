@@ -21,7 +21,7 @@ type Context struct {
 // Json return json to the client
 func (c *Context) Json(code int, body interface{}) {
 	c.ResponseWriter.Header().Set("Content-Type","application/json")
-	c.WriteHeader(code)
+	c.SetStatus(code)
 	enc := json.NewEncoder(c.ResponseWriter)
 	err := enc.Encode(body)
 	if logger.CheckError(err) {return}
@@ -30,7 +30,7 @@ func (c *Context) Json(code int, body interface{}) {
 // JsonIndent return json indented to the client
 func (c *Context) JsonIndent(code int, body interface{}) {
 	c.ResponseWriter.Header().Set("Content-Type","application/json")
-	c.WriteHeader(code)
+	c.SetStatus(code)
 	enc := json.NewEncoder(c.ResponseWriter)
 	enc.SetIndent("","\t")
 	err := enc.Encode(body)
@@ -40,11 +40,11 @@ func (c *Context) JsonIndent(code int, body interface{}) {
 // Text return text with custom code to the client
 func (c *Context) Text(code int, body string) {
 	c.ResponseWriter.Header().Set("Content-Type", "text/plain")
-	c.WriteHeader(code)
+	c.SetStatus(code)
 	c.ResponseWriter.Write([]byte(body))
 }
 
-func (c *Context) StatusCode(code int) {
+func (c *Context) SetStatus(code int) {
 	c.WriteHeader(code)
 }
 
@@ -66,7 +66,7 @@ func (c *Context) Html(template_name string, data map[string]interface{},status 
 
 	c.ResponseWriter.Header().Set("Content-Type","text/html; charset=utf-8")
 	if len(status) > 0 {
-		c.StatusCode(status[0])
+		c.SetStatus(status[0])
 	}
 	err := allTemplates.ExecuteTemplate(c.ResponseWriter,template_name,data)
 	logger.CheckError(err)

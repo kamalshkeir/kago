@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -171,9 +172,9 @@ func GZIP(handler http.Handler) http.Handler {
 		}
 		if strings.Contains(r.Header.Get("Accept-Encoding"),"gzip") {
 			gwriter := gzip.NewWrappedResponseWriter(w)
+			defer gwriter.Flush()
 			gwriter.Header().Set("Content-Encoding","gzip")
 			handler.ServeHTTP(gwriter,r)
-			defer gwriter.Flush()
 			return
 		}
 		handler.ServeHTTP(w,r)
@@ -206,3 +207,62 @@ func Limiter(next http.Handler) http.Handler {
 }
 
 
+func Recovery(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			err := recover()
+			if err != nil {
+				logger.Error(err) // May be log this error? Send to sentry?
+				jsonBody, _ := json.Marshal(map[string]string{
+					"error": "There was an internal server error",
+				})
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write(jsonBody)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
+
+
+type StatusRecorder struct {
+    http.ResponseWriter
+    Status int
+}
+func (r *StatusRecorder) WriteHeader(status int) {
+    r.Status = status
+    r.ResponseWriter.WriteHeader(status)
+}
+func LOGS(h http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {	
+		if utils.StringContains(r.URL.Path,"metrics","sw.js","favicon","/static/") {
+			h.ServeHTTP(w,r)
+			return
+		}
+		//check if connection is ws
+		for _, header := range r.Header["Upgrade"] {
+			if header == "websocket" {
+				// connection is ws
+				h.ServeHTTP(w,r)
+				return
+			}
+		}
+        recorder := &StatusRecorder{
+            ResponseWriter: w,
+            Status:         200,
+        }
+		t := time.Now()
+        h.ServeHTTP(recorder, r)
+		res := fmt.Sprintf("[%s]  %s  [%d]  %v  from:%s",r.Method, r.URL.Path, recorder.Status,time.Since(t),r.RemoteAddr)
+		if recorder.Status >= 200 && recorder.Status < 400 {
+			fmt.Printf(logger.Green,res)
+		} else if recorder.Status > 400 || recorder.Status < 200 {
+			fmt.Printf(logger.Red,res)
+		} else {
+			fmt.Printf(logger.Yellow,res)
+		}
+        
+    })
+}

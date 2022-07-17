@@ -92,6 +92,15 @@ func SliceContains[T comparable](elems []T, vs ...T) bool {
     return false
 }
 
+func StringContains(s string,subs ...string) bool {
+	for _,sub := range subs {
+		if strings.Contains(s,sub) {
+			return true
+		}
+	}
+	return false
+}
+
 // Send Email
 func SendEmail(to_email string,subject string,textToSend string) {
 	from := settings.GlobalConfig.SmtpEmail
