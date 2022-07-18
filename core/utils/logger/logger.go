@@ -21,7 +21,7 @@ const (
 var StreamLogs = []string{}
 
 func init() {
-	eventbus.Subscribe("internal-logs",func(data map[string]string) {
+	eventbus.Subscribe("internal-logs",func(_ map[string]string) {
 		lenStream := len(StreamLogs)
 		if lenStream > 30 {
 			StreamLogs = StreamLogs[lenStream-20:]

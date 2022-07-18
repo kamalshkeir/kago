@@ -9,6 +9,6 @@ func New(env_files ...string) *kamux.Router {
 	// init server and router
 	app := kamux.New(env_files...)
 	// init admin urls
-	go admin.UrlPatterns(app)
+	admin.UrlPatterns(app)
 	return app
 }

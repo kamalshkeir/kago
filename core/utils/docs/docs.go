@@ -18,7 +18,7 @@ func New() *Docs {
 
 func (docs *Docs) Read() *Docs {	
 	// read the file
-	byte,err := ioutil.ReadFile(path)
+	bytee,err := ioutil.ReadFile(path)
 	if logger.CheckError(err) {
 		return &Docs{
 			BasePath: "/",
@@ -60,9 +60,16 @@ func (docs *Docs) Read() *Docs {
 		Schemes: []string{"http"},
 	}
 	// load it into data
-	err = json.Unmarshal(byte,docss)
+	err = json.Unmarshal(bytee,docss)
 	logger.CheckError(err)
 	return docss
+}
+
+func (docs *Docs) String() string {	
+	// read the file
+	b,err := json.MarshalIndent(docs,"","  ")
+	if logger.CheckError(err) {return ""}
+	return string(b)
 }
 
 func (docs *Docs) Save() {	
@@ -165,9 +172,7 @@ func (docs *Docs) AddModel(model_name string, example_map map[string]any, fields
 }
 
 func (docs *Docs) RemoveModel(model_name string) {
-	if _,ok := docs.Definitions[model_name];ok {
-		delete(docs.Definitions,model_name)
-	}
+	delete(docs.Definitions,model_name)
 }
 
 func (docs *Docs) AddPath(
@@ -266,7 +271,5 @@ func (docs *Docs) RemoveMethodFromPath(path string, method string) {
 }
 
 func (docs *Docs) RemovePath(path string) {
-	if _,ok := docs.Paths[path];ok {
-		delete(docs.Paths,path)
-	}
+	delete(docs.Paths,path)
 }
