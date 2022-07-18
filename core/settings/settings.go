@@ -1,6 +1,7 @@
 package settings
 
 var GlobalConfig = &config{}
+var Secret string
 
 type config struct {
 	Host           string
@@ -18,5 +19,4 @@ type config struct {
 	SmtpPass       string
 	SmtpHost       string
 	SmtpPort       string
-	Secret         string
 }

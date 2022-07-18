@@ -458,19 +458,12 @@ var OfflineView= func (c *kamux.Context) {
 	c.Text(200,"<h1>YOUR ARE OFFLINE, check connection</h1>")
 }
 
-var lenBefore = len(logger.StreamLogs)
+
 var LogsSSEView = func(c *kamux.Context) {
 	lenStream := len(logger.StreamLogs)
-	if lenStream > 30 {
-		logger.StreamLogs = logger.StreamLogs[lenStream-20:]
-	}
-	diff := lenStream - lenBefore
-	if diff > 0 {
-		for _,s := range logger.StreamLogs[lenStream-diff:] {
-			new := "data: " + s +"\n\n"
-			c.ResponseWriter.Write([]byte(new))
-		}
-		lenBefore=len(logger.StreamLogs)
+	if lenStream > 0 {
+		new := "data: " + logger.StreamLogs[lenStream-1] +"\n\n"
+		c.ResponseWriter.Write([]byte(new))
 	}
 }
 

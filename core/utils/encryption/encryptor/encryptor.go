@@ -13,10 +13,10 @@ import (
 
 
 func Encrypt(data string) (string,error) {
-    keyEnv := settings.GlobalConfig.Secret
+    keyEnv := settings.Secret
     if keyEnv == "" {
         keyEnv = utils.GenerateRandomString(32)
-        settings.GlobalConfig.Secret = keyEnv
+        settings.Secret = keyEnv
     }
     keyByte, salt, err := deriveKey([]byte(keyEnv), nil)
     if err != nil {
@@ -45,10 +45,10 @@ func Encrypt(data string) (string,error) {
 }
 
 func Decrypt(data string) (string,error) {
-    keyEnv := settings.GlobalConfig.Secret
+    keyEnv := settings.Secret
     if keyEnv == "" {
         keyEnv = utils.GenerateRandomString(32)
-        settings.GlobalConfig.Secret = keyEnv
+        settings.Secret = keyEnv
     }
     var salt []byte
     dataByte,_ := hex.DecodeString(data)
@@ -87,7 +87,7 @@ func deriveKey(password, salt []byte) ([]byte, []byte, error) {
         }
     }
 
-    key, err := scrypt.Key(password, salt, 1<<14, 8, 1, 32)
+    key, err := scrypt.Key(password, salt, 1<<10, 8, 1, 32)
     if err != nil {
         return nil, nil, err
     }

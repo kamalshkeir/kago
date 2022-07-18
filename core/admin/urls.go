@@ -27,6 +27,7 @@ func UrlPatterns(r *kamux.Router) {
 	r.Get("/admin/export/table:string", middlewares.Admin(ExportView))
 	r.Post("/admin/import", middlewares.Admin(ImportView))
 	if settings.GlobalConfig.Logs {
+		r.UseMiddlewares(middlewares.LOGS)
 		r.Get("/logs",middlewares.Admin(LogsGetView))
 		r.SSE("/sse/logs",middlewares.Admin(LogsSSEView))
 	}

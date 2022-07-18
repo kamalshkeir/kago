@@ -136,9 +136,8 @@ func InitShell() bool {
 			}
 		}
 	default:
-		fmt.Printf(logger.Red,"command not handled, available commands : 'shell' , 'help', 'commands'")	
+		return false
 	}
-	return true
 }
 
 func getAll() {

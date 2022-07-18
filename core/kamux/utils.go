@@ -19,7 +19,7 @@ func (router *Router) LoadEnv(files ...string) {
 	for k,v := range m {
 		switch k {
 		case "SECRET":
-			settings.GlobalConfig.Secret=v
+			settings.Secret=v
 		case "EMBED_STATIC":
 			if b,err := strconv.ParseBool(v);!logger.CheckError(err) {
 				settings.GlobalConfig.EmbedStatic=b
