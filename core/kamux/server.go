@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"time"
 
 	gf "github.com/kamalshkeir/kago/core/middlewares/grafana"
@@ -62,18 +63,29 @@ func (router *Router) UseMiddlewares(midws ...func(http.Handler) http.Handler) {
 	midwrs = append(midwrs, midws...)
 }
 
+
 // Run start the server
 func (router *Router) Run() {
+	var wg sync.WaitGroup
+	wg.Add(2)
 	// init templates and assets
-	router.InitTemplatesAndAssets()
-	router.initServer()
+	go func() {
+		router.InitTemplatesAndAssets()
+		wg.Done()
+	}()
+	go func() {
+		router.initServer()
+		wg.Done()
+	}()
+	wg.Wait()
 	// Graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
+
 	if err := router.Server.ListenAndServe(); err != http.ErrServerClosed {
 		logger.Error("Unable to shutdown the server : ",err)
 	} else {
 		fmt.Printf(logger.Green,"Server Off !")
-	}	
+	}
 }
 
 

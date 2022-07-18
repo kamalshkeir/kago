@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
@@ -53,13 +54,13 @@ func (c *Context) Html(template_name string, data map[string]any,status ...int) 
 	const key utils.ContextKey = "user"
 	if data == nil { data = make(map[string]any) }
 	
+	data["request"] = c.Request
+	data["logs"] = settings.GlobalConfig.Logs
 	user,ok := c.Request.Context().Value(key).(map[string]any)
 	if ok {		
-		data["request"] = c.Request
 		data["is_authenticated"] = true
 		data["user"] = user
 	} else {
-		data["request"] = c.Request
 		data["is_authenticated"] = false
 		data["user"] = nil
 	}

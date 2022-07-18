@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/settings"
@@ -58,63 +58,80 @@ type Route struct {
 
 // New Create New Router from env file default: '.env'
 func New(envFiles ...string) *Router {
+	var wg sync.WaitGroup
 	app := &Router{
 		Routes: map[int][]Route{},
 		DefaultRoute: func(c *Context) {
 			c.Text(404,"Page Not Found")
 		},
 	}
+	wg.Add(1)
 	// Load Env
-	if len(envFiles) > 0 {
-		app.LoadEnv(envFiles...)
-	} else {
-		if _, err := os.Stat(".env"); os.IsNotExist(err) {
-			if os.Getenv("DB_NAME") == "" && os.Getenv("DB_DSN") == "" {
-				logger.Warn("Environment variables not loaded, you can copy it from generated assets folder and rename it to .env, or set them manualy")
-			}
+	go func(envFiles ...string) {
+		if len(envFiles) > 0 {
+			app.LoadEnv(envFiles...)
 		} else {
-			app.LoadEnv(".env")
+			if _, err := os.Stat(".env"); os.IsNotExist(err) {
+				if os.Getenv("DB_NAME") == "" && os.Getenv("DB_DSN") == "" {
+					logger.Warn("Environment variables not loaded, you can copy it from generated assets folder and rename it to .env, or set them manualy")
+				}
+			} else {
+				app.LoadEnv(".env")
+			}
 		}
-	}
-	// check flags
-	h := flag.String("h","localhost","overwrite host")
-	p := flag.Int("p",9313,"overwrite port number")
-	logs := flag.Bool("logs",false,"overwrite settings.GlobalConfig.Logs for router /logs")
-	monitoring := flag.Bool("monitoring",false,"set settings.GlobalConfig.Monitoring for prometheus and grafana /metrics")
-	docs := flag.Bool("docs",false,"set settings.GlobalConfig.Docs for prometheus and grafana /docs")
-	profiler := flag.Bool("profiler",false,"set settings.GlobalConfig.Profiler for pprof  /debug/pprof")
-	flag.Parse()
+		wg.Done()
+	}(envFiles...)
 	
-	settings.GlobalConfig.Logs=*logs
-	settings.GlobalConfig.Monitoring=*monitoring
-	settings.GlobalConfig.Docs=*docs
-	settings.GlobalConfig.Profiler=*profiler
-	if *p != 9313 {
-		settings.GlobalConfig.Port=strconv.Itoa(*p)
-	}
-	if *h != "localhost" && *h != "127.0.0.1" && *h != "" {
-		settings.GlobalConfig.Host=*h
-	} else {
-		settings.GlobalConfig.Host="localhost"
-	}
+	// check flags
+	wg.Add(1)
+	go func() {
+		h := flag.String("h","localhost","overwrite host")
+		p := flag.String("p","9313","overwrite port number")
+		logs := flag.Bool("logs",false,"overwrite settings.GlobalConfig.Logs for router /logs")
+		monitoring := flag.Bool("monitoring",false,"set settings.GlobalConfig.Monitoring for prometheus and grafana /metrics")
+		docs := flag.Bool("docs",false,"set settings.GlobalConfig.Docs for prometheus and grafana /docs")
+		profiler := flag.Bool("profiler",false,"set settings.GlobalConfig.Profiler for pprof  /debug/pprof")
+		flag.Parse()
+		
+		settings.GlobalConfig.Logs=*logs
+		settings.GlobalConfig.Monitoring=*monitoring
+		settings.GlobalConfig.Docs=*docs
+		settings.GlobalConfig.Profiler=*profiler
+
+		if *p != "9313" {
+			settings.GlobalConfig.Port=*p
+		}
+		if *h != "localhost" && *h != "127.0.0.1" && *h != "" {
+			settings.GlobalConfig.Host=*h
+		} else {
+			settings.GlobalConfig.Host="localhost"
+		}
+		wg.Done()
+	}()
+	
 
 	// init orm
-	err := orm.InitDB()
-	if err != nil {
-		if os.Getenv("DB_NAME") == "" && os.Getenv("DB_DSN") == "" {
-			logger.Warn("Environment variables not loaded, you can copy it from generated assets folder and rename it to .env, or set them manualy")
+	wg.Add(1)
+	go func() {
+		err := orm.InitDB()
+		if err != nil {
+			if os.Getenv("DB_NAME") == "" && os.Getenv("DB_DSN") == "" {
+				logger.Warn("Environment variables not loaded, you can copy it from generated assets folder and rename it to .env, or set them manualy")
+			} else {
+				logger.Error(err)
+			}
 		} else {
-			logger.Error(err)
+			// init orm shell
+			if shell.InitShell() {os.Exit(0)}
 		}
-	} else {
-		// init orm shell
-		if shell.InitShell() {os.Exit(0)}
-	}
-	if len(orm.GetAllTables()) > 0 {
-		// migrate initial models
-		err := orm.Migrate()
-		logger.CheckError(err)
-	}
+		if len(orm.GetAllTables()) > 0 {
+			// migrate initial models
+			err := orm.Migrate()
+			logger.CheckError(err)
+		}
+		wg.Done()
+	}()
+	wg.Wait()
 	return app
 }
 
