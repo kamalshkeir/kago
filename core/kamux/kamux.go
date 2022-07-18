@@ -79,7 +79,16 @@ func New(envFiles ...string) *Router {
 	// check flags
 	h := flag.String("h","localhost","overwrite host")
 	p := flag.Int("p",9313,"overwrite port number")
+	logs := flag.Bool("logs",false,"overwrite settings.GlobalConfig.Logs for router /logs")
+	monitoring := flag.Bool("monitoring",false,"set settings.GlobalConfig.Monitoring for prometheus and grafana /metrics")
+	docs := flag.Bool("docs",false,"set settings.GlobalConfig.Docs for prometheus and grafana /docs")
+	profiler := flag.Bool("profiler",false,"set settings.GlobalConfig.Profiler for pprof  /debug/pprof")
 	flag.Parse()
+	
+	settings.GlobalConfig.Logs=*logs
+	settings.GlobalConfig.Monitoring=*monitoring
+	settings.GlobalConfig.Docs=*docs
+	settings.GlobalConfig.Profiler=*profiler
 	if *p != 9313 {
 		settings.GlobalConfig.Port=strconv.Itoa(*p)
 	}

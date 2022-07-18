@@ -5,6 +5,9 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+
+	"github.com/kamalshkeir/kago/core/settings"
+	"github.com/kamalshkeir/kago/core/utils/eventbus"
 )
 
 const (
@@ -16,6 +19,15 @@ const (
 )
 
 var StreamLogs = []string{}
+
+func init() {
+	eventbus.Subscribe("internal-logs",func(data map[string]string) {
+		lenStream := len(StreamLogs)
+		if lenStream > 30 {
+			StreamLogs = StreamLogs[lenStream-20:]
+		}
+	})
+}
 
 // Printf take pattern(rd,gr,yl,bl,mg), varsString, varsValues
 func Printf(pattern string,anything ...interface{}) {
@@ -50,7 +62,12 @@ func Printf(pattern string,anything ...interface{}) {
 func CheckError(err error) bool {
 	if err != nil {
 		pc, _, line, _ := runtime.Caller(1)
-		fmt.Printf("\033[1;31m [error] %s [line:%d] : %v \033[0m \n", runtime.FuncForPC(pc).Name(), line, err)
+		caller := runtime.FuncForPC(pc).Name()
+		fmt.Printf("\033[1;31m [ERROR] %s [line:%d] : %v \033[0m \n", caller, line, err)
+		if settings.GlobalConfig.Logs {
+			StreamLogs = append(StreamLogs, fmt.Sprintf("[ERROR] %s [line:%d] : %v \n", caller, line, err))
+			eventbus.Publish("internal-logs",map[string]string{})
+		}
 		return true
 	}
 	return false
@@ -59,45 +76,70 @@ func CheckError(err error) bool {
 // Error println anything with red color 
 func Error(anything ...interface{}) {
 	pc, _, line, _ := runtime.Caller(1)
+	caller := runtime.FuncForPC(pc).Name()
 	placeholder := strings.Repeat("%v,",len(anything))
 	ph := strings.Replace(placeholder[:len(placeholder)-1],",","  ",-1) 
-	new := fmt.Sprintf("\033[1;31m [ERROR] %s [line:%d] : %s \033[0m \n", runtime.FuncForPC(pc).Name(), line, ph)
+	new := fmt.Sprintf("\033[1;31m [ERROR] %s [line:%d] : %s \033[0m \n", caller, line, ph)
+	if settings.GlobalConfig.Logs {
+		StreamLogs = append(StreamLogs, fmt.Sprintf("[ERROR] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph,anything...)))
+		eventbus.Publish("internal-logs",map[string]string{})
+	}
 	fmt.Printf(new,anything...)
 }
 
 // Info println anything with blue color 
 func Info(anything ...interface{}) {
 	pc, _, line, _ := runtime.Caller(1)
+	caller := runtime.FuncForPC(pc).Name()
 	placeholder := strings.Repeat("%v,",len(anything))
 	ph := strings.Replace(placeholder[:len(placeholder)-1],",","  ",-1) 
-	new := fmt.Sprintf("\033[1;34m [INFO] %s [line:%d] : %s \033[0m \n", runtime.FuncForPC(pc).Name(), line, ph)
+	new := fmt.Sprintf("\033[1;34m [INFO] %s [line:%d] : %s \033[0m \n", caller, line, ph)
+	if settings.GlobalConfig.Logs {
+		StreamLogs = append(StreamLogs, fmt.Sprintf("[INFO] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph,anything...)))
+		eventbus.Publish("internal-logs",map[string]string{})
+	}
 	fmt.Printf(new,anything...)
 }
 
 // Debug println anything with blue color 
 func Debug(anything ...interface{}) {
 	pc, _, line, _ := runtime.Caller(1)
+	caller := runtime.FuncForPC(pc).Name()
 	placeholder := strings.Repeat("%v,",len(anything))
 	ph := strings.Replace(placeholder[:len(placeholder)-1],",","  ",-1) 
-	new := fmt.Sprintf("\033[1;34m [Debug] %s [line:%d] : %s \033[0m \n", runtime.FuncForPC(pc).Name(), line, ph)
+	new := fmt.Sprintf("\033[1;34m [DEBUG] %s [line:%d] : %s \033[0m \n", caller, line, ph)
+	if settings.GlobalConfig.Logs {
+		StreamLogs = append(StreamLogs, fmt.Sprintf("[DEBUG] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph,anything...)))
+		eventbus.Publish("internal-logs",map[string]string{})
+	}
 	fmt.Printf(new,anything...)
 }
 
 // Success println anything with green color 
 func Success(anything ...interface{}) {
 	pc, _, line, _ := runtime.Caller(1)
+	caller := runtime.FuncForPC(pc).Name()
 	placeholder := strings.Repeat("%v,",len(anything))
 	ph := strings.Replace(placeholder[:len(placeholder)-1],",","  ",-1) 
-	new := fmt.Sprintf("\033[1;32m [SUCCESS] %s [line:%d] : %s \033[0m \n", runtime.FuncForPC(pc).Name(), line, ph)
+	new := fmt.Sprintf("\033[1;32m [SUCCESS] %s [line:%d] : %s \033[0m \n", caller, line, ph)
+	if settings.GlobalConfig.Logs {
+		StreamLogs = append(StreamLogs, fmt.Sprintf("[SUCCESS] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph,anything...)))
+		eventbus.Publish("internal-logs",map[string]string{})
+	}
 	fmt.Printf(new,anything...)
 }
 
 // Warning println anything with yellow color 
 func Warn(anything ...interface{}) {
 	pc, _, line, _ := runtime.Caller(1)
+	caller := runtime.FuncForPC(pc).Name()
 	placeholder := strings.Repeat("%v,",len(anything))
 	ph := strings.Replace(placeholder[:len(placeholder)-1],",","  ",-1)
-	new := fmt.Sprintf("\033[1;35m [WARNING] %s [line:%d] : %s \033[0m \n", runtime.FuncForPC(pc).Name(), line, ph)
+	new := fmt.Sprintf("\033[1;35m [WARN] %s [line:%d] : %s \033[0m \n",caller, line, ph)
+	if settings.GlobalConfig.Logs {
+		StreamLogs = append(StreamLogs, fmt.Sprintf("[WARN] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph,anything...)))
+		eventbus.Publish("internal-logs",map[string]string{})
+	}
 	fmt.Printf(new,anything...)
 }
 

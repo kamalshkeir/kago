@@ -17,9 +17,12 @@ import (
 	"github.com/kamalshkeir/kago/core/kamux"
 	"github.com/kamalshkeir/kago/core/middlewares/csrf"
 	"github.com/kamalshkeir/kago/core/middlewares/gzip"
+	"github.com/kamalshkeir/kago/core/middlewares/logs"
 	"github.com/kamalshkeir/kago/core/orm"
+	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/encryption/encryptor"
+	"github.com/kamalshkeir/kago/core/utils/eventbus"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 
 	"golang.org/x/time/rate"
@@ -27,14 +30,7 @@ import (
 
 var SESSION_ENCRYPTION = true
 
-type StatusRecorder struct {
-    http.ResponseWriter
-    Status int
-}
-func (r *StatusRecorder) WriteHeader(status int) {
-    r.Status = status
-    r.ResponseWriter.WriteHeader(status)
-}
+
 
 // AuthMiddleware can be added to any handler to get user cookie authentication and pass it to handler and templates
 func Auth(handler kamux.Handler) kamux.Handler {
@@ -260,7 +256,6 @@ func Limiter(next http.Handler) http.Handler {
     })
 }
 
-
 func Recovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
@@ -293,26 +288,25 @@ func LOGS(h http.Handler) http.Handler {
 				return
 			}
 		}
-        recorder := &StatusRecorder{
+        recorder := &logs.StatusRecorder{
             ResponseWriter: w,
             Status:         200,
         }
 		t := time.Now()
         h.ServeHTTP(recorder, r)
-		res := fmt.Sprintf("[%s]  %s  [%d]  %v  from:%s",r.Method, r.URL.Path, recorder.Status,time.Since(t),r.RemoteAddr)
-		do := false
+		res := fmt.Sprintf("[%s] --> '%s' --> [%d]  from: %s ---------- Took: %v",r.Method, r.URL.Path, recorder.Status,r.RemoteAddr,time.Since(t))
 		
-		if do {
-			if recorder.Status >= 200 && recorder.Status < 400 {
-				fmt.Printf(logger.Green,res)
-			} else if recorder.Status >= 400 || recorder.Status < 200 {
-				fmt.Printf(logger.Red,res)
-			} else {
-				fmt.Printf(logger.Yellow,res)
-			}
+		if recorder.Status >= 200 && recorder.Status < 400 {
+			fmt.Printf(logger.Green,res)
+		} else if recorder.Status >= 400 || recorder.Status < 200 {
+			fmt.Printf(logger.Red,res)
+		} else {
+			fmt.Printf(logger.Yellow,res)
 		}
-		
-        logger.StreamLogs = append(logger.StreamLogs, res)
+		if settings.GlobalConfig.Logs {
+			logger.StreamLogs = append(logger.StreamLogs, res)
+			eventbus.Publish("internal-logs",map[string]string{})
+		}
     })
 }
 
