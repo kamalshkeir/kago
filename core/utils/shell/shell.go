@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -23,54 +24,119 @@ func InitShell() bool {
 	}
 	
 	switch args[1] {
-	case "help":
-		fmt.Printf(logger.Blue,"Shell Usage: go run main.go [migrate, createsuperuser, createuser, getall, get, drop, delete]")
+	case "commands":
+		fmt.Printf(logger.Yellow,"Shell Usage: go run main.go shell")
+		fmt.Printf(logger.Yellow,"Commands :  [migrate, createsuperuser, createuser, getall, get, drop, delete, clear/cls, quit/exit, help/commands]")
 		return true
-	case "migrate":
+	case "help":
+		fmt.Printf(logger.Yellow,"Shell Usage: go run main.go shell")
+		fmt.Printf(logger.Yellow,`Commands :  
+  [migrate, createsuperuser, createuser, getall, get, drop, delete, clear/cls, quit/exit, help/commands]
+	
+	'migrate':
+		migrate initial users to env database
+
+	'createsuperuser':
+		create a admin user
+
+	'createuser':
+		create a regular user
+
+	'getall':
+		get all rows given a table name
+
+	'get':
+		get single row wher field equal_to
+
+	'delete':
+		delete rows where field equal_to
+
+	'drop':
+		drop a table given table name
+				`)
+		return true
+	case "shell":
 		_ = orm.InitDB()
 		defer orm.GetConnection().Close()
-		fmt.Printf(input.Blue,"available commands: 1:init, 2:file \n")
-		choice := input.Input(input.Blue,"command> ")
-		switch choice {
-		case "file","2":
-			path := input.Input(input.Blue,"path: ")
-			err := migratefromfile(path)
-			if logger.CheckError(err) {
+		fmt.Printf(logger.Yellow,"Commands :  [migrate, createsuperuser, createuser, getall, get, drop, delete, clear/cls, quit/exit, help/commands]")
+		for {
+			command,err := input.String(input.Blue,"> ")
+			if err != nil {
+				if errors.Is(err,io.EOF) {
+					fmt.Printf(logger.Blue,"shell shutting down")
+					os.Exit(0)
+				}
 				return true
 			}
-		case "init","1":
-			err := orm.Migrate()
-			if logger.CheckError(err) {
-				return true
+			switch command {
+			case "quit","exit":
+				return true		
+			case "clear","cls":
+				input.Clear()	
+				fmt.Printf(logger.Yellow,"Commands :  [migrate, createsuperuser, createuser, getall, get, drop, delete, clear/cls, quit/exit, help/commands]")
+			case "help":
+		fmt.Printf(logger.Yellow,`Commands :  
+  [migrate, createsuperuser, createuser, getall, get, drop, delete, clear/cls, quit/exit, help/commands]
+	
+	'migrate':
+		migrate initial users to env database
+
+	'createsuperuser':
+		create a admin user
+
+	'createuser':
+		create a regular user
+
+	'getall':
+		get all rows given a table name
+
+	'get':
+		get single row wher field equal_to
+
+	'delete':
+		delete rows where field equal_to
+		
+	'drop':
+		drop a table given table name
+				`)
+			case "commands":
+				fmt.Printf(logger.Yellow,"Commands :  [migrate, createsuperuser, createuser, getall, get, drop, delete, clear/cls, quit/exit, help/commands]")
+			case "migrate":
+				fmt.Printf(logger.Blue,"available commands:")
+				fmt.Printf(logger.Blue,"1 : init")
+				fmt.Printf(logger.Blue,"2 : file")
+				choice := input.Input(input.Blue,"command> ")
+				switch choice {
+				case "file","2":
+					path := input.Input(input.Blue,"path: ")
+					err := migratefromfile(path)
+					if !logger.CheckError(err) {
+						fmt.Printf(logger.Green,"migrated successfully")
+					}
+				case "init","1":
+					err := orm.Migrate()
+					if !logger.CheckError(err) {
+						fmt.Printf(logger.Green,"users table migrated successfully")
+					}
+				}
+			case "createsuperuser":
+				createsuperuser()
+			case "createuser":
+				createuser()
+			case "getall":
+				getAll()	
+			case "get":		
+				getRow()			
+			case "drop":
+				dropTable()	
+			case "delete":
+				deleteRow()	
+			default:
+				fmt.Printf(logger.Red,"command not handled, use 'help' or 'commands' to list available commands ")
 			}
-			fmt.Printf(logger.Green,"users table migrated successfully")
 		}
-	case "createsuperuser":
-		_ = orm.InitDB()
-		defer orm.GetConnection().Close()
-		createsuperuser()
-	case "createuser":
-		_ = orm.InitDB()
-		defer orm.GetConnection().Close()
-		createuser()				
-	case "getall":
-		_ = orm.InitDB()
-		defer orm.GetConnection().Close()
-		getAll()	
-	case "get":	
-		_ = orm.InitDB()
-		defer orm.GetConnection().Close()	
-		getRow()			
-	case "drop":
-		_ = orm.InitDB()
-		defer orm.GetConnection().Close()
-		dropTable()	
-	case "delete":
-		_ = orm.InitDB()
-		defer orm.GetConnection().Close()
-		deleteRow()	
 	default:
-		return false	
+		fmt.Printf(logger.Red,"command not handled, available commands : 'shell' , 'help', 'commands'")	
 	}
 	return true
 }
@@ -135,7 +201,6 @@ func createsuperuser() {
 	}
 }
 
-
 func migratefromfile(path string) error {
 	if !utils.SliceContains([]string{"postgres","sqlite","mysql"},settings.GlobalConfig.DbType) {
 		logger.Error("database is neither postgres, sqlite or mysql ")
@@ -162,7 +227,6 @@ func migratefromfile(path string) error {
 	}
 	return nil
 }
-
 
 func dropTable() {
 	tableName := input.Input(input.Blue,"Table to drop : ") 
