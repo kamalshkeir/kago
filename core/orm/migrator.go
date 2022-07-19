@@ -191,7 +191,7 @@ func handleMigrationInt(dialect, fName, ty string, mFieldName_Tags *map[string][
 	}
 }
 
-func handleMigrationBool(dialect, fName, ty string, mFieldName_Tags *map[string][]string, fkeys *[]string, res *map[string]string) {
+func handleMigrationBool(_, fName, ty string, mFieldName_Tags *map[string][]string, fkeys *[]string, res *map[string]string) {
 	defaultt := ""
 	(*res)[fName] = "INTEGER NOT NULL CHECK (" + fName + " IN (0, 1))"
 	tags := (*mFieldName_Tags)[fName]
@@ -250,8 +250,10 @@ func handleMigrationString(dialect, fName, ty string, mFieldName_Tags *map[strin
 				sp := strings.Split(tag, ":")
 				switch sp[0] {
 				case "default":
-					if sp[1] == "" {
+					if sp[1] != "" {
 						defaultt = " DEFAULT " + sp[1]
+					} else {
+						defaultt = " DEFAULT ''" 
 					}
 				case "fk":
 					ref := strings.Split(sp[1], ".")
@@ -321,7 +323,7 @@ func handleMigrationString(dialect, fName, ty string, mFieldName_Tags *map[strin
 	}
 }
 
-func handleMigrationFloat(dialect, fName, ty string, mFieldName_Tags *map[string][]string, fkeys *[]string, res *map[string]string) {
+func handleMigrationFloat(dialect, fName, _ string, mFieldName_Tags *map[string][]string, fkeys *[]string, res *map[string]string) {
 	mtags := map[string]string{}
 	tags := (*mFieldName_Tags)[fName]
 	for _, tag := range tags {

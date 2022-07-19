@@ -54,12 +54,14 @@ BenchmarkGetRowM-4               4111814               292.6 ns/op            48
 BenchmarkGetAllTables-4         58835394                21.52 ns/op            0 B/op          0 allocs/op
 BenchmarkGetAllColumns-4        59059225                19.99 ns/op            0 B/op          0 allocs/op
 ///////////////////////////////////// sqlite without cache
-BenchmarkGetAllS-4                 13549             84700 ns/op            1992 B/op         61 allocs/op
-BenchmarkGetAllM-4                 14166             79705 ns/op            1896 B/op         60 allocs/op
-BenchmarkGetRowS-4                 12775             88451 ns/op            2272 B/op         71 allocs/op
-BenchmarkGetRowM-4                 13924             85723 ns/op            2176 B/op         70 allocs/op
-BenchmarkGetAllTables-4            14155             83979 ns/op             528 B/op         25 allocs/op
-BenchmarkGetAllColumns-4           15121             77602 ns/op            1760 B/op         99 allocs/op
+BenchmarkGetAllS-4                 13664             85506 ns/op            2056 B/op         62 allocs/op
+BenchmarkGetAllS_GORM-4            10000            101665 ns/op            9547 B/op        155 allocs/op
+BenchmarkGetAllM-4                 13747             83989 ns/op            1912 B/op         61 allocs/op
+BenchmarkGetAllM_GORM-4            10000            107810 ns/op            8387 B/op        237 allocs/op
+BenchmarkGetRowS-4                 12702             91958 ns/op            2192 B/op         67 allocs/op
+BenchmarkGetRowM-4                 13256             89095 ns/op            2048 B/op         66 allocs/op
+BenchmarkGetAllTables-4            14264             83939 ns/op             672 B/op         32 allocs/op
+BenchmarkGetAllColumns-4           15236             79498 ns/op            1760 B/op         99 allocs/op
 ///////////////////////////////////// sqlite with cache
 BenchmarkGetAllS-4               2951642               399.5 ns/op           208 B/op          2 allocs/op
 BenchmarkGetAllM-4               6537204               177.2 ns/op            16 B/op          1 allocs/op

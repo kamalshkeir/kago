@@ -328,17 +328,19 @@ func handleFilesUpload(files map[string][]*multipart.FileHeader,model string,id 
 				})
 				return
 			} else {
-				err := c.DeleteFile(database_image.(string))
-				if err != nil {
-					//le fichier existe pas
-					_,err := orm.Table(model).Where("id = ?",id).Set(key+" = ?",uploadedImage)
-					logger.CheckError(err)
-					continue
-				} else {
-					//le fichier existe et donc supprimer
-					_,err := orm.Table(model).Where("id = ?",id).Set(key+" = ?",uploadedImage)
-					logger.CheckError(err)
-					continue
+				if v,ok := database_image.(string);ok {
+					err := c.DeleteFile(v)
+					if err != nil {
+						//le fichier existe pas
+						_,err := orm.Table(model).Where("id = ?",id).Set(key+" = ?",uploadedImage)
+						logger.CheckError(err)
+						continue
+					} else {
+						//le fichier existe et donc supprimer
+						_,err := orm.Table(model).Where("id = ?",id).Set(key+" = ?",uploadedImage)
+						logger.CheckError(err)
+						continue
+					}
 				}
 			}
 			

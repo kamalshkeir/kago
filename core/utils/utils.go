@@ -63,6 +63,9 @@ func UploadFile(file multipart.File,filename string) string {
 
 func CopyDir(source, destination string) error {
     var err error = filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
         var relPath string = strings.Replace(path, source, "", 1)
         if relPath == "" {
             return nil
@@ -134,7 +137,7 @@ func SendEmail(to_email string,subject string,textToSend string) {
 }
 
 // Cronjob like
-func RunEvery(t time.Duration,function interface{}) {
+func RunEvery(t time.Duration,function any) {
 	//Usage : go RunEvery(2 * time.Second,func(){})
 	fn, ok := function.(func())
 	if !ok {
@@ -147,6 +150,25 @@ func RunEvery(t time.Duration,function interface{}) {
 	
 	for range c.C {
 		fn()
+	}
+}
+
+func RetryEvery(t time.Duration,function func() error,maxRetry ...int) {
+	i := 0
+	err := function()
+	for err != nil {
+		time.Sleep(t)
+		i++
+		if len(maxRetry) > 0 {
+			if i < maxRetry[0] {
+				err = function()
+			} else {
+				fmt.Println("stoping retry after",maxRetry,"times")
+				break
+			}
+		} else {
+			err = function()
+		}
 	}
 }
 
