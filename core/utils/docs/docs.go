@@ -4,60 +4,62 @@ import (
 	"encoding/json"
 	"io/fs"
 	"io/ioutil"
-	"strings"
 
-	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
 const path = "assets/static/docs/docs.json"
 
 func New() *Docs {
-	return &Docs{}
-}
-
-func (docs *Docs) Read() *Docs {	
 	// read the file
 	bytee,err := ioutil.ReadFile(path)
 	if logger.CheckError(err) {
 		return &Docs{
-			BasePath: "/",
-			SwaggerVersion: "2.0",
+			OpenApi: "3.0.1",
+			Info: Info{
+				Title: "KaGo Docs",
+				Description: "KaGo docs, ready to use with internal 'docs' library",
+				Contact: Contact{
+					Email: "kamalshkeir@gmail.com",
+					Url:"https://kamalshkeir.github.io",
+				},
+				Version: "1.0.0",
+			},
 			Host: "localhost:9313",
 			ExternalDocs: ExternalDocs{
 				Description: "Send me email on kamalshkeir@gmail.com",
 				Url: "https://kamalshkeir.github.io",
 			},
-			Info: Info{
-				Contact: Contact{
-					Email: "kamalshkeir@gmail.com",
-					Url:"https://kamalshkeir.github.io",
-				},
-				Description: "KamFram docs, ready to use with internal 'docs' library",
-				Title: "KamFram Docs",
-				Version: "1.0.0",
+			Servers: []Server{
+				{Url: "http://localhost:9313"},
 			},
-			Schemes: []string{"http"},
+			Tags: []Tag{},
+			Paths: map[string]map[string]Path{},
+			Components: map[string]map[string]Model{},
 		}
 	}
 	docss := &Docs{
-		BasePath: "/",
-		SwaggerVersion: "2.0",
+		OpenApi: "3.0.1",
+		Info: Info{
+			Title: "KaGo Docs",
+			Description: "KaGo docs, ready to use with internal 'docs' library",
+			Contact: Contact{
+				Email: "kamalshkeir@gmail.com",
+				Url:"https://kamalshkeir.github.io",
+			},
+			Version: "1.0.0",
+		},
 		Host: "localhost:9313",
 		ExternalDocs: ExternalDocs{
 			Description: "Send me email on kamalshkeir@gmail.com",
 			Url: "https://kamalshkeir.github.io",
 		},
-		Info: Info{
-			Contact: Contact{
-				Email: "kamalshkeir@gmail.com",
-				Url:"https://kamalshkeir.github.io",
-			},
-			Description: "KamFram docs, ready to use with internal 'docs' library",
-			Title: "KamFram Docs",
-			Version: "1.0.0",
+		Servers: []Server{
+			{Url: "http://localhost:9313"},
 		},
-		Schemes: []string{"http"},
+		Tags: []Tag{},
+		Paths: map[string]map[string]Path{},
+		Components: map[string]map[string]Model{},
 	}
 	// load it into data
 	err = json.Unmarshal(bytee,docss)
@@ -67,209 +69,137 @@ func (docs *Docs) Read() *Docs {
 
 func (docs *Docs) String() string {	
 	// read the file
+	docs.m.RLock()
+	defer docs.m.RUnlock()
 	b,err := json.MarshalIndent(docs,"","  ")
 	if logger.CheckError(err) {return ""}
 	return string(b)
 }
 
 func (docs *Docs) Save() {	
+	docs.m.RLock()
 	byte_again,_ := json.MarshalIndent(docs,"","\t")
+	docs.m.RUnlock()
 	err := ioutil.WriteFile(path,byte_again,fs.ModePerm)
 	logger.CheckError(err)
 }
 
-func NewQueryParam(paramName,paramType,paramDesc string,required bool) Param {
-	return Param{
-		In: "query",
-		Name: paramName,
-		Schema: Schema{
-			Type: paramType,
-		},
-		Required: required,
-		Description: paramDesc,
+func (docs *Docs)AddPath(path, method string,p Path) {
+	docs.m.Lock()
+	if _,ok := docs.Paths[path];!ok {
+		docs.Paths[path]=map[string]Path{}
 	}
+	docs.Paths[path][method]=p
+	docs.m.Unlock()
 }
 
-func NewPathParam(paramName,paramType,paramDesc string,required bool) Param {
-	return Param{
-		In: "path",
-		Name: paramName,
-		Schema: Schema{
-			Type: paramType,
-		},
-		Required: required,
-		Description: paramDesc,
-	}
-}
-
-func NewBodyParam(paramName,refName,paramDesc string,required bool) Param {
-	return Param{
-		In: "body",
-		Name: paramName,
-		Schema: Schema{
-			Type: "object",
-			Ref: "#/definitions/"+refName,
-		},
-		Required: required,
-		Description: paramDesc,
-	}
-}
-
-func (docs *Docs) SetVersion(version string){
-	docs.Info.Version=version
-}
-
-func (docs *Docs) AddTag(name string, desc string) {
-	for i,tag := range docs.Tags {
-		if tag.Name == name {
-			docs.Tags = append(docs.Tags[:i],docs.Tags[i+1:]...)
+func (docs *Docs)RemovePath(path string, method ...string) {
+	docs.m.Lock()
+	if len(method) == 0 {
+		delete(docs.Paths,path)
+	} else {
+		delete(docs.Paths[path],method[0])
+		if len(docs.Paths[path]) == 0 {
+			delete(docs.Paths,path)
 		}
 	}
-	docs.Tags = append(docs.Tags, Tag{
-		Name: name,
-		Description: desc,
+	docs.m.Unlock()
+}
+
+func (docs *Docs)AddTag(t Tag) {
+	docs.m.Lock()
+	if len(docs.Tags) == 0 {
+		docs.Tags=[]Tag{t}
+		docs.m.Unlock()
+		return
+	}
+	for _,tag := range docs.Tags {
+		if tag.Name == t.Name {
+			docs.m.Unlock()
+			return
+		}
+	}
+	docs.Tags = append(docs.Tags, t) 
+	docs.m.Unlock()
+}
+
+func (docs *Docs)RemoveTag(tagName string) {
+	docs.m.Lock()
+	for i,tag := range docs.Tags {
+		if tag.Name == tagName {
+			docs.Tags = append(docs.Tags[:i],docs.Tags[i+1:]...)	
+		}
+	}
+	docs.m.Unlock()
+}
+
+func (docs *Docs)AddModel(name string, m Model) {
+	docs.m.Lock()
+	if _,ok := docs.Components["schemas"];!ok {
+		docs.Components["schemas"]=map[string]Model{
+			name:m,
+		}
+		docs.m.Unlock()
+		return
+	} 
+	docs.Components["schemas"][name]=m
+	docs.m.Unlock()
+}
+
+func (docs *Docs)RemoveModel(modelName string) {
+	docs.m.Lock()
+	if sch,ok := docs.Components["schemas"];ok {
+		if _,ok := sch[modelName];ok {
+			delete(docs.Components[modelName],modelName)
+		}
+	}
+	docs.m.Unlock()
+}
+
+
+
+/* doc := docs.New()
+
+	doc.AddModel("User",docs.Model{
+		Type: "object",
+		RequiredFields: []string{"email","password"},
+		Properties: map[string]docs.Property{
+			"email":{
+				Required: true,
+				Type: "string",
+				Example: "example@xyz.com",
+			},
+			"password":{
+				Required: true,
+				Type: "string",
+				Example: "************",
+				Format: "password",
+			},
+		},
 	})
-}
-
-func (docs *Docs) Print() {
-	logger.Info("Version:",docs.Info.Version)
-	logger.Success("--------------------------------------")
-	logger.Info("Tags:",docs.Tags)
-	logger.Success("--------------------------------------")
-	logger.Info("Models:")
-	for name,def := range docs.Definitions {
-		logger.Info(name,"-->",def)
-	}
-	logger.Success("--------------------------------------")
-	logger.Info("Paths:")
-	for url,maap := range docs.Paths {
-		for method,path := range maap {
-			logger.Info(method,url,path)
-		}
-	}
-}
-
-func (docs *Docs) RemoveTag(name string) {
-	for i,tag := range docs.Tags {
-		if tag.Name == name {
-			docs.Tags = append(docs.Tags[:i],docs.Tags[i+1:]...)
-		}
-	}
-}
-
-func (docs *Docs) AddModel(model_name string, example_map map[string]any, fields_props map[string]Property) {
-	if model,ok := docs.Definitions[model_name];ok {
-		model.Example = example_map
-		model.Properties = fields_props
-		model.Type = "object"
-	} else {
-		docs.Definitions[model_name]=Definition{
-			Example: example_map,
-			Properties: fields_props,
-			Type: "object",
-		}
-	}
-}
-
-func (docs *Docs) RemoveModel(model_name string) {
-	delete(docs.Definitions,model_name)
-}
-
-func (docs *Docs) AddPath(
-	url,method,desc,tag string,
-	params []Param, 
-	tags []string, 
-	ref_model string,
-	) {
-	if p,ok := docs.Paths[url];ok {
-		// path exist
-		if meth,ok := p[method];ok {
-			// method exist
-			meth.Description=desc
-			meth.Summary=desc
-			// if param exist delete it
-			meth.Parameters = append([]Param{}, params...)
-			// if tag exist delete it
-			meth.Tags=append([]string{}, tags...)
-			if !strings.EqualFold(method,"get") {
-				meth.Consumes=[]string{"application/json"}
-				meth.Produces=[]string{"application/json"}
-				meth.OperationId=utils.GenerateRandomString(6)
-			}
-			meth.Responses=map[string]Response{
-				"200":{
-					Description: "OK",
-				},
-				"404":{
-					Description: "NOT FOUND",
-				},
-			}
-		} else {
-			// method doesn't exist
-			// path doesn't exist
-			var cons []string
-			var opId string
-			if !strings.EqualFold(method,"get") {
-				cons=[]string{"application/json"}
-				opId=utils.GenerateRandomString(6)
-			}
-			p[method]=Path{
-				Description: desc,
-				Summary: desc,
-				OperationId: opId,
-				Consumes: cons,
-				Produces: cons,
-				Parameters: append([]Param{}, params...),
-				Tags: append([]string{}, tags...),
-				Responses: map[string]Response{
-					"200":{
-						Description: "OK",
+	doc.AddPath("/admin/login","post",docs.Path{
+		Tags: []string{"Auth"},
+		Summary: "login post request",
+		OperationId: "login-post",
+		Description: "Login Post Request",
+		Requestbody: docs.RequestBody{
+			Description: "email and password for login",
+			Required: true,
+			Content: map[string]docs.ContentType{
+				"application/json":{
+					Schema: docs.Schema{
+						Ref: "#/components/schemas/User",
 					},
-					"404":{
-						Description: "NOT FOUND",
-					},
-				},
-			}
-		}
-	} else {
-		// path doesn't exist
-		var cons []string
-		var opId string
-		if !strings.EqualFold(method,"get") {
-			cons=[]string{"application/json"}
-			opId=utils.GenerateRandomString(6)
-		}
-		docs.Paths[url]=map[string]Path{}
-		docs.Paths[url][method]=Path{
-			Description: desc,
-			Summary: desc,
-			OperationId: opId,
-			Consumes: cons,
-			Produces: cons,
-			Tags: append([]string{},tags...),
-			Parameters: append([]Param{},params...),
-			Responses: map[string]Response{
-				"200":{
-					Description: "OK",
-				},
-				"404":{
-					Description: "NOT FOUND",
 				},
 			},
-		}
-		
-	}
-
-}
-
-func (docs *Docs) RemoveMethodFromPath(path string, method string) {
-	if p,ok := docs.Paths[path];ok {
-		if _,ok := p[method];ok {
-			delete(docs.Paths[path],method)
-		}
-	}
-}
-
-func (docs *Docs) RemovePath(path string) {
-	delete(docs.Paths,path)
-}
+		},
+		Responses: map[string]docs.Response{
+			"404":{Description: "NOT FOUND"},
+			"403":{Description: "WRONG PASSWORD"},
+			"500":{Description: "INTERNAL SERVER ERROR"},
+			"200":{Description: "OK"},
+		},
+		Consumes: []string{"application/json"},
+		Produces: []string{"application/json"},
+	})
+	doc.Save() */

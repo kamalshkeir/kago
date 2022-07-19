@@ -135,7 +135,7 @@ func New(envFiles ...string) *Router {
 	return app
 }
 
-// Get handle GET method on a pattern
+// handle a route
 func (router *Router) handle(method int,pattern string, handler Handler,wshandler WsHandler,allowed []string) {
 	re := regexp.MustCompile(adaptParams(pattern))
 	route := Route{Method: methods[method],Pattern: re, Handler: handler, WsHandler: wshandler,Clients: nil,AllowedOrigines: []string{}}
@@ -160,27 +160,27 @@ func (router *Router) handle(method int,pattern string, handler Handler,wshandle
 	router.Routes[method] = append(router.Routes[method], route)
 }
 
-// Get handle GET method on a pattern
+// Get handle GET to a route
 func (router *Router) Get(pattern string, handler Handler) {
 	router.handle(GET,pattern,handler,nil,nil)
 }
 
-// Post handle POST method on a pattern
+// Post handle POST to a route
 func (router *Router) Post(pattern string, handler Handler, allowed_origines ...string) {
 	router.handle(POST,pattern,handler,nil,allowed_origines)
 }
 
-// Put handle PUT method on a pattern
+// Put handle PUT to a route
 func (router *Router) Put(pattern string, handler Handler, allowed_origines ...string) {
 	router.handle(PUT,pattern,handler,nil,allowed_origines)
 }
 
-// Patch handle PATCH method on a pattern
+// Patch handle PATCH to a route
 func (router *Router) Patch(pattern string, handler Handler, allowed_origines ...string) {
 	router.handle(PATCH,pattern,handler,nil,allowed_origines)
 }
 
-// Delete handle DELETE method on a pattern
+// Delete handle DELETE to a route
 func (router *Router) Delete(pattern string, handler Handler, allowed_origines ...string) {
 	router.handle(DELETE,pattern,handler,nil,allowed_origines)
 }
@@ -190,7 +190,7 @@ func (router *Router) WS(pattern string, wsHandler WsHandler, allowed_origines .
 	router.handle(WS,pattern,nil,wsHandler,allowed_origines)
 }
 
-// Delete handle DELETE method on a pattern
+// Delete handle DELETE to a route
 func (router *Router) SSE(pattern string, handler Handler, allowed_origines ...string) {
 	router.handle(SSE,pattern,handler,nil,allowed_origines)
 }
@@ -268,17 +268,17 @@ func adaptParams(url string) string {
 				case "float":
 					splited[i] = `(?P<` + name + `>[-+]?([0-9]*\.[0-9]+|[0-9]+))` 
 				default:
-					splited[i] = `(?P<` + name + `>\w+)`
+					splited[i] = `(?P<` + name + `>[a-z0-9]+(?:-[a-z0-9]+)*)` 
 				}
 			}
 		}
 		return "^/"+strings.Join(splited, "/")+"(|/)?$"
+	} 
+
+	if strings.Contains(url,"^") {
+		return url
 	} else {
-		if strings.Contains(url,"^") {
-			return url
-		} else {
-			return "^"+url+"(|/)?$"
-		}
+		return "^"+url+"(|/)?$"
 	}
 }
 

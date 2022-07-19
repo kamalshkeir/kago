@@ -19,6 +19,7 @@ import (
 	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/logger"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 var allTemplates = template.New("")
@@ -101,6 +102,12 @@ func (router *Router) cloneTemplatesAndStatic()  {
 
 
 func (router *Router) initAdminDocsAndStaticURLS() {
+	// prometheus metrics
+	if settings.GlobalConfig.Monitoring {
+		router.Get("/metrics", func(c *Context) {
+			promhttp.Handler().ServeHTTP(c.ResponseWriter,c.Request)
+		})
+	}
     // PROFILER
 	if settings.GlobalConfig.Profiler {
 		router.Get("^/debug/pprof/?heap", func(c *Context) { pprof.Index(c.ResponseWriter, c.Request) })

@@ -4,7 +4,6 @@ import (
 	"github.com/kamalshkeir/kago/core/kamux"
 	"github.com/kamalshkeir/kago/core/middlewares"
 	"github.com/kamalshkeir/kago/core/settings"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func UrlPatterns(r *kamux.Router) {
@@ -30,10 +29,5 @@ func UrlPatterns(r *kamux.Router) {
 		r.UseMiddlewares(middlewares.LOGS)
 		r.Get("/logs",middlewares.Admin(LogsGetView))
 		r.SSE("/sse/logs",middlewares.Admin(LogsSSEView))
-	}
-	if settings.GlobalConfig.Monitoring {
-		r.Get("/metrics", func(c *kamux.Context) {
-			promhttp.Handler().ServeHTTP(c.ResponseWriter,c.Request)
-		})
 	}
 }

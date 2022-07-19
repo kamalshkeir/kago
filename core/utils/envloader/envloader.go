@@ -23,7 +23,6 @@ func Load(files ...string) error {
 		if err != nil {
 			return err
 		}
-		return nil
 	}
 	return errors.New("no data")
 }
@@ -32,15 +31,15 @@ func LoadToMap(files ...string) (map[string]string,error) {
 	if len(files) == 0 {
 		files = []string{".env"}
 	}
-
+	var m map[string]string
+	var err error
 	for _, f := range files {
-		m,err := loadToMap(f)
+		m,err = loadToMap(f)
 		if err != nil {
 			return nil,err
 		}
-		return m,nil
 	}
-	return nil,errors.New("no data")
+	return m,nil
 }
 
 func loadToMap(filename string) (map[string]string,error) {
@@ -117,7 +116,7 @@ func parse(r io.Reader) (m map[string]string, err error) {
 	for _, fullLine := range lines {
 		if !isIgnoredLine(fullLine) {
 			var key, value string
-			key, value, err = parseLine(fullLine, m)
+			key, value, err = parseOne(fullLine, m)
 
 			if err != nil {
 				return
@@ -128,7 +127,7 @@ func parse(r io.Reader) (m map[string]string, err error) {
 	return
 }
 
-func parseLine(line string, envMap map[string]string) (key string, value string, err error) {
+func parseOne(line string, envMap map[string]string) (key string, value string, err error) {
 	if len(line) == 0 {
 		err = errors.New("zero length string")
 		return
