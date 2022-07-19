@@ -2,6 +2,7 @@ package admin
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"mime/multipart"
 	"net/http"
@@ -299,7 +300,13 @@ var UpdateRowPost = func(c *kamux.Context) {
 	// id from string to int
 	id := data["row_id"][0]
 	//handle file upload
-	handleFilesUpload(files,data["table"][0],id,c)
+	err := handleFilesUpload(files,data["table"][0],id,c)
+	if err != nil {
+		c.Json(http.StatusBadRequest,map[string]any{
+			"error":err.Error(),
+		})
+		return
+	}
 	//get model from database
 	modelDB,err := orm.Table(data["table"][0]).Where("id = ?",id).One()
 	
@@ -346,24 +353,22 @@ var UpdateRowPost = func(c *kamux.Context) {
 	})	
 }
 
-func handleFilesUpload(files map[string][]*multipart.FileHeader,model string,id string,c *kamux.Context) {
+func handleFilesUpload(files map[string][]*multipart.FileHeader,model string,id string,c *kamux.Context) error {
 	if len(files) > 0 {
 		for key,val := range files {
 			file,_ := val[0].Open()
-			uploadedImage := utils.UploadFile(file,val[0].Filename)
+			uploadedImage,err := utils.UploadFile(file,val[0].Filename)
+			if err != nil {
+				return err
+			}
 			row,err := orm.Table(model).Where("id = ?",id).One()
 			if err != nil {
-				c.Json(200,map[string]any{
-					"error":err.Error(),
-				})
-				return
+				return err
 			}
 			database_image := row[key]
+
 			if database_image == uploadedImage {
-				c.Json(200, map[string]any{
-					"error": "uploadedImage is the same !",
-				})
-				return
+				return errors.New("uploadedImage is the same")
 			} else {
 				if v,ok := database_image.(string);ok {
 					err := c.DeleteFile(v)
@@ -383,6 +388,7 @@ func handleFilesUpload(files map[string][]*multipart.FileHeader,model string,id 
 			
 		}
 	}
+	return errors.New("len(files) is zero")
 }
 
 var DropTablePost = func(c *kamux.Context) {

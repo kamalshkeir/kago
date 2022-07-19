@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"html/template"
 	"io"
@@ -37,12 +38,11 @@ func DeleteFile(path string) error {
 }
 
 // UPLOAD FILE
-func UploadFile(file multipart.File,filename string, acceptedFormats ...string) string {
+func UploadFile(file multipart.File,filename string, acceptedFormats ...string) (string,error) {
 	//create destination file making sure the path is writeable.
 	err := os.MkdirAll("media/uploads/",0770)
 	if err != nil {
-		logger.Error("ERROR UPLOAD 1 = ",err)
-		return ""
+		return "",err
 	}
 
 	l := []string{"jpg","jpeg","png","json"}
@@ -53,23 +53,20 @@ func UploadFile(file multipart.File,filename string, acceptedFormats ...string) 
 	if StringContains(filename,l...) {
 		dst, err := os.Create("media/uploads/" + filename)
 		if err != nil {
-			logger.Error("err UPLOAD 2 = ",err )
-			return ""
+			return "",err
 		}
 		defer dst.Close()
 
 		//copy the uploaded file to the destination file
 		if _, err := io.Copy(dst, file); err != nil {
-			logger.Error("err UPLOAD 3 = ",err )
-			return ""
+			return "",err
 		}else {
 			url := "/media/uploads/"+filename
-			return url
+			return url,nil
 		}
 	} else {
-		logger.Error("allowed extensions 'jpg','jpeg','png','json'")
+		return "",errors.New("allowed extensions 'jpg','jpeg','png','json'")
 	}
-	return ""
 }
 
 func CopyDir(source, destination string) error {
