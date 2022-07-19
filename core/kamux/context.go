@@ -77,18 +77,19 @@ func (c *Context) Html(template_name string, data map[string]any,status ...int) 
 // GetJson get json body from request and return map
 func (c *Context) GetJson() map[string]any {
 	// USAGE : data := template.GetJson(r)
-	body, err := io.ReadAll(c.Request.Body)
-	if logger.CheckError(err) {
+	d := map[string]any{}
+	if err := json.NewDecoder(c.Request.Body).Decode(&d); err == io.EOF {
+		//empty body
+		logger.Error("empty body EOF")
 		return nil
-	}
-	defer c.Request.Body.Close()
-
-	request := map[string]any{}
-	err = json.Unmarshal(body,&request)
-	if logger.CheckError(err) {
+	} else if err != nil {
+		logger.Error(err)
 		return nil
+	} else {
+		err := c.Request.Body.Close()
+		logger.CheckError(err)
+		return d
 	}
-	return request
 }
 
 // Redirect redirect the client to the specified path with a custom code
