@@ -9,6 +9,7 @@ import (
 	"html/template"
 	"io"
 	"io/ioutil"
+	mrand "math/rand"
 	"mime/multipart"
 	"net/smtp"
 	"os"
@@ -200,6 +201,22 @@ func IsSameSlice[A []T ,B []T,T comparable](x []T,y []T) bool {
         }
     }
     return len(diff) == 0
+}
+
+
+func randomizeStringSlice(slice []string) []string  {
+	mrand.Seed(time.Now().UnixNano())
+	mrand.Shuffle(len(slice), func(i, j int) {
+		slice[i], slice[j] = slice[j], slice[i]
+	})
+
+	return slice
+}
+func ShuffleCharacters(text string) string {
+	characters := strings.Split(text, "")
+	randomCharacters := randomizeStringSlice(characters)
+
+	return strings.Join(randomCharacters, "")
 }
 
 

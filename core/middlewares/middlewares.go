@@ -154,6 +154,7 @@ func BasicAuth(next kamux.Handler, user,pass string) kamux.Handler {
 	}
 }
 
+
 func CSRF(handler http.Handler) http.Handler {
 	// generate token
 	tokBytes := make([]byte, 64)
@@ -162,30 +163,69 @@ func CSRF(handler http.Handler) http.Handler {
 
 	massToken := csrf.MaskToken(tokBytes)
 	toSendToken := base64.StdEncoding.EncodeToString(massToken)
+	
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "GET" {
+			toExclude := []string{".js",".css",".map",".png",".jpg",".jpeg",".svg",".webmanifest","offline",".json",".ico"}
+			if utils.StringContains(r.URL.Path,toExclude...) {
+				handler.ServeHTTP(w,r)
+				return
+			}
+			
 			token := r.Header.Get("X-CSRF-Token")
 			if token == "" {
 				http.SetCookie(w, &http.Cookie{
 					Name: "csrf_token",
 					Value: toSendToken,
 					Path: "/",
-					Expires:time.Now().Add(1 * time.Hour),
+					Expires:time.Now().Add(10 * time.Minute),
 					HttpOnly: true,
 					Secure: true,
 					SameSite: http.SameSiteStrictMode,
 				})
-			} 
+			}
 		} else if r.Method == "POST" {
 			token := r.Header.Get("X-CSRF-Token")
 			if !csrf.VerifyToken(token, toSendToken) {
-				w.WriteHeader(200)
-				json.NewEncoder(w).Encode(map[string]interface{}{
-					"error": "CSRF not allowed !",
-				})
-				return
-			}
+				body, err := io.ReadAll(r.Body)
+				if logger.CheckError(err) {
+					http.SetCookie(w, &http.Cookie{
+						Name: "csrf_token",
+						Value: "",
+						Path: "/",
+						Expires: time.Now(),
+						HttpOnly: true,
+					})
+					w.WriteHeader(http.StatusBadRequest)
+					json.NewEncoder(w).Encode(map[string]interface{}{
+						"error": "CSRF not allowed !",
+					})
+					return
+				}
+				defer r.Body.Close()
+
+				request := map[string]any{}
+				err = json.Unmarshal(body,&request)
+				if logger.CheckError(err) {
+					w.WriteHeader(http.StatusBadRequest)
+					json.NewEncoder(w).Encode(map[string]interface{}{
+						"error": "CSRF not allowed !",
+					})
+					return
+				}
+				if v,ok := request["csrf_token"];ok {
+					if vv,ok := v.(string);ok {
+						if !csrf.VerifyToken(vv, toSendToken) || len(vv) == 0 {
+							w.WriteHeader(http.StatusBadRequest)
+							json.NewEncoder(w).Encode(map[string]interface{}{
+								"error": "CSRF not allowed !",
+							})
+							return
+						} 
+					}
+				}
+			} 
 		}
 		handler.ServeHTTP(w,r)
 	})
@@ -237,18 +277,18 @@ func Limiter(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		v,ok := banned.Load(r.RemoteAddr)
 		if ok {
-			if time.Since(v.(time.Time)) > time.Hour {
+			if time.Since(v.(time.Time)) > 5*time.Minute {
 				banned.Delete(r.RemoteAddr)
 			} else {
 				w.WriteHeader(http.StatusTooManyRequests)
-				w.Write([]byte("<h1>YOU DID TOO MANY REQUEST, YOU HAVE BEEN BANNED FOR 60 MINUTES </h1>"))
+				w.Write([]byte("<h1>YOU DID TOO MANY REQUEST, YOU HAVE BEEN BANNED FOR 5 MINUTES </h1>"))
 				banned.Store(r.RemoteAddr,time.Now())
             	return
 			}
 		}
         if !limiter.Allow() {
             w.WriteHeader(http.StatusTooManyRequests)
-			w.Write([]byte("<h1>YOU DID TOO MANY REQUEST, YOU HAVE BEEN BANNED FOR 60 MINUTES </h1>"))
+			w.Write([]byte("<h1>YOU DID TOO MANY REQUEST, YOU HAVE BEEN BANNED FOR 5 MINUTES </h1>"))
 			banned.Store(r.RemoteAddr,time.Now())
             return
         }
