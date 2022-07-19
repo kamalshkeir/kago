@@ -37,29 +37,39 @@ func DeleteFile(path string) error {
 }
 
 // UPLOAD FILE
-func UploadFile(file multipart.File,filename string) string {
+func UploadFile(file multipart.File,filename string, acceptedFormats ...string) string {
 	//create destination file making sure the path is writeable.
 	err := os.MkdirAll("media/uploads/",0770)
 	if err != nil {
-		fmt.Println("ERROR UPLOAD 1 = ",err)
+		logger.Error("ERROR UPLOAD 1 = ",err)
 		return ""
 	}
 
-	dst, err := os.Create("media/uploads/" + filename)
-	if err != nil {
-		fmt.Println("err UPLOAD 2 = ",err )
-		return ""
+	l := []string{"jpg","jpeg","png","json"}
+	if len(acceptedFormats) > 0 {
+		l=acceptedFormats
 	}
-	defer dst.Close()
 
-	//copy the uploaded file to the destination file
-	if _, err := io.Copy(dst, file); err != nil {
-		fmt.Println("err UPLOAD 3 = ",err )
-		return ""
-	}else {
-		url := "/media/uploads/"+filename
-		return url
+	if StringContains(filename,l...) {
+		dst, err := os.Create("media/uploads/" + filename)
+		if err != nil {
+			logger.Error("err UPLOAD 2 = ",err )
+			return ""
+		}
+		defer dst.Close()
+
+		//copy the uploaded file to the destination file
+		if _, err := io.Copy(dst, file); err != nil {
+			logger.Error("err UPLOAD 3 = ",err )
+			return ""
+		}else {
+			url := "/media/uploads/"+filename
+			return url
+		}
+	} else {
+		logger.Error("allowed extensions 'jpg','jpeg','png','json'")
 	}
+	return ""
 }
 
 func CopyDir(source, destination string) error {

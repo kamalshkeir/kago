@@ -3,6 +3,7 @@ package kamux
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -108,7 +109,7 @@ func (c *Context) EmbededFile(content_type string,embed_file []byte) {
 }
 
 // UploadFileFromFormData upload received_filename into folder_out and return url,fileByte,error
-func (c *Context) UploadFile(received_filename,folder_out string) (string,[]byte,error) {
+func (c *Context) UploadFile(received_filename,folder_out string, acceptedFormats ...string) (string,[]byte,error) {
 	c.Request.ParseMultipartForm(10<<20) //10Mb
 	var buff bytes.Buffer
 	file, header , err := c.Request.FormFile(received_filename)
@@ -129,15 +130,22 @@ func (c *Context) UploadFile(received_filename,folder_out string) (string,[]byte
 		return "",nil,err
 	}
 	// make file
-	dst, err := os.Create("media/"+folder_out+"/" + header.Filename)
-	if err != nil {
-		return "",nil,err
+	if len(acceptedFormats) == 0 {
+		acceptedFormats=[]string{"jpg","jpeg","png","json"}
+	} 
+	if utils.StringContains(header.Filename,acceptedFormats...) {
+		dst, err := os.Create("media/"+folder_out+"/" + header.Filename)
+		if err != nil {
+			return "",nil,err
+		}
+		defer dst.Close()
+		dst.Write([]byte(data_string))
+		
+		url := "media/"+folder_out+"/"+header.Filename
+		return url,[]byte(data_string),nil
+	} else {
+		return "",nil,fmt.Errorf("expecting filename to finish to be %v",acceptedFormats)
 	}
-	defer dst.Close()
-	dst.Write([]byte(data_string))
-	
-	url := "media/"+folder_out+"/"+header.Filename
-	return url,[]byte(data_string),nil
 }
 
 // DELETE FILE
