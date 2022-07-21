@@ -329,8 +329,8 @@ func pushGit(version string) {
 
 	commit,err := input.String(input.Blue,"commit message: ")
 	if logger.CheckError(err) {return}
-	fmt.Printf(input.Blue,"git commit -m \""+commit+"\"")
-	err = exec.Command("git", "commit", "-m","\""+commit+"\"").Run()
+	fmt.Printf(input.Blue,"git commit -m "+commit)
+	err = exec.Command("git", "commit", "-m",commit).Run()
 	if logger.CheckError(err) {return}
 	fmt.Printf(logger.Green,"  --> DONE")
 
