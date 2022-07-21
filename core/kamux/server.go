@@ -71,7 +71,7 @@ func (router *Router) Run() {
 	// init templates and assets
 	router.InitTemplatesAndAssets()
 	// init server
-	go router.initServer()
+	router.initServer()
 	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
 
@@ -83,14 +83,14 @@ func (router *Router) Run() {
 }
 
 
-// Run start the server TLS
+// RunTLS start the server TLS
 func (router *Router) RunTLS(certFile string,keyFile string) {
 	// init orm shell
 	if shell.InitShell() {os.Exit(0)}
 	// init templates and assets
 	router.InitTemplatesAndAssets()
 	// init server
-	go router.initServer()
+	router.initServer()
 	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
 

@@ -344,7 +344,6 @@ func GetAllColumns(table string, dbName ...string) map[string]string {
 		}
 	}
 
-	logger.Success(dName)
 	dbType := settings.GlobalConfig.DbType
 	conn := GetConnection(dName)
 	for _,d := range databases {

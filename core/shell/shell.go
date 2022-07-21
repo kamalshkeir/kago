@@ -1,11 +1,13 @@
 package shell
 
 import (
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -17,8 +19,7 @@ import (
 )
 
 const helpS string = `Commands :  
-[databases, use, tables, columns, migrate, createsuperuser, createuser, getall, get, drop, delete, clear/cls, quit/exit, help/commands]
-  
+[databases, use, tables, columns, migrate, createsuperuser, createuser, getall, get, drop, delete, clear/cls, q/quit/exit, help/commands]
   'databases':
 	  list all connected databases
 
@@ -51,9 +52,12 @@ const helpS string = `Commands :
 
   'drop':
 	  drop a table given table name
+
+  'clear/cls':
+	  clear console
 `
 
-const commandsS string = "Commands :  [databases, use, tables, columns, migrate, createsuperuser, createuser, getall, get, drop, delete, clear/cls, quit/exit, help/commands]"
+const commandsS string = "Commands :  [databases, use, tables, columns, migrate, createsuperuser, createuser, getall, get, drop, delete, clear/cls, q!/quit/exit, help/commands]"
 
 // InitShell init the shell and return true if used to stop main
 func InitShell() bool {
@@ -73,22 +77,24 @@ func InitShell() bool {
 		return true
 	case "shell":
 		databases := orm.GetDatabases()
+		var conn *sql.DB
 		if len(databases) > 1 {
 			fmt.Printf(logger.Yellow,"-----------------------------------")
 			fmt.Printf(logger.Blue,"Found many databases:")
 			for _,db := range databases {
 				fmt.Printf(logger.Blue,`  - `+db.Name)
 			}
+			dbName,err := input.String(input.Blue,"Enter Database Name to use: ")
+			if logger.CheckError(err) {
+				return true
+			}
+			if dbName == "" {return true}
+			orm.UseForAdmin(dbName)
+			conn = orm.GetConnection(dbName)
+		} else {
+			conn = orm.GetConnection()
 		}
-	
-		dbName,err := input.String(input.Blue,"Enter Database Name to use: ")
-		if logger.CheckError(err) {
-			return true
-		}
-		if dbName == "" {return true}
-		orm.UseForAdmin(dbName)
-		_ = orm.GetConnection(dbName)
-		defer orm.GetConnection(dbName).Close()
+		defer conn.Close()
 
 		fmt.Printf(logger.Yellow,commandsS)
 		for {
@@ -101,7 +107,7 @@ func InitShell() bool {
 			}
 
 			switch command {
-			case "quit","exit":
+			case "quit","exit","q","q!":
 				return true		
 			case "clear","cls":
 				input.Clear()	
@@ -135,7 +141,7 @@ func InitShell() bool {
 				orm.UseForAdmin(db)
 				fmt.Printf(logger.Green,"you are using database "+db)
 			case "tables":
-				fmt.Printf(logger.Green,orm.GetAllTables(dbName)) 
+				fmt.Printf(logger.Green,orm.GetAllTables(settings.GlobalConfig.DbName)) 
 			case "columns":
 				tb := input.Input(input.Blue,"Table name: ")
 				mcols := orm.GetAllColumns(tb,settings.GlobalConfig.DbName)
@@ -160,6 +166,13 @@ func InitShell() bool {
 				fmt.Printf(logger.Red,"command not handled, use 'help' or 'commands' to list available commands ")
 			}
 		}
+	case "push":
+		if len(args) > 2 {
+			pushGit(args[2])
+		} else {
+			logger.Error("version tag cannot be empty")
+		}
+		return true
 	default:
 		return false
 	}
@@ -290,4 +303,50 @@ func deleteRow() {
 	} else {
 		fmt.Printf(logger.Red,"some of args are empty")
 	}
+}
+
+func pushGit(version string) {
+	if strings.TrimSpace(version)  == "" {
+		logger.Error("version tag cannot be empty")
+		return
+	} else {
+		fmt.Printf(logger.Green,"VERSION: "+version)
+	}
+	if !strings.HasPrefix(version,"v") {
+		version="v"+version
+	}
+
+	fmt.Printf(logger.Blue,"pushing to git repos:")
+	fmt.Printf(input.Blue,"git add .")
+	err := exec.Command("git", "add", ".").Run()
+	if logger.CheckError(err) {return}
+	fmt.Printf(logger.Green,"  --> DONE")
+	
+	fmt.Printf(input.Blue,"git reset kago.go")
+	err = exec.Command("git", "reset", "kago.go").Run()
+	if logger.CheckError(err) {return}
+	fmt.Printf(logger.Green,"  --> DONE")
+
+	commit,err := input.String(input.Blue,"commit message: ")
+	if logger.CheckError(err) {return}
+	fmt.Printf(input.Blue,"git commit -m "+commit)
+	err = exec.Command("git", "commit", "-m",commit).Run()
+	if logger.CheckError(err) {return}
+	fmt.Printf(logger.Green,"  --> DONE")
+
+	fmt.Printf(input.Blue,"git tag "+version)
+	err = exec.Command("git", "tag", version).Run()
+	if logger.CheckError(err) {return}
+	fmt.Printf(logger.Green,"  --> DONE")
+
+	fmt.Printf(input.Blue,"git push origin "+version)
+	err = exec.Command("git", "push", "origin",version).Run()
+	if logger.CheckError(err) {return}
+	fmt.Printf(logger.Green,"  --> DONE")
+
+	fmt.Printf(input.Blue,"git push")
+	err = exec.Command("git", "push").Run()
+	if logger.CheckError(err) {return}
+	fmt.Printf(logger.Green,"  --> DONE")
+	fmt.Printf(logger.Green,"pushed successfully to "+version)
 }
