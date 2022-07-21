@@ -166,7 +166,7 @@ func InitShell() bool {
 				fmt.Printf(logger.Red,"command not handled, use 'help' or 'commands' to list available commands ")
 			}
 		}
-	case "push":
+	case "pushTag":
 		if len(args) > 2 {
 			pushGit(args[2])
 		} else {
