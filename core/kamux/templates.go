@@ -35,15 +35,15 @@ func (router *Router) InitTemplatesAndAssets() {
 		wg.Done()
 	}()
 	go func() {
-		router.initAdminDocsAndStaticURLS()
+		router.initDefaultUrls()
 		wg.Done()
 	}()
 	wg.Wait()
 	if settings.GlobalConfig.EmbedTemplates {
-		findAndParseEmbededTemplates(Templates,"assets/templates",functions)
+		router.AddEmbededTemplates(Templates,"assets/templates",functions)
 	} else {
 		//local
-		findAndParseTemplates("assets/templates",functions)
+		router.AddLocalTemplates("assets/templates",functions)
 	}
 }
 
@@ -53,6 +53,134 @@ func (router *Router) NewFuncMap(funcName string, function any) {
 	} else {
 		functions[funcName]=function
 	}
+}
+
+func (router *Router) ServeLocalDir(dirPath, webPath string) {
+	dirPath = filepath.ToSlash(dirPath)
+	if strings.HasPrefix(webPath,"/") {
+		webPath = "^"+ webPath
+	} else {
+		webPath = "^/"+ webPath
+	}
+	if !strings.HasSuffix(webPath,"/") {	
+		webPath += "/"
+	}
+	router.Get(webPath, func(c *Context) {
+		http.StripPrefix(webPath[1:], http.FileServer(http.Dir(dirPath))).ServeHTTP(c.ResponseWriter, c.Request)
+	})
+}
+
+func (router *Router) ServeEmbededDir(pathLocalDir string, embeded embed.FS, webPath string) {
+	pathLocalDir = filepath.ToSlash(pathLocalDir)
+	if strings.HasPrefix(webPath,"/") {
+		webPath = "^"+ webPath
+	} else {
+		webPath = "^/"+ webPath
+	}
+	if !strings.HasSuffix(webPath,"/") {	
+		webPath += "/"
+	}
+	toembed_dir, err := fs.Sub(embeded, pathLocalDir)
+	if err != nil {
+		logger.Error("ServeEmbededDir error=",err)
+		return
+	}
+	toembed_root := http.FileServer(http.FS(toembed_dir))
+	router.Get(webPath, func(c *Context) {
+		http.StripPrefix(webPath[1:], toembed_root).ServeHTTP(c.ResponseWriter, c.Request)
+	})
+}
+
+func (router *Router) AddLocalTemplates(rootDir string, funcMap template.FuncMap) error {
+	cleanRoot := filepath.ToSlash(rootDir)
+    pfx := len(cleanRoot)+1
+
+    err := filepath.Walk(cleanRoot, func(path string, info os.FileInfo, e1 error) error {
+        if !info.IsDir() && strings.HasSuffix(path, ".html") {
+            if e1 != nil {
+                return e1
+            }
+
+            b, e2 := ioutil.ReadFile(path)
+            if e2 != nil {
+                return e2
+            }
+
+            name := filepath.ToSlash(path[pfx:])
+            t := allTemplates.New(name).Funcs(funcMap)
+            _, e2 = t.Parse(string(b))
+            if e2 != nil {
+                return e2
+            }
+        }
+
+        return nil
+    })
+
+    return err
+}
+
+func (router *Router) AddEmbededTemplates(template_embed embed.FS,rootDir string, funcMap template.FuncMap) error {
+	cleanRoot := filepath.ToSlash(rootDir)
+    pfx := len(cleanRoot)+1
+	
+    err := fs.WalkDir(template_embed,cleanRoot,func(path string, info fs.DirEntry, e1 error) error {
+		if logger.CheckError(e1) {
+			return e1
+		}
+        if !info.IsDir() && strings.HasSuffix(path, ".html") {	
+			b,e2 := template_embed.ReadFile(path)
+			if logger.CheckError(e2) {
+                return e2
+            }
+
+            name := filepath.ToSlash(path[pfx:])
+            t := allTemplates.New(name).Funcs(funcMap)
+            _, e3 := t.Parse(string(b))
+            if logger.CheckError(e3) {
+                return e2
+            }
+        }
+
+        return nil
+    })
+	
+
+    return err
+}
+
+func (router *Router) initDefaultUrls() {
+	// prometheus metrics
+	if settings.GlobalConfig.Monitoring {
+		router.Get("/metrics", func(c *Context) {
+			promhttp.Handler().ServeHTTP(c.ResponseWriter,c.Request)
+		})
+	}
+    // PROFILER
+	if settings.GlobalConfig.Profiler {
+		router.Get("^/debug/pprof/?heap", func(c *Context) { pprof.Index(c.ResponseWriter, c.Request) })
+		router.Get("^/debug/pprof/profile", func(c *Context) { pprof.Profile(c.ResponseWriter, c.Request) })
+		router.Get("^/debug/pprof/trace", func(c *Context) { pprof.Trace(c.ResponseWriter, c.Request) })
+	}
+	// STATIC
+	if settings.GlobalConfig.EmbedStatic {
+		//EMBED STATIC
+		router.ServeEmbededDir("assets/static",Static,"static")
+		if settings.GlobalConfig.Docs {
+			router.ServeEmbededDir("assets/static/docs",Static,"docs")
+		}
+	} else {
+		// LOCAL STATIC
+		router.ServeLocalDir("assets/static","static")
+		if settings.GlobalConfig.Docs {
+			router.ServeLocalDir("assets/static/docs","docs")
+		}
+	}
+	// MEDIA
+	media_root := http.FileServer(http.Dir("./media"))
+	router.Get(`^/media/`, func(c *Context) {
+		http.StripPrefix("/media/", media_root).ServeHTTP(c.ResponseWriter, c.Request)
+	})
 }
 
 func (router *Router) cloneTemplatesAndStatic()  {
@@ -100,58 +228,6 @@ func (router *Router) cloneTemplatesAndStatic()  {
 	}
 }
 
-
-func (router *Router) initAdminDocsAndStaticURLS() {
-	// prometheus metrics
-	if settings.GlobalConfig.Monitoring {
-		router.Get("/metrics", func(c *Context) {
-			promhttp.Handler().ServeHTTP(c.ResponseWriter,c.Request)
-		})
-	}
-    // PROFILER
-	if settings.GlobalConfig.Profiler {
-		router.Get("^/debug/pprof/?heap", func(c *Context) { pprof.Index(c.ResponseWriter, c.Request) })
-		router.Get("^/debug/pprof/profile", func(c *Context) { pprof.Profile(c.ResponseWriter, c.Request) })
-		router.Get("^/debug/pprof/trace", func(c *Context) { pprof.Trace(c.ResponseWriter, c.Request) })
-	}
-	// STATIC
-	router.Get("/favicon.ico", func(c *Context) { http.NotFoundHandler().ServeHTTP(c.ResponseWriter, c.Request) })
-	if settings.GlobalConfig.EmbedStatic {
-		//EMBED STATIC
-		staticFs := fs.FS(Static)
-		content,err := fs.Sub(staticFs,"assets")
-		logger.CheckError(err)
-		static_root := http.FileServer(http.FS(content))
-		router.Get(`^/static/`, func(c *Context) { static_root.ServeHTTP(c.ResponseWriter, c.Request) })
-		if settings.GlobalConfig.Docs {
-			swagger_dir, _ := fs.Sub(content, "static/docs")
-			docs_root := http.FileServer(http.FS(swagger_dir))
-			router.Get(`^/docs/`, func(c *Context) {
-				http.StripPrefix("/docs/", docs_root).ServeHTTP(c.ResponseWriter, c.Request)
-			})
-			router.Get("/docs",func(c *Context) {c.Redirect("/docs/",http.StatusPermanentRedirect)})
-		}
-	} else {
-		// LOCAL STATIC
-		static_root := http.FileServer(http.Dir("./assets/static"))
-		router.Get(`^/static/`, func(c *Context) {
-			http.StripPrefix("/static/", static_root).ServeHTTP(c.ResponseWriter, c.Request)
-		})
-		if settings.GlobalConfig.Docs {
-			docs_root := http.FileServer(http.Dir("./assets/static/docs"))
-			
-			router.Get(`^/docs/`, func(c *Context) {
-				http.StripPrefix("/docs/", docs_root).ServeHTTP(c.ResponseWriter, c.Request)
-			})
-			router.Get("/docs",func(c *Context) {c.Redirect("/docs/",http.StatusPermanentRedirect)})
-		}
-	}
-	// MEDIA
-	media_root := http.FileServer(http.Dir("./media"))
-	router.Get(`^/media/`, func(c *Context) {
-		http.StripPrefix("/media/", media_root).ServeHTTP(c.ResponseWriter, c.Request)
-	})
-}
 
 /* FUNC MAPS */
 var functions = template.FuncMap{
@@ -295,63 +371,3 @@ var functions = template.FuncMap{
 		}
 	},
 }
-
-
-func findAndParseTemplates(rootDir string, funcMap template.FuncMap) error {
-    cleanRoot := filepath.ToSlash(rootDir)
-    pfx := len(cleanRoot)+1
-
-    err := filepath.Walk(cleanRoot, func(path string, info os.FileInfo, e1 error) error {
-        if !info.IsDir() && strings.HasSuffix(path, ".html") {
-            if e1 != nil {
-                return e1
-            }
-
-            b, e2 := ioutil.ReadFile(path)
-            if e2 != nil {
-                return e2
-            }
-
-            name := filepath.ToSlash(path[pfx:])
-            t := allTemplates.New(name).Funcs(funcMap)
-            _, e2 = t.Parse(string(b))
-            if e2 != nil {
-                return e2
-            }
-        }
-
-        return nil
-    })
-
-    return err
-}
-
-func findAndParseEmbededTemplates(template_embed embed.FS,rootDir string, funcMap template.FuncMap) error {
-	cleanRoot := filepath.ToSlash(rootDir)
-    pfx := len(cleanRoot)+1
-    err := fs.WalkDir(template_embed,cleanRoot,func(path string, info fs.DirEntry, e1 error) error {
-		logger.CheckError(e1)
-        if !info.IsDir() && strings.HasSuffix(path, ".html") {
-            if logger.CheckError(e1) {
-                return e1
-            }
-			b,e2 := template_embed.ReadFile(path)
-			if logger.CheckError(e2) {
-                return e2
-            }
-
-            name := filepath.ToSlash(path[pfx:])
-            t := allTemplates.New(name).Funcs(funcMap)
-            _, e3 := t.Parse(string(b))
-            if logger.CheckError(e3) {
-                return e2
-            }
-        }
-
-        return nil
-    })
-	
-
-    return err
-}
-

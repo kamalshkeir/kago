@@ -71,7 +71,10 @@ func (c *Context) Html(template_name string, data map[string]any,status ...int) 
 		c.SetStatus(status[0])
 	}
 	err := allTemplates.ExecuteTemplate(c.ResponseWriter,template_name,data)
-	logger.CheckError(err)
+	if logger.CheckError(err) {
+		logger.Info(allTemplates.DefinedTemplates())
+		c.SetStatus(http.StatusInternalServerError)
+	}
 }
 
 // GetJson get json body from request and return map

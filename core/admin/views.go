@@ -388,7 +388,7 @@ func handleFilesUpload(files map[string][]*multipart.FileHeader,model string,id 
 			
 		}
 	}
-	return errors.New("len(files) is zero")
+	return nil
 }
 
 var DropTablePost = func(c *kamux.Context) {
