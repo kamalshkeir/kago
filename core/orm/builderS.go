@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/eventbus"
 	"github.com/kamalshkeir/kago/core/utils/logger"
@@ -62,14 +63,7 @@ func (b *Builder[T]) Insert(model *T) (int, error) {
 		return 0, errors.New("unable to find tableName from model, restart the app if you just migrated")
 	}
 	if b.database == ""  {
-		if dbs, ok := mTablenameDatabasename[b.tableName]; ok {
-			 if len(dbs) == 0 {
-				return 0,errors.New("no database attached to this table " + b.tableName)
-			 }
-			 if len(dbs) > 0 {
-				b.database=dbs[0]
-			 } 
-		}
+		b.database=settings.GlobalConfig.DbName
 	}
 	if b.conn == nil {
 		if con, ok := mDbNameConnection[b.database]; ok {
@@ -160,14 +154,7 @@ func (b *Builder[T]) Set(query string, args ...any) (int, error) {
 		b.tableName = tName
 	}
 	if b.database == ""  {
-		if dbs, ok := mTablenameDatabasename[b.tableName]; ok {
-			 if len(dbs) == 0 {
-				return 0,errors.New("no database attached to this table " + b.tableName)
-			 }
-			 if len(dbs) > 0 {
-				b.database=dbs[0]
-			 } 
-		}
+		b.database=settings.GlobalConfig.DbName
 	}
 	if b.conn == nil {
 		if con, ok := mDbNameConnection[b.database]; ok {
@@ -230,14 +217,7 @@ func (b *Builder[T]) Delete() (int, error) {
 		b.tableName = tName
 	}
 	if b.database == ""  {
-		if dbs, ok := mTablenameDatabasename[b.tableName]; ok {
-			 if len(dbs) == 0 {
-				return 0,errors.New("no database attached to this table " + b.tableName)
-			 }
-			 if len(dbs) > 0 {
-				b.database=dbs[0]
-			 } 
-		}
+		b.database=settings.GlobalConfig.DbName
 	}
 	if b.conn == nil {
 		if con, ok := mDbNameConnection[b.database]; ok {
@@ -301,14 +281,7 @@ func (b *Builder[T]) Drop() (int, error) {
 		b.tableName = tName
 	}
 	if b.database == ""  {
-		if dbs, ok := mTablenameDatabasename[b.tableName]; ok {
-			 if len(dbs) == 0 {
-				return 0,errors.New("no database attached to this table " + b.tableName)
-			 }
-			 if len(dbs) > 0 {
-				b.database=dbs[0]
-			 } 
-		}
+		b.database=settings.GlobalConfig.DbName
 	}
 	if b.conn == nil {
 		if con, ok := mDbNameConnection[b.database]; ok {
@@ -608,14 +581,7 @@ func (b *Builder[T]) queryS(query string, args ...any) ([]T, error) {
 	adaptPlaceholdersToDialect(&query, b.dialect)
 	res := make([]T, 0)
 	if b.database == ""  {
-		if dbs, ok := mTablenameDatabasename[b.tableName]; ok {
-			 if len(dbs) == 0 {
-				return nil,errors.New("no database attached to this table " + b.tableName)
-			 }
-			 if len(dbs) > 0 {
-				b.database=dbs[0]
-			 } 
-		}
+		b.database=settings.GlobalConfig.DbName
 	}
 	if b.conn == nil {
 		if con, ok := mDbNameConnection[b.database]; ok {

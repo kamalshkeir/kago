@@ -133,24 +133,34 @@ func InitDB() (error) {
 	return nil
 }
 
-func NewDatabaseFromDSN(dbType,dbName,dbDSN string) (error) {
+func NewDatabaseFromDSN(dbType,dbName string,dbDSN ...string) (error) {
 	var dsn string
 	switch dbType {
 	case "postgres":
-		dsn = fmt.Sprintf("postgres://%s/%s?sslmode=disable",dbDSN,dbName)
+		if len(dbDSN) == 0 {
+			return errors.New("dbDSN for mysql cannot be empty")
+		}
+		dsn = fmt.Sprintf("postgres://%s/%s?sslmode=disable",dbDSN[0],dbName)
 	case "mysql":
-		if strings.Contains(dbDSN,"tcp(") {
-			dsn = dbDSN + "/"+ dbName
+		if len(dbDSN) == 0 {
+			return errors.New("dbDSN for mysql cannot be empty")
+		}
+		if strings.Contains(dbDSN[0],"tcp(") {
+			dsn = dbDSN[0] + "/"+ dbName
 		} else {
-			split := strings.Split(dbDSN,"@")
+			split := strings.Split(dbDSN[0],"@")
 			if len(split) > 2 {
 				return errors.New("there is 2 or more @ symbol in dsn")
 			}
 			dsn = split[0]+"@"+"tcp("+split[1]+")/"+ dbName
 		}		
 	case "sqlite","":
-		dsn = dbName+".sqlite"
 		if dsn == "" {dsn="db.sqlite"}
+		if !strings.Contains(dbName,"sqlite") {
+			dsn = dbName+".sqlite"
+		} else {
+			dsn = dbName
+		}
 	default:
 		logger.Info(dbType,"not handled, choices are: postgres,mysql,sqlite")
 		dsn = dbName+".sqlite"
@@ -222,10 +232,31 @@ func GetConnection(dbName ...string) *sql.DB {
 			}
 		}
 	}
-	if len(databases) > 0 {
-		return databases[0].Conn
+	db := settings.GlobalConfig.DbName
+	if v,ok := mDbNameConnection[db];ok {
+		return v
 	}
 	return nil
+}
+
+func UseForAdmin(dbName string) {
+	if _,ok := mDbNameConnection[dbName];ok {
+		if dialect,ok := mDbNameDialect[dbName];ok {
+			if UseCache {
+				eventbus.Publish(CACHE_TOPIC, map[string]string{
+					"type":     "clean",
+					"table":    "",
+					"database": "",
+				})
+			}
+			settings.GlobalConfig.DbName=dbName
+			settings.GlobalConfig.DbType=dialect
+		} else {
+			logger.Error("dialect not found for",dbName)
+		}
+	} else {
+		logger.Error(dbName,"not found in connections list")
+	}
 }
 
 func GetDatabases() []DatabaseEntity {
@@ -245,7 +276,7 @@ func GetAllTables(dbName ...string) []string {
 		}
 	}
 
-	conn := GetConnection(dbName...)
+	conn := GetConnection(name)
 	
 	tables := []string{}
 	switch settings.GlobalConfig.DbType {
@@ -303,7 +334,7 @@ func GetAllTables(dbName ...string) []string {
 }
 
 func GetAllColumns(table string, dbName ...string) map[string]string {
-	dName := settings.GlobalConfig.DbType
+	dName := settings.GlobalConfig.DbName
 	if len(dbName) > 0 {
 		dName=dbName[0]
 	}
@@ -314,7 +345,7 @@ func GetAllColumns(table string, dbName ...string) map[string]string {
 	}
 
 	dbType := settings.GlobalConfig.DbType
-	conn := GetConnection()
+	conn := GetConnection(dName)
 	
 	
 	for _,d := range databases {

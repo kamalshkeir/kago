@@ -96,9 +96,9 @@ func Admin(handler kamux.Handler) kamux.Handler {
 
 		// Not admin
 		if user["is_admin"] == int64(0) || user["is_admin"] == 0 || user["is_admin"] == false {
-			c.Text(403, "Not allowed to access this page")
+			c.Text(403, "Middleware : Not allowed to access this page")
 			return
-		}
+		} 
 
 		ctx := context.WithValue(c.Request.Context(),key,user)
 		*c = kamux.Context{

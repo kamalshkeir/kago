@@ -270,14 +270,7 @@ func (b *BuilderM) Insert(fields_comma_separated string, fields_values []any) (i
 		return 0, errors.New("unable to find table, try db.Table before")
 	}
 	if b.database == ""  {
-		if dbs, ok := mTablenameDatabasename[b.tableName]; ok {
-			 if len(dbs) == 0 {
-				return 0,errors.New("no database attached to this table " + b.tableName)
-			 }
-			 if len(dbs) > 0 {
-				b.database=dbs[0]
-			 } 
-		}
+		b.database=settings.GlobalConfig.DbName
 	}
 	if b.conn == nil {
 		if con, ok := mDbNameConnection[b.database]; ok {
@@ -351,14 +344,7 @@ func (b *BuilderM) Set(query string, args ...any) (int, error) {
 		return 0, errors.New("unable to find model, try db.Table before")
 	}
 	if b.database == ""  {
-		if dbs, ok := mTablenameDatabasename[b.tableName]; ok {
-			 if len(dbs) == 0 {
-				return 0,errors.New("no database attached to this table " + b.tableName)
-			 }
-			 if len(dbs) > 0 {
-				b.database=dbs[0]
-			 } 
-		}
+		b.database=settings.GlobalConfig.DbName
 	}
 	if b.conn == nil {
 		if con, ok := mDbNameConnection[b.database]; ok {
@@ -416,14 +402,7 @@ func (b *BuilderM) Delete() (int, error) {
 		return 0, errors.New("unable to find model, try orm.LinkModel before")
 	}
 	if b.database == ""  {
-		if dbs, ok := mTablenameDatabasename[b.tableName]; ok {
-			 if len(dbs) == 0 {
-				return 0,errors.New("no database attached to this table " + b.tableName)
-			 }
-			 if len(dbs) > 0 {
-				b.database=dbs[0]
-			 } 
-		}
+		b.database=settings.GlobalConfig.DbName
 	}
 	if b.conn == nil {
 		if con, ok := mDbNameConnection[b.database]; ok {
@@ -482,14 +461,7 @@ func (b *BuilderM) Drop() (int, error) {
 		return 0, errors.New("unable to find model, try orm.LinkModel before Update")
 	}
 	if b.database == ""  {
-		if dbs, ok := mTablenameDatabasename[b.tableName]; ok {
-			 if len(dbs) == 0 {
-				return 0,errors.New("no database attached to this table " + b.tableName)
-			 }
-			 if len(dbs) > 0 {
-				b.database=dbs[0]
-			 } 
-		}
+		b.database=settings.GlobalConfig.DbName
 	}
 	if b.conn == nil {
 		if con, ok := mDbNameConnection[b.database]; ok {
@@ -535,15 +507,9 @@ func (b *BuilderM) Drop() (int, error) {
 func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface{}, error) {
 	adaptPlaceholdersToDialect(&statement, b.dialect)
 	if b.database == ""  {
-		if dbs, ok := mTablenameDatabasename[b.tableName]; ok {
-			 if len(dbs) == 0 {
-				return nil,errors.New("no database attached to this table " + b.tableName)
-			 }
-			 if len(dbs) > 0 {
-				b.database=dbs[0]
-			 } 
-		}
-	}
+		b.database=settings.GlobalConfig.DbName
+	} 
+	
 	if b.conn == nil {
 		if con, ok := mDbNameConnection[b.database]; ok {
 			b.conn = con
@@ -558,9 +524,6 @@ func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface
 		} else {
 			b.dialect = databases[0].Dialect
 		}
-	}
-	if b.conn == nil {
-		return nil, errors.New("queryM: no connection found")
 	}
 	var rows *sql.Rows
 	var err error
@@ -609,6 +572,5 @@ func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface
 	if len(listMap) == 0 {
 		return nil, errors.New("no data found")
 	}
-
 	return listMap, nil
 }

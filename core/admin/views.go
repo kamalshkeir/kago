@@ -164,7 +164,7 @@ var DeleteRowPost = func(c *kamux.Context) {
 			if mm,ok := model.(string);ok {
 				modelDB,err := orm.Table(mm).Where("id = ?",data["id"]).One() 
 				if logger.CheckError(err) {
-					logger.Info("data received:", data)
+					logger.Info("data received DeleteRowPost:", data)
 					c.Json(200, map[string]any{
 						"error":err.Error(),
 					})
