@@ -11,7 +11,6 @@ import (
 	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils/logger"
-	"github.com/kamalshkeir/kago/core/utils/shell"
 	"golang.org/x/net/websocket"
 )
 
@@ -120,10 +119,7 @@ func New(envFiles ...string) *Router {
 			} else {
 				logger.Error(err)
 			}
-		} else {
-			// init orm shell
-			if shell.InitShell() {os.Exit(0)}
-		}
+		} 
 		if len(orm.GetAllTables()) > 0 {
 			// migrate initial models
 			err := orm.Migrate()

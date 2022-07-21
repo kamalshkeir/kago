@@ -16,6 +16,45 @@ import (
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
+const helpS string = `Commands :  
+[databases, use, tables, columns, migrate, createsuperuser, createuser, getall, get, drop, delete, clear/cls, quit/exit, help/commands]
+  
+  'databases':
+	  list all connected databases
+
+  'use':
+	  use a specific database
+
+  'tables':
+	  list all tables in database
+
+  'columns':
+	  list all columns of a table
+
+  'migrate':
+	  migrate initial users to env database
+
+  'createsuperuser':
+	  create a admin user
+
+  'createuser':
+	  create a regular user
+
+  'getall':
+	  get all rows given a table name
+
+  'get':
+	  get single row wher field equal_to
+
+  'delete':
+	  delete rows where field equal_to
+
+  'drop':
+	  drop a table given table name
+`
+
+const commandsS string = "Commands :  [databases, use, tables, columns, migrate, createsuperuser, createuser, getall, get, drop, delete, clear/cls, quit/exit, help/commands]"
+
 // InitShell init the shell and return true if used to stop main
 func InitShell() bool {
 	args := os.Args
@@ -26,48 +65,41 @@ func InitShell() bool {
 	switch args[1] {
 	case "commands":
 		fmt.Printf(logger.Yellow,"Shell Usage: go run main.go shell")
-		fmt.Printf(logger.Yellow,"Commands :  [migrate, createsuperuser, createuser, getall, get, drop, delete, clear/cls, quit/exit, help/commands]")
+		fmt.Printf(logger.Yellow,commandsS)
 		return true
 	case "help":
 		fmt.Printf(logger.Yellow,"Shell Usage: go run main.go shell")
-		fmt.Printf(logger.Yellow,`Commands :  
-  [migrate, createsuperuser, createuser, getall, get, drop, delete, clear/cls, quit/exit, help/commands]
-	
-	'migrate':
-		migrate initial users to env database
-
-	'createsuperuser':
-		create a admin user
-
-	'createuser':
-		create a regular user
-
-	'getall':
-		get all rows given a table name
-
-	'get':
-		get single row wher field equal_to
-
-	'delete':
-		delete rows where field equal_to
-
-	'drop':
-		drop a table given table name
-				`)
+		fmt.Printf(logger.Yellow,helpS)
 		return true
 	case "shell":
-		_ = orm.InitDB()
-		defer orm.GetConnection().Close()
-		fmt.Printf(logger.Yellow,"Commands :  [migrate, createsuperuser, createuser, getall, get, drop, delete, clear/cls, quit/exit, help/commands]")
+		databases := orm.GetDatabases()
+		if len(databases) > 1 {
+			fmt.Printf(logger.Yellow,"-----------------------------------")
+			fmt.Printf(logger.Blue,"Found many databases:")
+			for _,db := range databases {
+				fmt.Printf(logger.Blue,`  - `+db.Name)
+			}
+		}
+	
+		dbName,err := input.String(input.Blue,"Enter Database Name to use: ")
+		if logger.CheckError(err) {
+			return true
+		}
+		if dbName == "" {return true}
+		orm.UseForAdmin(dbName)
+		_ = orm.GetConnection(dbName)
+		defer orm.GetConnection(dbName).Close()
+
+		fmt.Printf(logger.Yellow,commandsS)
 		for {
 			command,err := input.String(input.Blue,"> ")
 			if err != nil {
 				if errors.Is(err,io.EOF) {
 					fmt.Printf(logger.Blue,"shell shutting down")
-					os.Exit(0)
 				}
 				return true
 			}
+
 			switch command {
 			case "quit","exit":
 				return true		
@@ -75,32 +107,9 @@ func InitShell() bool {
 				input.Clear()	
 				fmt.Printf(logger.Yellow,"Commands :  [migrate, createsuperuser, createuser, getall, get, drop, delete, clear/cls, quit/exit, help/commands]")
 			case "help":
-		fmt.Printf(logger.Yellow,`Commands :  
-  [migrate, createsuperuser, createuser, getall, get, drop, delete, clear/cls, quit/exit, help/commands]
-	
-	'migrate':
-		migrate initial users to env database
-
-	'createsuperuser':
-		create a admin user
-
-	'createuser':
-		create a regular user
-
-	'getall':
-		get all rows given a table name
-
-	'get':
-		get single row wher field equal_to
-
-	'delete':
-		delete rows where field equal_to
-		
-	'drop':
-		drop a table given table name
-				`)
+				fmt.Printf(logger.Yellow,helpS)
 			case "commands":
-				fmt.Printf(logger.Yellow,"Commands :  [migrate, createsuperuser, createuser, getall, get, drop, delete, clear/cls, quit/exit, help/commands]")
+				fmt.Printf(logger.Yellow,commandsS)
 			case "migrate":
 				fmt.Printf(logger.Blue,"available commands:")
 				fmt.Printf(logger.Blue,"1 : init")
@@ -119,6 +128,22 @@ func InitShell() bool {
 						fmt.Printf(logger.Green,"users table migrated successfully")
 					}
 				}
+			case "databases":
+				fmt.Printf(logger.Green,orm.GetDatabases())
+			case "use":
+				db := input.Input(input.Blue,"database name: ")
+				orm.UseForAdmin(db)
+				fmt.Printf(logger.Green,"you are using database "+db)
+			case "tables":
+				fmt.Printf(logger.Green,orm.GetAllTables(dbName)) 
+			case "columns":
+				tb := input.Input(input.Blue,"Table name: ")
+				mcols := orm.GetAllColumns(tb,settings.GlobalConfig.DbName)
+				cols := []string{}
+				for k := range mcols {
+					cols = append(cols, k)
+				}
+				fmt.Printf(logger.Green,cols) 
 			case "createsuperuser":
 				createsuperuser()
 			case "createuser":
@@ -176,7 +201,7 @@ func getRow() {
 
 func createuser() {
 	email := input.Input(input.Blue,"Email : ")
-	password := input.Input(input.Blue,"Password : ")
+	password := input.Hidden(input.Blue,"Password : ")
 	if email != "" && password != "" {
 		err := orm.CreateUser(email,password,0)
 		if err == nil {

@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"time"
 
 	gf "github.com/kamalshkeir/kago/core/middlewares/grafana"
 	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/settings"
+	"github.com/kamalshkeir/kago/core/shell"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -66,19 +66,13 @@ func (router *Router) UseMiddlewares(midws ...func(http.Handler) http.Handler) {
 
 // Run start the server
 func (router *Router) Run() {
-	var wg sync.WaitGroup
-	wg.Add(2)
+	// init orm shell
+	if shell.InitShell() {os.Exit(0)}
 	// init templates and assets
-	go func() {
-		router.InitTemplatesAndAssets()
-		wg.Done()
-	}()
-	go func() {
-		router.initServer()
-		wg.Done()
-	}()
-	wg.Wait()
-	// Graceful Shutdown server + db if exist
+	router.InitTemplatesAndAssets()
+	// init server
+	go router.initServer()
+	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
 
 	if err := router.Server.ListenAndServe(); err != http.ErrServerClosed {
@@ -91,16 +85,20 @@ func (router *Router) Run() {
 
 // Run start the server TLS
 func (router *Router) RunTLS(certFile string,keyFile string) {
+	// init orm shell
+	if shell.InitShell() {os.Exit(0)}
 	// init templates and assets
 	router.InitTemplatesAndAssets()
-	router.initServer()
-	// Graceful Shutdown server + db if exist
+	// init server
+	go router.initServer()
+	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
+
 	if err := router.Server.ListenAndServeTLS(certFile,keyFile); err != http.ErrServerClosed {
 		logger.Error("Unable to shutdown the server : ",err)
 	} else {
 		fmt.Printf(logger.Green,"Server Off !")
-	}	
+	}
 }
 
 // Graceful Shutdown

@@ -11,11 +11,11 @@ import (
 )
 
 const (
-	Red     = "\033[1;31m%s\033[0m\n"
-	Green   = "\033[1;32m%s\033[0m\n"
-	Yellow  = "\033[1;33m%s\033[0m\n"
-	Blue    = "\033[1;34m%s\033[0m\n"
-	Magenta = "\033[5;35m%s\033[0m\n"
+	Red     = "\033[1;31m%v\033[0m\n"
+	Green   = "\033[1;32m%v\033[0m\n"
+	Yellow  = "\033[1;33m%v\033[0m\n"
+	Blue    = "\033[1;34m%v\033[0m\n"
+	Magenta = "\033[5;35m%v\033[0m\n"
 )
 
 var StreamLogs = []string{}
