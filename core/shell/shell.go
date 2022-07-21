@@ -336,8 +336,10 @@ func pushGit(version string) {
 
 	fmt.Printf(input.Blue,"git tag "+version)
 	err = exec.Command("git", "tag", version).Run()
-	if logger.CheckError(err) {return}
-	fmt.Printf(logger.Green,"  --> DONE")
+	if err == nil {
+		fmt.Printf(logger.Green,"  --> DONE")
+	}
+	
 
 	fmt.Printf(input.Blue,"git push origin "+version)
 	err = exec.Command("git", "push", "origin",version).Run()
