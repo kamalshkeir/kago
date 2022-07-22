@@ -45,7 +45,7 @@ var LoginPOSTView = func(c *kamux.Context) {
 		return
 	}
 	if data["email"] == "" || data["email"] == nil {
-		c.Json(404, map[string]any{
+		c.Json(http.StatusNotFound, map[string]any{
 			"error":"User doesn not Exist",
 		})
 		return
@@ -213,7 +213,7 @@ var DeleteRowPost = func(c *kamux.Context) {
 }
 
 var CreateModelView = func(c *kamux.Context) {
-	parseErr := c.Request.ParseMultipartForm(32 << 20)
+	parseErr := c.Request.ParseMultipartForm(int64(kamux.MultipartSize))
 	if parseErr != nil {
 		logger.Error("Parse error = ", parseErr)
 	}

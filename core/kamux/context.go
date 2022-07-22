@@ -13,6 +13,7 @@ import (
 	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
+var MultipartSize = 10<<20
 
 // Context is a wrapper of responseWriter, request, and params map
 type Context struct {
@@ -27,6 +28,11 @@ func (c *Context) Json(code int, body any) {
 	enc := json.NewEncoder(c.ResponseWriter)
 	err := enc.Encode(body)
 	if logger.CheckError(err) {return}
+}
+
+// Json return json to the client
+func (c *Context) QueryParam(name string) string {
+	return c.Request.URL.Query().Get(name)
 }
 
 // JsonIndent return json indented to the client
@@ -114,7 +120,7 @@ func (c *Context) EmbededFile(content_type string,embed_file []byte) {
 
 // UploadFileFromFormData upload received_filename into folder_out and return url,fileByte,error
 func (c *Context) UploadFile(received_filename,folder_out string, acceptedFormats ...string) (string,[]byte,error) {
-	c.Request.ParseMultipartForm(10<<20) //10Mb
+	c.Request.ParseMultipartForm(int64(MultipartSize)) //10Mb
 	var buff bytes.Buffer
 	file, header , err := c.Request.FormFile(received_filename)
 	if logger.CheckError(err) {
