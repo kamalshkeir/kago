@@ -15,6 +15,7 @@ import (
 	"net/smtp"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -91,6 +92,13 @@ func CopyDir(source, destination string) error {
     return err
 }
 
+// Graceful Shutdown
+func GracefulShutdown(f func() error) error {
+	s := make(chan os.Signal, 1)
+	signal.Notify(s, os.Interrupt)
+	<-s
+	return f()
+}
 
 func SliceContains[T comparable](elems []T, vs ...T) bool {
     for _, s := range elems {

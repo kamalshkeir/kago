@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/signal"
 	"time"
 
 	gf "github.com/kamalshkeir/kago/core/middlewares/grafana"
 	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/shell"
+	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -69,7 +69,7 @@ func (router *Router) Run() {
 	// init orm shell
 	if shell.InitShell() {os.Exit(0)}
 	// init templates and assets
-	router.InitTemplatesAndAssets()
+	initTemplatesAndAssets(router)
 	// init server
 	router.initServer()
 	// graceful Shutdown server + db if exist
@@ -88,7 +88,7 @@ func (router *Router) RunTLS(certFile string,keyFile string) {
 	// init orm shell
 	if shell.InitShell() {os.Exit(0)}
 	// init templates and assets
-	router.InitTemplatesAndAssets()
+	initTemplatesAndAssets(router)
 	// init server
 	router.initServer()
 	// graceful Shutdown server + db if exist
@@ -103,21 +103,23 @@ func (router *Router) RunTLS(certFile string,keyFile string) {
 
 // Graceful Shutdown
 func (router *Router) gracefulShutdown() {
-	s := make(chan os.Signal, 1)
-	signal.Notify(s, os.Interrupt)
-	<-s
-	// Close databases
-
-	if err := orm.ShutdownDatabases();err != nil {
-		logger.Error("unable to shutdown databases:",err)
-	} else {
-		fmt.Printf(logger.Blue,"Databases Closed")
-	}
-	// Shutdown server
-	router.Server.SetKeepAlivesEnabled(false)
-	err := router.Server.Shutdown(context.Background())
+	err := utils.GracefulShutdown(func() error {
+		// Close databases
+		if err := orm.ShutdownDatabases();err != nil {
+			logger.Error("unable to shutdown databases:",err)
+		} else {
+			fmt.Printf(logger.Blue,"Databases Closed")
+		}
+		// Shutdown server
+		router.Server.SetKeepAlivesEnabled(false)
+		err := router.Server.Shutdown(context.Background())
+		if logger.CheckError(err) {return err}
+		return nil
+	})
 	if logger.CheckError(err) {os.Exit(1)}
 }
+
+
 
 
 

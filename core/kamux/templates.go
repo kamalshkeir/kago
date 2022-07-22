@@ -26,8 +26,8 @@ var allTemplates = template.New("")
 var repo_name = "kago-assets"
 
 
-// InitTemplatesAndAssets init templates from a folder and download admin skeleton html files
-func (router *Router) InitTemplatesAndAssets() {
+// initTemplatesAndAssets init templates from a folder and download admin skeleton html files
+func initTemplatesAndAssets(router *Router) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
@@ -40,10 +40,10 @@ func (router *Router) InitTemplatesAndAssets() {
 	}()
 	wg.Wait()
 	if settings.GlobalConfig.EmbedTemplates {
-		router.AddEmbededTemplates(Templates,"assets/templates",functions)
+		router.AddEmbededTemplates(Templates,"assets/templates")
 	} else {
 		//local
-		router.AddLocalTemplates("assets/templates",functions)
+		router.AddLocalTemplates("assets/templates")
 	}
 }
 
@@ -91,8 +91,8 @@ func (router *Router) ServeEmbededDir(pathLocalDir string, embeded embed.FS, web
 	})
 }
 
-func (router *Router) AddLocalTemplates(rootDir string, funcMap template.FuncMap) error {
-	cleanRoot := filepath.ToSlash(rootDir)
+func (router *Router) AddLocalTemplates(pathToDir string) error {
+	cleanRoot := filepath.ToSlash(pathToDir)
     pfx := len(cleanRoot)+1
 
     err := filepath.Walk(cleanRoot, func(path string, info os.FileInfo, e1 error) error {
@@ -107,7 +107,7 @@ func (router *Router) AddLocalTemplates(rootDir string, funcMap template.FuncMap
             }
 
             name := filepath.ToSlash(path[pfx:])
-            t := allTemplates.New(name).Funcs(funcMap)
+            t := allTemplates.New(name).Funcs(functions)
             _, e2 = t.Parse(string(b))
             if e2 != nil {
                 return e2
@@ -120,7 +120,7 @@ func (router *Router) AddLocalTemplates(rootDir string, funcMap template.FuncMap
     return err
 }
 
-func (router *Router) AddEmbededTemplates(template_embed embed.FS,rootDir string, funcMap template.FuncMap) error {
+func (router *Router) AddEmbededTemplates(template_embed embed.FS,rootDir string) error {
 	cleanRoot := filepath.ToSlash(rootDir)
     pfx := len(cleanRoot)+1
 	
@@ -135,7 +135,7 @@ func (router *Router) AddEmbededTemplates(template_embed embed.FS,rootDir string
             }
 
             name := filepath.ToSlash(path[pfx:])
-            t := allTemplates.New(name).Funcs(funcMap)
+            t := allTemplates.New(name).Funcs(functions)
             _, e3 := t.Parse(string(b))
             if logger.CheckError(e3) {
                 return e2
