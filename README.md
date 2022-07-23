@@ -101,7 +101,8 @@ func main() {
     // Query string parameters are parsed using the existing underlying request object
     // request url : /?page=3
     app.GET("/",func(c *kamux.Context) {
-		if page := c.QueryParam("page"); page != "" {
+		page := c.QueryParam("page")
+		if page != "" {
 			c.JSON(200,map[string]any{
 				"page":page,
 			})

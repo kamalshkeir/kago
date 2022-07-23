@@ -7,7 +7,7 @@ import (
 )
 
 func UrlPatterns(r *kamux.Router) {
-	r.GET("/mon/ping",func(c *kamux.Context) {c.TEXT(200,"pong")})
+	r.GET("/mon/ping",func(c *kamux.Context) {c.STATUS(200).TEXT("pong")})
 	r.GET("/offline",OfflineView) 
 	r.GET("/manifest.webmanifest",ManifestView) 
 	r.GET("/sw.js",ServiceWorkerView) 

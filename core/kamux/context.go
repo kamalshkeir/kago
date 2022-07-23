@@ -20,46 +20,52 @@ type Context struct {
 	http.ResponseWriter
 	*http.Request
 	Params map[string]string
+	status int
 }
 
-// JSON return json to the client
-func (c *Context) JSON(code int, body any) {
-	c.ResponseWriter.Header().Set("Content-Type","application/json")
-	c.SetStatus(code)
-	enc := json.NewEncoder(c.ResponseWriter)
-	err := enc.Encode(body)
-	if logger.CheckError(err) {return}
+func (c *Context) STATUS(code int) *Context {
+	c.status=code
+	return c
 }
+
 
 // QueryParam get query param
 func (c *Context) QueryParam(name string) string {
 	return c.Request.URL.Query().Get(name)
 }
 
-// JsonIndent return json indented to the client
-func (c *Context) JsonIndent(code int, body any) {
+// JSON return json to the client
+func (c *Context) JSON(body any) {
 	c.ResponseWriter.Header().Set("Content-Type","application/json")
-	c.SetStatus(code)
+	if c.status == 0 {c.status=200}
+	c.WriteHeader(c.status)
+	enc := json.NewEncoder(c.ResponseWriter)
+	err := enc.Encode(body)
+	logger.CheckError(err)
+}
+
+// JSONIndent return json indented to the client
+func (c *Context) JSONIndent(code int, body any) {
+	c.ResponseWriter.Header().Set("Content-Type","application/json")
+	if c.status == 0 {c.status=200}
+	c.WriteHeader(c.status)
 	enc := json.NewEncoder(c.ResponseWriter)
 	enc.SetIndent("","\t")
 	err := enc.Encode(body)
-	if logger.CheckError(err) {return}
+	logger.CheckError(err)
 }
 
 // TEXT return text with custom code to the client
-func (c *Context) TEXT(code int, body string) {
+func (c *Context) TEXT(body string) {
 	c.ResponseWriter.Header().Set("Content-Type", "text/plain")
-	c.SetStatus(code)
+	if c.status == 0 {c.status=200}
+	c.WriteHeader(c.status)
 	c.ResponseWriter.Write([]byte(body))
 }
 
-// SetStatus set the status
-func (c *Context) SetStatus(code int) {
-	c.WriteHeader(code)
-}
 
 // HTML return template_name with data to the client
-func (c *Context) HTML(template_name string, data map[string]any,status ...int) {
+func (c *Context) HTML(template_name string, data map[string]any) {
 	const key utils.ContextKey = "user"
 	if data == nil { data = make(map[string]any) }
 	
@@ -74,9 +80,8 @@ func (c *Context) HTML(template_name string, data map[string]any,status ...int) 
 		data["user"] = nil
 	}
 	c.ResponseWriter.Header().Set("Content-Type","text/html; charset=utf-8")
-	if len(status) > 0 {
-		c.SetStatus(status[0])
-	}
+	if c.status == 0 {c.status=200}
+	c.WriteHeader(c.status)
 	err := allTemplates.ExecuteTemplate(c.ResponseWriter,template_name,data)
 	logger.CheckError(err)
 }
@@ -85,7 +90,9 @@ func (c *Context) HTML(template_name string, data map[string]any,status ...int) 
 func (c *Context) RequestBody() map[string]any {
 	// USAGE : data := template.GetJson(r)
 	d := map[string]any{}
-	if err := json.NewDecoder(c.Request.Body).Decode(&d); err == io.EOF {
+	dec := json.NewDecoder(c.Request.Body)
+	defer c.Request.Body.Close()
+	if err := dec.Decode(&d); err == io.EOF {
 		//empty body
 		logger.Error("empty body EOF")
 		return nil
@@ -93,15 +100,14 @@ func (c *Context) RequestBody() map[string]any {
 		logger.Error(err)
 		return nil
 	} else {
-		err := c.Request.Body.Close()
-		logger.CheckError(err)
 		return d
 	}
 }
 
-// Redirect redirect the client to the specified path with a custom code
-func (c *Context) Redirect(path string,code int) {
-	http.Redirect(c.ResponseWriter,c.Request,path,code)
+// REDIRECT redirect the client to the specified path with a custom code
+func (c *Context) REDIRECT(path string) {
+	if c.status == 0 {c.status=http.StatusSeeOther}
+	http.Redirect(c.ResponseWriter,c.Request,path,c.status)
 }
 
 // ServeFile serve a file from handler

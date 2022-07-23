@@ -58,7 +58,7 @@ func New(envFiles ...string) *Router {
 	app := &Router{
 		Routes: map[int][]Route{},
 		DefaultRoute: func(c *Context) {
-			c.TEXT(404,"Page Not Found")
+			c.STATUS(404).TEXT("Page Not Found")
 		},
 	}
 	wg.Add(1)

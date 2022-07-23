@@ -137,7 +137,7 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "DELETE":
 		allRoutes = router.Routes[DELETE]
 	default:
-		c.TEXT(http.StatusBadRequest,"Method Not Allowed .")
+		c.STATUS(http.StatusBadRequest).TEXT("Method Not Allowed .")
 		return
 	}
 
@@ -247,7 +247,7 @@ func handleWebsockets(c *Context ,rt Route) {
 	} else {
 		// cross
 		if len(rt.AllowedOrigines) == 0 {
-			c.TEXT(http.StatusBadRequest,"you are not allowed cross origin for this url")
+			c.STATUS(http.StatusBadRequest).TEXT("you are not allowed cross origin for this url")
 			return
 		} else {
 			allowed := false
@@ -271,7 +271,7 @@ func handleWebsockets(c *Context ,rt Route) {
 				}).ServeHTTP(c.ResponseWriter,c.Request)
 				return
 			} else {
-				c.TEXT(http.StatusBadRequest,"you are not allowed to access this route from cross origin")
+				c.STATUS(http.StatusBadRequest).TEXT("you are not allowed to access this route from cross origin")
 				return
 			}
 		}
@@ -298,7 +298,7 @@ func handleHttp(c *Context,rt Route) {
 	} else {
 		// cross origin
 		if len(rt.AllowedOrigines) == 0 {
-			c.TEXT(http.StatusBadRequest,"you are not allowed cross origin for this url")
+			c.STATUS(http.StatusBadRequest).TEXT("you are not allowed cross origin for this url")
 			return
 		} else {
 			allowed := false
@@ -311,7 +311,7 @@ func handleHttp(c *Context,rt Route) {
 				rt.Handler(c)
 				return
 			} else {
-				c.TEXT(http.StatusBadRequest,"you are not allowed to access this route from cross origin")
+				c.STATUS(http.StatusBadRequest).TEXT("you are not allowed to access this route from cross origin")
 				return
 			}
 		}
