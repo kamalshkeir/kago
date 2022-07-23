@@ -86,8 +86,8 @@ func (c *Context) HTML(template_name string, data map[string]any) {
 	logger.CheckError(err)
 }
 
-// RequestBody get json body from request and return map
-func (c *Context) RequestBody() map[string]any {
+// BODY get json body from request and return map
+func (c *Context) BODY() map[string]any {
 	// USAGE : data := template.GetJson(r)
 	d := map[string]any{}
 	dec := json.NewDecoder(c.Request.Body)

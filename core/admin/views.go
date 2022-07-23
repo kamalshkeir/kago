@@ -33,7 +33,7 @@ var LoginView = func(c *kamux.Context) {
 }
 
 var LoginPOSTView = func(c *kamux.Context) {
-	requestData := c.RequestBody()
+	requestData := c.BODY()
 	email := requestData["email"]
 	passRequest := requestData["password"]
 
@@ -130,7 +130,7 @@ var AllModelsPost = func(c *kamux.Context) {
 		})
 		return
 	}
-	received := c.RequestBody()
+	received := c.BODY()
 	if received != nil {
 		if v,ok := received["page_num"];ok {
 			if page,ok := v.(string);!ok {
@@ -158,7 +158,7 @@ var AllModelsPost = func(c *kamux.Context) {
 }
 
 var DeleteRowPost = func(c *kamux.Context) {
-	data := c.RequestBody()
+	data := c.BODY()
 	if data["mission"] == "delete_row" {
 		if model,ok := data["model_name"];ok {
 			if mm,ok := model.(string);ok {
@@ -393,7 +393,7 @@ func handleFilesUpload(files map[string][]*multipart.FileHeader,model string,id 
 }
 
 var DropTablePost = func(c *kamux.Context) {
-	data := c.RequestBody()
+	data := c.BODY()
 	if table,ok := data["table"];ok && table != ""{
 		if t,ok := data["table"].(string);ok {
 			_,err := orm.Table(t).Drop()
@@ -463,13 +463,8 @@ var ImportView= func(c *kamux.Context) {
 			cols = append(cols, k)
 			values = append(values, v)
 		}
-		_,err := orm.Table(table).Insert(strings.Join(cols,","),values)
-		if logger.CheckError(err) {
-			c.STATUS(http.StatusBadRequest).JSON(map[string]any{
-				"error":err.Error(),
-			})
-			return
-		}
+		
+		_,_ = orm.Table(table).Insert(strings.Join(cols,","),values)
 		cols = cols[:0]
 		values = values[:0]
 	} 
