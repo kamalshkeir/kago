@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"os"
 	"regexp"
-	"strings"
 	"sync"
 
 	"github.com/kamalshkeir/kago/core/orm"
@@ -52,8 +51,6 @@ type Route struct {
 	Clients map[string]*websocket.Conn
 	AllowedOrigines []string
 }
-
-
 
 // New Create New Router from env file default: '.env'
 func New(envFiles ...string) *Router {
@@ -128,13 +125,6 @@ func New(envFiles ...string) *Router {
 		wg.Done()
 	}()
 
-	wg.Add(1)
-	go func() {
-		// init server
-		app.initServer()
-		wg.Done()
-	}()
-
 	// load translations
 	wg.Add(1)
 	go func() {
@@ -170,28 +160,28 @@ func (router *Router) handle(method int,pattern string, handler Handler,wshandle
 	router.Routes[method] = append(router.Routes[method], route)
 }
 
-// Get handle GET to a route
-func (router *Router) Get(pattern string, handler Handler) {
+// GET handle GET to a route
+func (router *Router) GET(pattern string, handler Handler) {
 	router.handle(GET,pattern,handler,nil,nil)
 }
 
-// Post handle POST to a route
-func (router *Router) Post(pattern string, handler Handler, allowed_origines ...string) {
+// POST handle POST to a route
+func (router *Router) POST(pattern string, handler Handler, allowed_origines ...string) {
 	router.handle(POST,pattern,handler,nil,allowed_origines)
 }
 
-// Put handle PUT to a route
-func (router *Router) Put(pattern string, handler Handler, allowed_origines ...string) {
+// PUT handle PUT to a route
+func (router *Router) PUT(pattern string, handler Handler, allowed_origines ...string) {
 	router.handle(PUT,pattern,handler,nil,allowed_origines)
 }
 
-// Patch handle PATCH to a route
-func (router *Router) Patch(pattern string, handler Handler, allowed_origines ...string) {
+// PATCH handle PATCH to a route
+func (router *Router) PATCH(pattern string, handler Handler, allowed_origines ...string) {
 	router.handle(PATCH,pattern,handler,nil,allowed_origines)
 }
 
-// Delete handle DELETE to a route
-func (router *Router) Delete(pattern string, handler Handler, allowed_origines ...string) {
+// DELETE handle DELETE to a route
+func (router *Router) DELETE(pattern string, handler Handler, allowed_origines ...string) {
 	router.handle(DELETE,pattern,handler,nil,allowed_origines)
 }
 
@@ -205,211 +195,4 @@ func (router *Router) SSE(pattern string, handler Handler, allowed_origines ...s
 	router.handle(SSE,pattern,handler,nil,allowed_origines)
 }
 
-// ServeHTTP serveHTTP by handling methods,pattern,and params
-func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	c := &Context{Request: r, ResponseWriter: w, Params: map[string]string{}}
-	var allRoutes []Route
 
-	switch r.Method {
-	case "GET":
-		if strings.Contains(r.URL.Path,"/ws/") {
-			allRoutes = router.Routes[WS]
-		} else if strings.Contains(r.URL.Path,"/sse/") {
-			allRoutes = router.Routes[SSE]
-		} else {
-			allRoutes = router.Routes[GET]
-		}
-	case "POST":
-		allRoutes = router.Routes[POST]
-	case "PUT":
-		allRoutes = router.Routes[PUT]
-	case "PATCH":
-		allRoutes = router.Routes[PATCH]
-	case "DELETE":
-		allRoutes = router.Routes[DELETE]
-	default:
-		c.TEXT(http.StatusBadRequest,"Method Not Allowed .")
-		return
-	}
-
-	if len(allRoutes) > 0 {
-		for _, rt := range allRoutes {
-			// match route
-			if matches := rt.Pattern.FindStringSubmatch(c.URL.Path); len(matches) > 0 {
-				// add params
-				paramsValues := matches[1:]
-				if names := rt.Pattern.SubexpNames();len(names) > 0 {
-					for i,name := range rt.Pattern.SubexpNames()[1:] {
-						c.Params[name]=paramsValues[i]
-					}
-				}
-				if rt.WsHandler != nil {
-					// WS 
-					handleWebsockets(c,rt)
-					return
-				} else {
-					// HTTP
-					handleHttp(c,rt)
-					return
-				}
-			}
-		}
-	}
-	router.DefaultRoute(c)
-}
-
-func adaptParams(url string) string {
-	if strings.Contains(url, ":") {
-		splited := strings.Split(url, "/")
-		splited = splited[1:]
-		for i, s := range splited {
-			if strings.Contains(s, ":") {
-				nameType := strings.Split(s, ":")
-				name := nameType[0]
-				name_type := nameType[1]
-				switch name_type {
-				case "string":
-					//splited[i] = `(?P<` + name + `>\w+)+\/?`
-					splited[i] = `(?P<` + name + `>\w+)`
-				case "int":
-					splited[i] = `(?P<` + name + `>\d+)`
-				case "slug":
-					splited[i] = `(?P<` + name + `>[a-z0-9]+(?:-[a-z0-9]+)*)` 
-				case "float":
-					splited[i] = `(?P<` + name + `>[-+]?([0-9]*\.[0-9]+|[0-9]+))` 
-				default:
-					splited[i] = `(?P<` + name + `>[a-z0-9]+(?:-[a-z0-9]+)*)` 
-				}
-			}
-		}
-		return "^/"+strings.Join(splited, "/")+"(|/)?$"
-	} 
-
-	if strings.Contains(url,"^") {
-		return url
-	} else {
-		return "^"+url+"(|/)?$"
-	}
-}
-
-func checkSameSite(c Context) bool {
-	origin := c.Request.Header.Get("Origin")
-	if origin == "" {
-		return false
-	}
-	host := settings.GlobalConfig.Host
-	if host == "" || host == "localhost" || host == "127.0.0.1" {
-		if strings.Contains(origin,"localhost") {
-			host="localhost"
-		} else if strings.Contains(origin,"127.0.0.1") {
-			host="127.0.0.1"
-		}
-	}
-	port := settings.GlobalConfig.Port
-	if port != "" {
-		port=":"+port
-	}
-	if strings.Contains(origin,host+port) {
-		return true
-	} else {
-		return false
-	}
-}
-
-func handleWebsockets(c *Context ,rt Route) {
-	if checkSameSite(*c) {
-		// same site
-		websocket.Handler(func(conn *websocket.Conn) {
-			conn.MaxPayloadBytes = 10 << 20
-			if conn.IsServerConn() {
-				ctx := &WsContext{
-					Ws: conn,
-					Params: make(map[string]string),
-					Route: rt,
-				}
-				rt.WsHandler(ctx)
-				return
-			}
-		}).ServeHTTP(c.ResponseWriter,c.Request)
-		return
-	} else {
-		// cross
-		if len(rt.AllowedOrigines) == 0 {
-			c.TEXT(http.StatusBadRequest,"you are not allowed cross origin for this url")
-			return
-		} else {
-			allowed := false
-			for _,dom := range rt.AllowedOrigines {
-				if strings.Contains(c.Request.Header.Get("Origin"),dom) {
-					allowed=true
-				}
-			}
-			if allowed {
-				websocket.Handler(func(conn *websocket.Conn) {
-					conn.MaxPayloadBytes = 10 << 20
-					if conn.IsServerConn() {
-						ctx := &WsContext{
-							Ws: conn,
-							Params: make(map[string]string),
-							Route: rt,
-						}
-						rt.WsHandler(ctx)
-						return
-					}
-				}).ServeHTTP(c.ResponseWriter,c.Request)
-				return
-			} else {
-				c.TEXT(http.StatusBadRequest,"you are not allowed to access this route from cross origin")
-				return
-			}
-		}
-	}
-}
-
-func handleHttp(c *Context,rt Route) {
-	if rt.Method == "GET" {
-		if rt.Method == "SSE" {
-			sseHeaders(c)
-		}
-		rt.Handler(c)
-		return
-	}
-	// check cross origin
-	if checkSameSite(*c) {
-		// same site
-		rt.Handler(c)
-		return
-	} else if rt.Method == "SSE" {
-		sseHeaders(c)
-		rt.Handler(c)
-		return
-	} else {
-		// cross origin
-		if len(rt.AllowedOrigines) == 0 {
-			c.TEXT(http.StatusBadRequest,"you are not allowed cross origin for this url")
-			return
-		} else {
-			allowed := false
-			for _,dom := range rt.AllowedOrigines {
-				if strings.Contains(c.Request.Header.Get("Origin"),dom) {
-					allowed=true
-				}
-			}
-			if allowed {
-				rt.Handler(c)
-				return
-			} else {
-				c.TEXT(http.StatusBadRequest,"you are not allowed to access this route from cross origin")
-				return
-			}
-		}
-	}
-}
-
-func sseHeaders(c *Context) {
-	c.ResponseWriter.Header().Set("Access-Control-Allow-Origin", "*")
-    c.ResponseWriter.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-    c.ResponseWriter.Header().Set("Content-Type", "text/event-stream")
-    c.ResponseWriter.Header().Set("Cache-Control", "no-cache")
-    c.ResponseWriter.Header().Set("Connection", "keep-alive")
-}

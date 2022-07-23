@@ -57,27 +57,23 @@ func (router *Router) NewFuncMap(funcName string, function any) {
 
 func (router *Router) ServeLocalDir(dirPath, webPath string) {
 	dirPath = filepath.ToSlash(dirPath)
-	if strings.HasPrefix(webPath,"/") {
-		webPath = "^"+ webPath
-	} else {
-		webPath = "^/"+ webPath
+	if webPath[0] != '/' {
+		webPath = "/"+ webPath
 	}
-	if !strings.HasSuffix(webPath,"/") {	
+	if webPath[len(webPath)-1] != '/' {	
 		webPath += "/"
 	}
-	router.Get(webPath, func(c *Context) {
-		http.StripPrefix(webPath[1:], http.FileServer(http.Dir(dirPath))).ServeHTTP(c.ResponseWriter, c.Request)
+	router.GET(webPath+"*", func(c *Context) {
+		http.StripPrefix(webPath, http.FileServer(http.Dir(dirPath))).ServeHTTP(c.ResponseWriter, c.Request)
 	})
 }
 
 func (router *Router) ServeEmbededDir(pathLocalDir string, embeded embed.FS, webPath string) {
 	pathLocalDir = filepath.ToSlash(pathLocalDir)
-	if strings.HasPrefix(webPath,"/") {
-		webPath = "^"+ webPath
-	} else {
-		webPath = "^/"+ webPath
+	if webPath[0] != '/' {
+		webPath = "/"+ webPath
 	}
-	if !strings.HasSuffix(webPath,"/") {	
+	if webPath[len(webPath)-1] != '/' {	
 		webPath += "/"
 	}
 	toembed_dir, err := fs.Sub(embeded, pathLocalDir)
@@ -86,8 +82,8 @@ func (router *Router) ServeEmbededDir(pathLocalDir string, embeded embed.FS, web
 		return
 	}
 	toembed_root := http.FileServer(http.FS(toembed_dir))
-	router.Get(webPath, func(c *Context) {
-		http.StripPrefix(webPath[1:], toembed_root).ServeHTTP(c.ResponseWriter, c.Request)
+	router.GET(webPath+"*", func(c *Context) {
+		http.StripPrefix(webPath, toembed_root).ServeHTTP(c.ResponseWriter, c.Request)
 	})
 }
 
@@ -152,15 +148,15 @@ func (router *Router) AddEmbededTemplates(template_embed embed.FS,rootDir string
 func (router *Router) initDefaultUrls() {
 	// prometheus metrics
 	if settings.GlobalConfig.Monitoring {
-		router.Get("/metrics", func(c *Context) {
+		router.GET("/metrics", func(c *Context) {
 			promhttp.Handler().ServeHTTP(c.ResponseWriter,c.Request)
 		})
 	}
     // PROFILER
 	if settings.GlobalConfig.Profiler {
-		router.Get("^/debug/pprof/?heap", func(c *Context) { pprof.Index(c.ResponseWriter, c.Request) })
-		router.Get("^/debug/pprof/profile", func(c *Context) { pprof.Profile(c.ResponseWriter, c.Request) })
-		router.Get("^/debug/pprof/trace", func(c *Context) { pprof.Trace(c.ResponseWriter, c.Request) })
+		router.GET("/debug/pprof/?heap*", func(c *Context) { pprof.Index(c.ResponseWriter, c.Request) })
+		router.GET("/debug/pprof/profile*", func(c *Context) { pprof.Profile(c.ResponseWriter, c.Request) })
+		router.GET("/debug/pprof/trace*", func(c *Context) { pprof.Trace(c.ResponseWriter, c.Request) })
 	}
 	// STATIC
 	if settings.GlobalConfig.EmbedStatic {
@@ -178,7 +174,7 @@ func (router *Router) initDefaultUrls() {
 	}
 	// MEDIA
 	media_root := http.FileServer(http.Dir("./media"))
-	router.Get(`^/media/`, func(c *Context) {
+	router.GET(`/media/*`, func(c *Context) {
 		http.StripPrefix("/media/", media_root).ServeHTTP(c.ResponseWriter, c.Request)
 	})
 }
