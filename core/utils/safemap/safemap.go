@@ -32,6 +32,10 @@ func (sm *SafeMap[K, V]) Set(key K, value V) {
 	sm.mutex.Unlock()
 }
 
+func (sm *SafeMap[K, V]) Len() int {
+	return len(sm.m)
+}
+
 func (sm *SafeMap[K, V]) Delete(key K) {
 	sm.mutex.Lock()
 	delete(sm.m,key)

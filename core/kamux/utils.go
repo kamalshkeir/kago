@@ -2,8 +2,12 @@ package kamux
 
 import (
 	"embed"
+	"encoding/json"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils/envloader"
@@ -52,6 +56,29 @@ func (router *Router) LoadEnv(files ...string) {
 	}
 }
 
+func LoadTranslations() {
+	if dir,err := os.Stat(settings.TranslationFolder);err == nil && dir.IsDir() {
+		err = filepath.WalkDir(dir.Name(),func(path string, d fs.DirEntry, err error) error {
+			if strings.HasSuffix(d.Name(),".json") {
+				file,err := os.Open(path)
+				if err != nil {
+					return err
+				}
+
+				v := map[string]any{}
+				err = json.NewDecoder(file).Decode(&v)
+				if err != nil {
+					file.Close()
+					return err
+				}
+				file.Close()
+				settings.Translations.Set(strings.TrimSuffix(d.Name(),".json"),v)
+			}
+			return nil
+		})
+		logger.CheckError(err)
+	}
+}
 
 var Templates embed.FS
 var Static embed.FS

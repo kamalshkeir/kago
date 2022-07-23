@@ -370,4 +370,40 @@ var functions = template.FuncMap{
 			return template.HTML("")
 		}
 	},
+	"translate":func (translation string, request *http.Request) any {
+		var lg string
+		if language,err:= request.Cookie("lang");err == nil {
+			lg = strings.ToLower(language.Value)
+		} else {
+			lg = "en"
+		}
+
+		if data,ok := settings.Translations.Get(lg);ok {
+				if v,ok := data[translation];ok {
+					return v
+				} else if strings.Contains(translation,".") {
+					sp := strings.Split(translation,".")
+					if len(sp) >= 2 && len(sp) < 4 {
+						if d,ok := data[sp[0]];ok {
+							if f,ok := d.(map[string]any)[sp[1]];ok {
+								switch v := f.(type) {
+								case string:
+									return v
+								case map[string]any:
+									if vv,ok := v[sp[2]];ok {
+										return vv
+									}
+								default:
+									return "NOT HANDLED"
+								}
+							}
+						} 
+					} 
+				}
+			} else {
+				return "LANGUAGE NOT FOUND FROM COOKIE"
+			}
+		
+		return "NOT VALID"
+	},
 }

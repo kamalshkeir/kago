@@ -70,8 +70,6 @@ func (router *Router) Run() {
 	if shell.InitShell() {os.Exit(0)}
 	// init templates and assets
 	initTemplatesAndAssets(router)
-	// init server
-	router.initServer()
 	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
 

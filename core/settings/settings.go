@@ -1,7 +1,11 @@
 package settings
 
+import "github.com/kamalshkeir/kago/core/utils/safemap"
+
 var GlobalConfig = &config{}
 var Secret string
+var Translations = safemap.New[string, map[string]any]()
+var TranslationFolder = "translations"
 
 type config struct {
 	Host           string

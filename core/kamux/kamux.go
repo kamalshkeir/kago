@@ -127,6 +127,21 @@ func New(envFiles ...string) *Router {
 		}
 		wg.Done()
 	}()
+
+	// load translations
+	wg.Add(1)
+	go func() {
+		LoadTranslations()
+		wg.Done()
+	}()
+
+	wg.Add(1)
+	go func() {
+		// init server
+		app.initServer()
+		wg.Done()
+	}()
+
 	wg.Wait()
 	return app
 }

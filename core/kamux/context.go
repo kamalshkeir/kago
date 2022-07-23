@@ -71,16 +71,12 @@ func (c *Context) Html(template_name string, data map[string]any,status ...int) 
 		data["is_authenticated"] = false
 		data["user"] = nil
 	}
-
 	c.ResponseWriter.Header().Set("Content-Type","text/html; charset=utf-8")
 	if len(status) > 0 {
 		c.SetStatus(status[0])
 	}
 	err := allTemplates.ExecuteTemplate(c.ResponseWriter,template_name,data)
-	if logger.CheckError(err) {
-		logger.Info(allTemplates.DefinedTemplates())
-		c.SetStatus(http.StatusInternalServerError)
-	}
+	logger.CheckError(err)
 }
 
 // GetJson get json body from request and return map
