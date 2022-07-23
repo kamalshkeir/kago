@@ -512,8 +512,10 @@ var OfflineView= func (c *kamux.Context) {
 var LogsSSEView = func(c *kamux.Context) {
 	lenStream := len(logger.StreamLogs)
 	if lenStream > 0 {
-		new := "data: " + logger.StreamLogs[lenStream-1] +"\n\n"
-		c.ResponseWriter.Write([]byte(new))
+		err := c.StreamResponse(logger.StreamLogs[lenStream-1])
+		if err != nil{
+			logger.Error(err)
+		}
 	}
 }
 

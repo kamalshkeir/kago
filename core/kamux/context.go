@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils"
@@ -23,11 +24,11 @@ type Context struct {
 	status int
 }
 
+// set status to context, will not be writed to header
 func (c *Context) STATUS(code int) *Context {
 	c.status=code
 	return c
 }
-
 
 // QueryParam get query param
 func (c *Context) QueryParam(name string) string {
@@ -63,7 +64,6 @@ func (c *Context) TEXT(body string) {
 	c.ResponseWriter.Write([]byte(body))
 }
 
-
 // HTML return template_name with data to the client
 func (c *Context) HTML(template_name string, data map[string]any) {
 	const key utils.ContextKey = "user"
@@ -84,6 +84,17 @@ func (c *Context) HTML(template_name string, data map[string]any) {
 	c.WriteHeader(c.status)
 	err := allTemplates.ExecuteTemplate(c.ResponseWriter,template_name,data)
 	logger.CheckError(err)
+}
+
+// StreamResponse send SSE Streaming Response
+func (c *Context) StreamResponse(response string) error {
+	b := strings.Builder{}
+	b.WriteString("data: ")
+	b.WriteString(response)
+	b.WriteString("\n\n")
+	_,err := c.ResponseWriter.Write([]byte(b.String()))
+	if err != nil {return err}
+	return nil
 }
 
 // BODY get json body from request and return map
@@ -180,6 +191,7 @@ func (c *Context) Download(data_bytes []byte, asFilename string) {
 	io.Copy(c.ResponseWriter,bytesReader)
 }
 
+// EnableTranslations get user ip, then location country using nmap, so don't use it if u don't have it install, and then it parse csv file to find the language spoken in this country, to finaly set cookie 'lang' to 'en' or 'fr'...  
 func (c *Context) EnableTranslations() {
 	ip := c.GetUserIP()
 	if utils.StringContains(ip,"127.0.0.1","localhost","") {
