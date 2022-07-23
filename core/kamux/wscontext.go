@@ -36,8 +36,8 @@ func (c *WsContext) ReceiveJson() (map[string]any,error) {
 	return data,nil
 }
 
-// Json send json to the client
-func (c *WsContext) Json(data map[string]any) error {
+// JSON send json to the client
+func (c *WsContext) JSON(data map[string]any) error {
 	err := websocket.JSON.Send(c.Ws, data)
 	if err != nil {
 		return err
@@ -45,8 +45,8 @@ func (c *WsContext) Json(data map[string]any) error {
 	return nil
 }
 
-// Broadcast send message to all clients in c.Clients
-func (c *WsContext) Broadcast(data any) error {
+// BROADCAST send message to all clients in c.Clients
+func (c *WsContext) BROADCAST(data any) error {
 	m.RLock()
 	for _,ws := range c.Route.Clients {
 		err := websocket.JSON.Send(ws, data)
@@ -59,7 +59,7 @@ func (c *WsContext) Broadcast(data any) error {
 	return nil
 }
 
-// Broadcast send message to all clients in c.Clients
+// BroadcastExceptCaller send message to all clients in c.Clients
 func (c *WsContext) BroadcastExceptCaller(data map[string]any) error {
 	m.RLock()
 	for _,ws := range c.Route.Clients {
@@ -75,8 +75,8 @@ func (c *WsContext) BroadcastExceptCaller(data map[string]any) error {
 	return nil
 }
 
-// Text send text to the client
-func (c *WsContext) Text(data string) error {
+// TEXT send text to the client
+func (c *WsContext) TEXT(data string) error {
 	err := websocket.Message.Send(c.Ws, data)
 	if err != nil {
 		return err

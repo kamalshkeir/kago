@@ -61,7 +61,7 @@ func New(envFiles ...string) *Router {
 	app := &Router{
 		Routes: map[int][]Route{},
 		DefaultRoute: func(c *Context) {
-			c.Text(404,"Page Not Found")
+			c.TEXT(404,"Page Not Found")
 		},
 	}
 	wg.Add(1)
@@ -128,13 +128,6 @@ func New(envFiles ...string) *Router {
 		wg.Done()
 	}()
 
-	// load translations
-	wg.Add(1)
-	go func() {
-		LoadTranslations()
-		wg.Done()
-	}()
-
 	wg.Add(1)
 	go func() {
 		// init server
@@ -142,6 +135,12 @@ func New(envFiles ...string) *Router {
 		wg.Done()
 	}()
 
+	// load translations
+	wg.Add(1)
+	go func() {
+		LoadTranslations()
+		wg.Done()
+	}()
 	wg.Wait()
 	return app
 }
@@ -229,7 +228,7 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "DELETE":
 		allRoutes = router.Routes[DELETE]
 	default:
-		c.Text(http.StatusBadRequest,"Method Not Allowed .")
+		c.TEXT(http.StatusBadRequest,"Method Not Allowed .")
 		return
 	}
 
@@ -336,7 +335,7 @@ func handleWebsockets(c *Context ,rt Route) {
 	} else {
 		// cross
 		if len(rt.AllowedOrigines) == 0 {
-			c.Text(http.StatusBadRequest,"you are not allowed cross origin for this url")
+			c.TEXT(http.StatusBadRequest,"you are not allowed cross origin for this url")
 			return
 		} else {
 			allowed := false
@@ -360,7 +359,7 @@ func handleWebsockets(c *Context ,rt Route) {
 				}).ServeHTTP(c.ResponseWriter,c.Request)
 				return
 			} else {
-				c.Text(http.StatusBadRequest,"you are not allowed to access this route from cross origin")
+				c.TEXT(http.StatusBadRequest,"you are not allowed to access this route from cross origin")
 				return
 			}
 		}
@@ -387,7 +386,7 @@ func handleHttp(c *Context,rt Route) {
 	} else {
 		// cross origin
 		if len(rt.AllowedOrigines) == 0 {
-			c.Text(http.StatusBadRequest,"you are not allowed cross origin for this url")
+			c.TEXT(http.StatusBadRequest,"you are not allowed cross origin for this url")
 			return
 		} else {
 			allowed := false
@@ -400,7 +399,7 @@ func handleHttp(c *Context,rt Route) {
 				rt.Handler(c)
 				return
 			} else {
-				c.Text(http.StatusBadRequest,"you are not allowed to access this route from cross origin")
+				c.TEXT(http.StatusBadRequest,"you are not allowed to access this route from cross origin")
 				return
 			}
 		}

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/rand"
 	"encoding/base64"
@@ -320,6 +321,28 @@ func OpenBrowser(url string) {
 	_=err
 }
 
+
+func GetIpCountry(ip string) string {
+	cmd := exec.Command("nmap", "-n","-sn","-Pn","--script","ip-geolocation-geoplugin", ip)
+	d,err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	bReader := bytes.NewReader(d)
+	scanner := bufio.NewScanner(bReader)
+	var line string
+	for scanner.Scan() {
+		if strings.Contains(scanner.Text(),"_location") {
+			line=scanner.Text()
+			sp := strings.Split(line,"location:")
+			line=strings.TrimSpace(sp[len(sp)-1])
+			spl := strings.Split(line,",")
+			spl[1]=strings.TrimSpace(spl[1])
+			return spl[1]
+		}
+	}
+	return ""
+}
 
 
 

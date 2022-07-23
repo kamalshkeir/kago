@@ -21,8 +21,9 @@ type Context struct {
 	*http.Request
 	Params map[string]string
 }
-// Json return json to the client
-func (c *Context) Json(code int, body any) {
+
+// JSON return json to the client
+func (c *Context) JSON(code int, body any) {
 	c.ResponseWriter.Header().Set("Content-Type","application/json")
 	c.SetStatus(code)
 	enc := json.NewEncoder(c.ResponseWriter)
@@ -30,7 +31,7 @@ func (c *Context) Json(code int, body any) {
 	if logger.CheckError(err) {return}
 }
 
-// Json return json to the client
+// QueryParam get query param
 func (c *Context) QueryParam(name string) string {
 	return c.Request.URL.Query().Get(name)
 }
@@ -45,19 +46,20 @@ func (c *Context) JsonIndent(code int, body any) {
 	if logger.CheckError(err) {return}
 }
 
-// Text return text with custom code to the client
-func (c *Context) Text(code int, body string) {
+// TEXT return text with custom code to the client
+func (c *Context) TEXT(code int, body string) {
 	c.ResponseWriter.Header().Set("Content-Type", "text/plain")
 	c.SetStatus(code)
 	c.ResponseWriter.Write([]byte(body))
 }
 
+// SetStatus set the status
 func (c *Context) SetStatus(code int) {
 	c.WriteHeader(code)
 }
 
-// Html return template_name with data to the client
-func (c *Context) Html(template_name string, data map[string]any,status ...int) {
+// HTML return template_name with data to the client
+func (c *Context) HTML(template_name string, data map[string]any,status ...int) {
 	const key utils.ContextKey = "user"
 	if data == nil { data = make(map[string]any) }
 	
@@ -79,8 +81,8 @@ func (c *Context) Html(template_name string, data map[string]any,status ...int) 
 	logger.CheckError(err)
 }
 
-// GetJson get json body from request and return map
-func (c *Context) GetJson() map[string]any {
+// RequestBody get json body from request and return map
+func (c *Context) RequestBody() map[string]any {
 	// USAGE : data := template.GetJson(r)
 	d := map[string]any{}
 	if err := json.NewDecoder(c.Request.Body).Decode(&d); err == io.EOF {
@@ -102,19 +104,19 @@ func (c *Context) Redirect(path string,code int) {
 	http.Redirect(c.ResponseWriter,c.Request,path,code)
 }
 
-// File serve a file from handler
-func (c *Context) File(content_type,path_to_file string) {
+// ServeFile serve a file from handler
+func (c *Context) ServeFile(content_type,path_to_file string) {
 	c.ResponseWriter.Header().Set("Content-Type", content_type)
 	http.ServeFile(c.ResponseWriter, c.Request, path_to_file)
 }
 
-// EmbedFile serve an embeded file from handler
-func (c *Context) EmbededFile(content_type string,embed_file []byte) {
+// ServeEmbededFile serve an embeded file from handler
+func (c *Context) ServeEmbededFile(content_type string,embed_file []byte) {
 	c.ResponseWriter.Header().Set("Content-Type", content_type)
 		_,_ = c.ResponseWriter.Write(embed_file)
 }
 
-// UploadFileFromFormData upload received_filename into folder_out and return url,fileByte,error
+// UploadFile upload received_filename into folder_out and return url,fileByte,error
 func (c *Context) UploadFile(received_filename,folder_out string, acceptedFormats ...string) (string,[]byte,error) {
 	c.Request.ParseMultipartForm(int64(MultipartSize)) //10Mb
 	var buff bytes.Buffer
@@ -164,10 +166,36 @@ func (c *Context) DeleteFile(path string) error {
 	}
 }
 
-// Download download data_bytes(content) asFilename(*.json,...) to the client
+// Download download data_bytes(content) asFilename(test.json,data.csv,...) to the client
 func (c *Context) Download(data_bytes []byte, asFilename string) {
 	bytesReader := bytes.NewReader(data_bytes)
 	c.ResponseWriter.Header().Set("Content-Disposition", "attachment; filename=" + strconv.Quote(asFilename))
 	c.ResponseWriter.Header().Set("Content-Type", c.Request.Header.Get("Content-Type"))
 	io.Copy(c.ResponseWriter,bytesReader)
+}
+
+func (c *Context) EnableTranslations() {
+	ip := c.GetUserIP()
+	if utils.StringContains(ip,"127.0.0.1","localhost","") {
+		c.SetCookie("lang","en")
+		return
+	}
+	country := utils.GetIpCountry(ip)
+	if country != "" {
+		if v,ok := mCountryLanguage.Get(country);ok {
+			c.SetCookie("lang",v)
+		} 
+	} 
+}
+
+
+func (c *Context) GetUserIP() string {
+    IPAddress := c.Request.Header.Get("X-Real-Ip")
+    if IPAddress == "" {
+        IPAddress = c.Request.Header.Get("X-Forwarded-For")
+    }
+    if IPAddress == "" {
+        IPAddress = c.Request.RemoteAddr
+    }
+    return IPAddress
 }

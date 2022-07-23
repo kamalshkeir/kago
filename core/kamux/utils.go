@@ -2,8 +2,10 @@ package kamux
 
 import (
 	"embed"
+	"encoding/csv"
 	"encoding/json"
 	"io/fs"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -12,7 +14,11 @@ import (
 	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils/envloader"
 	"github.com/kamalshkeir/kago/core/utils/logger"
+	"github.com/kamalshkeir/kago/core/utils/safemap"
 )
+
+
+var mCountryLanguage=safemap.New[string,string]()
 
 // LoadEnv load env vars from multiple files
 func (router *Router) LoadEnv(files ...string) {
@@ -72,11 +78,32 @@ func LoadTranslations() {
 					return err
 				}
 				file.Close()
-				settings.Translations.Set(strings.TrimSuffix(d.Name(),".json"),v)
+				withoutSuffix := strings.TrimSuffix(d.Name(),".json")
+				settings.Languages = append(settings.Languages, withoutSuffix)
+				settings.Translations.Set(withoutSuffix,v)
 			}
 			return nil
 		})
-		logger.CheckError(err)
+		if !logger.CheckError(err) {
+			var res *http.Response
+			res,err = http.Get("https://raw.githubusercontent.com/kamalshkeir/countries/main/country_list.csv")
+			logger.CheckError(err)
+			defer res.Body.Close()
+			reader := csv.NewReader(res.Body)
+			reader.LazyQuotes=true
+			lines, err := reader.ReadAll()
+			logger.CheckError(err)
+
+			for _,l := range lines {
+				country := l[1]
+				lang := l[5]
+				for _,ll := range settings.Languages {
+					if lang == ll {
+						mCountryLanguage.Set(country,lang)
+					} 
+				}
+			}
+		}
 	}
 }
 
