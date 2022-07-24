@@ -38,11 +38,14 @@ func main() {
 ```
 
 ```
-# running 'go run main.go' will generate assets folder with all static and template files for admin
+# running 'go run main.go' the first time, will generate assets folder with all static and template files for admin
 $ go run main.go
 
 # make sure you copy 'assets/.env.example' beside your main at the root folder 
 and rename it to '.env'
+# if u want to use different database, you can change it at .env
+
+# make sure you run go run *.go shell and then createsuperuser to create admin account
 
 # you can change port and host by putting Env Vars 'HOST' and 'PORT' or using flags:
 $ go run main.go -h 0.0.0.0 -p 3333 to run on http://0.0.0.0:3333
@@ -376,4 +379,85 @@ app.ServeLocalDir(dirPath, webPath string)
 app.ServeEmbededDir(pathLocalDir string, embeded embed.FS, webPath string)
 app.AddLocalTemplates(pathToDir string) error
 app.AddEmbededTemplates(template_embed embed.FS,rootDir string) error
+```
+
+## Middlewares
+
+#### Global server middlewares
+```go
+func main() {
+	app := New()
+	app.UseMiddlewares(
+		middlewares.GZIP,
+		middlewares.CORS,
+		middlewares.CSRF,
+		middlewares.LOGS,
+		middlewares.LIMITER,
+		middlewares.RECOVERY,
+	)
+
+	// GZIP nothing to do , just add it
+
+	// LOGS 
+	// when logs middleware used, you will have a colored log for requests and also all logs from logger library displayed in the terminal and at /logs enabled for admin only
+	// add the middleware like above and enjoy SSE logs in your browser not persisting if you ask
+
+	// LIMITER 
+	// if enabled , requester are blocked 5 minutes if make more then 50 request/s , you can change these values:
+	middlewares.LIMITER_TOKENS=50
+	middlewares.LIMITER_TIMEOUT=5*time.Minute
+
+	// RECOVERY
+	// will recover any error and log it, you can see it in console and also at /logs if LOGS middleware enabled
+
+	// CORS
+	// this is how to use CORS, it's applied globaly , but defined by the handler, all methods except GET of course
+	app.POST(pattern string, handler kamux.Handler, allowed_origines ...string)
+	app.POST("/users/post",func(c *kamux.Context) {
+		// handle request here for domain.com and domain2.com and same origin
+	},"domain.com","domain2.com")
+
+	// CSRF
+	// CSRF middleware get csrf_token from header, middleware will put it in cookies
+	// this is a helper javascript function you can use to get cookie csrf and the set it globaly for all your request
+	function getCookie(name) {
+		var cookieValue = null;
+		if (document.cookie && document.cookie != '') {
+			var cookies = document.cookie.split(';');
+			for (var i = 0; i < cookies.length; i++) {
+				var cookie = cookies[i].trim();
+				// Does this cookie string begin with the name we want?
+				if (cookie.substring(0, name.length + 1) == (name + '=')) {
+					cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+					break;
+				}
+			}
+		}
+		return cookieValue;
+	}
+	let csrftoken = getCookie("csrf_token");
+
+	// or a you have also a template function called csrf_token
+	// you can use it in templates to render a hidden input of csrf_token
+	<form id="form1">
+		{{ csrf_token .request }}
+	</form>
+	// you can get it from the input from js and send it in headers
+	// middleware csrf will try to find this header name:
+	COOKIE NAME: 'csrf_token'
+	HEADER NAME: 'X-CSRF-Token'
+
+
+
+	app.Run()
+}
+```
+
+## Handler middlewares
+
+```go
+// USAGE:
+r.GET("/admin", middlewares.Admin(IndexView)) // will check from session cookie if user.is_admin is true
+r.GET("/admin/login",middlewares.Auth(LoginView)) // will get session from cookies decrypt it and validate it
+r.GET("/test",middlewares.BasicAuth(LoginView,"username","password"))
 ```

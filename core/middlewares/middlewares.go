@@ -181,7 +181,7 @@ func CSRF(handler http.Handler) http.Handler {
 			if !csrf.VerifyToken(token, toSendToken) {
 				w.WriteHeader(http.StatusBadRequest)
 				json.NewEncoder(w).Encode(map[string]interface{}{
-					"error": "CSRF not allowed !",
+					"error": "CSRF not allowed",
 				})
 				return
 			} 
@@ -231,12 +231,14 @@ func GZIP(handler http.Handler) http.Handler {
 }
 
 var banned = sync.Map{}
-func Limiter(next http.Handler) http.Handler {
-	var limiter = rate.NewLimiter(1,50)
+var LIMITER_TOKENS=50
+var LIMITER_TIMEOUT=5*time.Minute
+func LIMITER(next http.Handler) http.Handler {
+	var limiter = rate.NewLimiter(1,LIMITER_TOKENS)
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		v,ok := banned.Load(r.RemoteAddr)
 		if ok {
-			if time.Since(v.(time.Time)) > 5*time.Minute {
+			if time.Since(v.(time.Time)) > LIMITER_TIMEOUT {
 				banned.Delete(r.RemoteAddr)
 			} else {
 				w.WriteHeader(http.StatusTooManyRequests)
@@ -255,7 +257,7 @@ func Limiter(next http.Handler) http.Handler {
     })
 }
 
-func Recovery(next http.Handler) http.Handler {
+func RECOVERY(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			err := recover()
