@@ -1,17 +1,17 @@
 # KaGo Web Framework
 
-KaGo is an Django inspired web framework, very intuitive and just like Typescript Frameworks and library everywhere, blazingly fast ^^
+KaGo is a high-level web framework, that encourages rapid development and clean, pragmatic design
 
-If you need performance and good productivity, you will love KaGo.
+Kago offer you an auto-generated CRUD admin panel, and an interactive shell also running 'go run main.go shell'
 
-
+If you need performance and good productivity, you will love kago.
 
 
 ## Installation
 
-To install KaGo package, you need to install Go and set your Go workspace first.
+To install kago framework, you need to Go installed and set your Go workspace first.
 
-1. You first need [Go](https://golang.org/) installed (**version 1.18+ is required**), then you can use the below Go command to install KaGo.
+1. You first need [Go](https://golang.org/) installed (**version 1.18+ is required**), then you can use the below Go command to install kago.
 
 ```sh
 $ go get github.com/kamalshkeir/kago
