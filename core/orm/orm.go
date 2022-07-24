@@ -408,7 +408,7 @@ func GetAllColumns(table string, dbName ...string) map[string]string {
 	return columns
 }
 
-func CreateUser(email,password string,isAdmin int) error {
+func CreateUser(email,password string,isAdmin int, dbName ...string) error {
 	if email == "" || password == "" {
 		return errors.New("email and password cannot be empty")
 	}
@@ -420,8 +420,11 @@ func CreateUser(email,password string,isAdmin int) error {
 	if logger.CheckError(err) {
 		return err
 	}
-	
-	_,err = Table("users").Database(settings.GlobalConfig.DbName).Insert(
+	name := settings.GlobalConfig.DbName
+	if len(dbName) > 0 {
+		name=dbName[0]
+	}
+	_,err = Table("users").Database(name).Insert(
 		"uuid,email,password,is_admin",
 		[]any{uuid,email,hash1,isAdmin},
 	)

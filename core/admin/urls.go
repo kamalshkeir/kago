@@ -1,10 +1,13 @@
 package admin
 
 import (
+	"sync"
+
 	"github.com/kamalshkeir/kago/core/kamux"
 	"github.com/kamalshkeir/kago/core/middlewares"
 	"github.com/kamalshkeir/kago/core/settings"
 )
+var once = sync.Once{}
 
 func UrlPatterns(r *kamux.Router) {
 	r.GET("/mon/ping",func(c *kamux.Context) {c.STATUS(200).TEXT("pong")})
@@ -25,8 +28,10 @@ func UrlPatterns(r *kamux.Router) {
 	r.GET("/admin/get/model:str/id:int", middlewares.Admin(SingleModelGet))
 	r.GET("/admin/export/table:str", middlewares.Admin(ExportView))
 	r.POST("/admin/import", middlewares.Admin(ImportView))
-	if settings.GlobalConfig.Logs {
-		r.UseMiddlewares(middlewares.LOGS)
+	if settings.GlobalConfig.Logs {	
+		once.Do(func() {
+			r.UseMiddlewares(middlewares.LOGS)
+		})
 		r.GET("/logs",middlewares.Admin(LogsGetView))
 		r.SSE("/sse/logs",middlewares.Admin(LogsSSEView))
 	}

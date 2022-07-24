@@ -391,14 +391,13 @@ func main() {
 		middlewares.GZIP,
 		middlewares.CORS,
 		middlewares.CSRF,
-		middlewares.LOGS,
 		middlewares.LIMITER,
 		middlewares.RECOVERY,
 	)
 
 	// GZIP nothing to do , just add it
 
-	// LOGS 
+	// LOGS /!\no need to add it using app.UseMiddlewares, instead you have a flag --logs that enable /logs
 	// when logs middleware used, you will have a colored log for requests and also all logs from logger library displayed in the terminal and at /logs enabled for admin only
 	// add the middleware like above and enjoy SSE logs in your browser not persisting if you ask
 
@@ -460,4 +459,344 @@ func main() {
 r.GET("/admin", middlewares.Admin(IndexView)) // will check from session cookie if user.is_admin is true
 r.GET("/admin/login",middlewares.Auth(LoginView)) // will get session from cookies decrypt it and validate it
 r.GET("/test",middlewares.BasicAuth(LoginView,"username","password"))
+```
+
+# ORM
+###### i waited go1.18 and generics to make this package orm to keep performance at it's best with convenient way to query your data, even from multiple databases
+## queries are cached using powerfull eventbus style that empty cache when changes in database may corrupt your data, so use it until you have a problem with it
+###### to disable it : 
+``` 
+orm.UseCache=false
+```
+
+#### Let's start by ways to add new database:
+```go
+orm.NewDatabaseFromDSN(dbType,dbName string,dbDSN ...string) (error)
+orm.NewDatabaseFromConnection(dbType,dbName string,conn *sql.DB) (error)
+orm.GetConnection(dbName ...string) *sql.DB // get connection from dbName
+orm.UseForAdmin(dbName string) // use specific database in admin panel if many
+orm.GetDatabases() []DatabaseEntity // get list of databases available to your app
+```
+
+#### Utility database queries:
+```go
+orm.GetAllTables(dbName ...string) []string // if dbName not given, .env used instead to default the db to get all tables in the given db
+GetAllColumns(table string, dbName ...string) map[string]string // clear i think
+CreateUser(email,password string,isAdmin int, dbName ...string) error // password will be hashed using argon2
+```
+
+#### Migrations
+```go
+//you can migrate from struct using:
+AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error // debug will print the query statement
+// Usage: orm.AutoMigrate[models.User]("db","users")
+
+// OR
+// using the shell, you can migrate a .sql file
+```
+
+## Queries and Sql Builder
+#### to query, insert, update and delete using structs:
+```go
+orm.Model[T comparable]() *Builder[T]
+orm.Database(dbName string) *Builder[T]
+orm.Insert(model *T) (int, error)
+orm.Set(query string, args ...any) (int, error)
+orm.Delete() (int, error) // finisher
+orm.Drop() (int, error) // finisher
+orm.Select(columns ...string) *Builder[T]
+orm.Where(query string, args ...any) *Builder[T]
+orm.Query(query string, args ...any) *Builder[T]
+orm.Limit(limit int) *Builder[T]
+orm.Context(ctx context.Context) *Builder[T]
+orm.Page(pageNumber int) *Builder[T]
+orm.OrderBy(fields ...string) *Builder[T]
+orm.Debug() *Builder[T] // print the query statement
+orm.All() ([]T, error) // finisher
+orm.One() (T, error) // finisher
+```
+#### Examples
+```go
+// if a model struct exist already in the database but not linked, you can't migrate it again, so you can link it using:
+orm.LinkModel[models.User]("users")
+
+// then you can query your data as models.User data
+// you have 2 finisher : All and One
+
+// Select and Pagination
+orm.Model[models.User]().Select("email","uuid").OrderBy("-id").Limit(PAGINATION_PER).Page(1).All()
+
+// INSERT
+uuid,_ := orm.GenerateUUID()
+hashedPass,_ := hash.GenerateHash("password")
+orm.Model[models.User]().Insert(&models.User{
+	Uuid: uuid,
+	Email: "test@example.com",
+	Password: hashedPass,
+	IsAdmin: false,
+	Image: "",
+	CreatedAt: time.Now(),
+})
+
+//if using more than one db
+orm.Database[models.User]("dbNameHere").Where("id = ? AND email = ?",1,"test@example.com").All() 
+
+// where
+orm.Model[models.User]().Where("id = ? AND email = ?",1,"test@example.com").One() 
+
+// delete
+orm.Model[models.User]().Where("id = ? AND email = ?",1,"test@example.com").Delete()
+
+// drop table
+orm.Model[models.User]().Drop()
+
+// update
+orm.Model[models.User]().Where("id = ?",1).Set("email = ?","new@example.com")
+
+```
+#### to query, insert, update and delete using map[string]any:
+```go
+orm.Table(tableName string) *BuilderM
+orm.Database(dbName string) *BuilderM
+orm.Select(columns ...string) *BuilderM
+orm.Where(query string, args ...any) *BuilderM
+orm.Query(query string, args ...any) *BuilderM
+orm.Limit(limit int) *BuilderM
+orm.Page(pageNumber int) *BuilderM
+orm.OrderBy(fields ...string) *BuilderM
+orm.Context(ctx context.Context) *BuilderM
+orm.Debug() *BuilderM
+orm.All() ([]map[string]any, error)
+orm.One() (map[string]any, error)
+orm.Insert(fields_comma_separated string, fields_values []any) (int, error)
+orm.Set(query string, args ...any) (int, error)
+orm.Delete() (int, error)
+orm.Drop() (int, error)
+```
+#### Examples
+```go
+// for using maps , no need to link any model of course
+// then you can query your data as models.User data
+// you have 2 finisher : All and One for queries
+
+// Select and Pagination
+orm.Table("users").Select("email","uuid").OrderBy("-id").Limit(PAGINATION_PER).Page(1).All()
+
+// INSERT
+uuid,_ := orm.GenerateUUID()
+hashedPass,_ := hash.GenerateHash("password")
+
+orm.Table("users").Insert(
+	"uuid,email,password,is_admin,created_at",
+	uuid,
+	"email@example.com",
+	hashedPass,
+	false,
+	time.Now()
+)
+
+//if using more than one db
+orm.Database("dbNameHere").Where("id = ? AND email = ?",1,"test@example.com").All() 
+
+// where
+orm.Table("users").Where("id = ? AND email = ?",1,"test@example.com").One() 
+
+// delete
+orm.Table("users").Where("id = ? AND email = ?",1,"test@example.com").Delete()
+
+// drop table
+orm.Table("users").Drop()
+
+// update
+orm.Table("users").Where("id = ?",1).Set("email = ?","new@example.com")
+
+```
+
+
+
+# SHELL
+##### Very useful shell to explore, no need to install extra dependecies or binary, you can run:
+```shell
+go run main.go shell
+go run main.go help
+```
+
+```shell
+AVAILABLE COMMANDS:
+[databases, use, tables, columns, migrate, createsuperuser, 
+createuser, getall, get, drop, delete, clear/cls, q/quit/exit, help/commands]
+  'databases':
+	  list all connected databases
+
+  'use':
+	  use a specific database
+
+  'tables':
+	  list all tables in database
+
+  'columns':
+	  list all columns of a table
+
+  'migrate':
+	  migrate initial users to env database
+
+  'createsuperuser':
+	  create a admin user
+
+  'createuser':
+	  create a regular user
+
+  'getall':
+	  get all rows given a table name
+
+  'get':
+	  get single row wher field equal_to
+
+  'delete':
+	  delete rows where field equal_to
+
+  'drop':
+	  drop a table given table name
+
+  'clear/cls':
+	  clear console
+```
+
+## Database Benchmarks
+```shell
+////////////////////////////////////// postgres without cache
+BenchmarkGetAllS-4                  1472            723428 ns/op            5271 B/op         80 allocs/op
+BenchmarkGetAllM-4                  1502            716418 ns/op            4912 B/op         85 allocs/op
+BenchmarkGetRowS-4                   826           1474674 ns/op            2288 B/op         44 allocs/op
+BenchmarkGetRowM-4                   848           1392919 ns/op            2216 B/op         44 allocs/op
+BenchmarkGetAllTables-4             1176            940142 ns/op             592 B/op         20 allocs/op
+BenchmarkGetAllColumns-4             417           2862546 ns/op            1456 B/op         46 allocs/op
+////////////////////////////////////// postgres with cache
+BenchmarkGetAllS-4               2825896               427.9 ns/op           208 B/op          2 allocs/op
+BenchmarkGetAllM-4               6209617               188.9 ns/op            16 B/op          1 allocs/op
+BenchmarkGetRowS-4               2191544               528.1 ns/op           240 B/op          4 allocs/op
+BenchmarkGetRowM-4               3799377               305.5 ns/op            48 B/op          3 allocs/op
+BenchmarkGetAllTables-4         76298504                21.41 ns/op            0 B/op          0 allocs/op
+BenchmarkGetAllColumns-4        59004012                19.92 ns/op            0 B/op          0 allocs/op
+///////////////////////////////////// mysql without cache
+BenchmarkGetAllS-4                  1221            865469 ns/op            7152 B/op        162 allocs/op
+BenchmarkGetAllM-4                  1484            843395 ns/op            8272 B/op        215 allocs/op
+BenchmarkGetRowS-4                   427           3539007 ns/op            2368 B/op         48 allocs/op
+BenchmarkGetRowM-4                   267           4481279 ns/op            2512 B/op         54 allocs/op
+BenchmarkGetAllTables-4              771           1700035 ns/op             832 B/op         26 allocs/op
+BenchmarkGetAllColumns-4             760           1537301 ns/op            1392 B/op         44 allocs/op
+///////////////////////////////////// mysql with cache
+BenchmarkGetAllS-4               2933072               414.5 ns/op           208 B/op          2 allocs/op
+BenchmarkGetAllM-4               6704588               180.4 ns/op            16 B/op          1 allocs/op
+BenchmarkGetRowS-4               2136634               545.4 ns/op           240 B/op          4 allocs/op
+BenchmarkGetRowM-4               4111814               292.6 ns/op            48 B/op          3 allocs/op
+BenchmarkGetAllTables-4         58835394                21.52 ns/op            0 B/op          0 allocs/op
+BenchmarkGetAllColumns-4        59059225                19.99 ns/op            0 B/op          0 allocs/op
+///////////////////////////////////// sqlite without cache
+BenchmarkGetAllS-4                 13664             85506 ns/op            2056 B/op         62 allocs/op
+BenchmarkGetAllS_GORM-4            10000            101665 ns/op            9547 B/op        155 allocs/op
+BenchmarkGetAllM-4                 13747             83989 ns/op            1912 B/op         61 allocs/op
+BenchmarkGetAllM_GORM-4            10000            107810 ns/op            8387 B/op        237 allocs/op
+BenchmarkGetRowS-4                 12702             91958 ns/op            2192 B/op         67 allocs/op
+BenchmarkGetRowM-4                 13256             89095 ns/op            2048 B/op         66 allocs/op
+BenchmarkGetAllTables-4            14264             83939 ns/op             672 B/op         32 allocs/op
+BenchmarkGetAllColumns-4           15236             79498 ns/op            1760 B/op         99 allocs/op
+///////////////////////////////////// sqlite with cache
+BenchmarkGetAllS-4               2951642               399.5 ns/op           208 B/op          2 allocs/op
+BenchmarkGetAllM-4               6537204               177.2 ns/op            16 B/op          1 allocs/op
+BenchmarkGetRowS-4               2248524               531.4 ns/op           240 B/op          4 allocs/op
+BenchmarkGetRowM-4               4084453               287.9 ns/op            48 B/op          3 allocs/op
+BenchmarkGetAllTables-4         52592826                20.39 ns/op            0 B/op          0 allocs/op
+BenchmarkGetAllColumns-4        64293176                20.87 ns/op            0 B/op          0 allocs/op
+
+```
+
+
+## OpenApi documentation ready if enabled using flags or settings vars
+```bash
+// running the app using flag --docs
+go run main.go --docs
+// go to /docs
+```
+## to edit the documentation, you have a docs package 
+```go
+
+doc := docs.New()
+
+doc.AddModel("User",docs.Model{
+	Type: "object",
+	RequiredFields: []string{"email","password"},
+	Properties: map[string]docs.Property{
+		"email":{
+			Required: true,
+			Type: "string",
+			Example: "example@xyz.com",
+		},
+		"password":{
+			Required: true,
+			Type: "string",
+			Example: "************",
+			Format: "password",
+		},
+	},
+})
+doc.AddPath("/admin/login","post",docs.Path{
+	Tags: []string{"Auth"},
+	Summary: "login post request",
+	OperationId: "login-post",
+	Description: "Login Post Request",
+	Requestbody: docs.RequestBody{
+		Description: "email and password for login",
+		Required: true,
+		Content: map[string]docs.ContentType{
+			"application/json":{
+				Schema: docs.Schema{
+					Ref: "#/components/schemas/User",
+				},
+			},
+		},
+	},
+	Responses: map[string]docs.Response{
+		"404":{Description: "NOT FOUND"},
+		"403":{Description: "WRONG PASSWORD"},
+		"500":{Description: "INTERNAL SERVER ERROR"},
+		"200":{Description: "OK"},
+	},
+	Consumes: []string{"application/json"},
+	Produces: []string{"application/json"},
+})
+doc.Save()
+```
+
+## Encryption
+```go
+// AES Encrypt use SECRET in .env
+encryptor.Encrypt(data string) (string,error)
+encryptor.Decrypt(data string) (string,error)
+```
+
+## Hashing
+```go
+// Argon2 hashing
+hash.GenerateHash(password string) (string, error)
+hash.ComparePasswordToHash(password, hash string) (bool, error)
+```
+
+## Env Loader
+```go
+envloader.Load(files ...string) error
+envloader.LoadToMap(files ...string) (map[string]string,error)
+```
+
+## Eventbus Internal
+```go
+eventbus.Subscribe("any_topic",func(data map[string]string) {
+	...
+})
+
+eventbus.Publish("any_topic", map[string]string{
+	"type":     "update",
+	"table":    b.tableName,
+	"database": b.database,
+})
 ```

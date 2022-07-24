@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kamalshkeir/kago/core/admin/models"
 	"github.com/kamalshkeir/kago/core/kamux"
 	"github.com/kamalshkeir/kago/core/middlewares"
 	"github.com/kamalshkeir/kago/core/orm"
@@ -96,6 +97,7 @@ var AllModelsGet = func(c *kamux.Context) {
 		})
 		return
 	}
+	
 	rows,err :=orm.Table(model).OrderBy("-id").Limit(PAGINATION_PER).Page(1).All()
 	if err != nil {
 		rows,err =orm.Table(model).All()
@@ -162,6 +164,7 @@ var DeleteRowPost = func(c *kamux.Context) {
 	if data["mission"] == "delete_row" {
 		if model,ok := data["model_name"];ok {
 			if mm,ok := model.(string);ok {
+				orm.Model[models.User]().Delete()
 				modelDB,err := orm.Table(mm).Where("id = ?",data["id"]).One() 
 				if logger.CheckError(err) {
 					logger.Info("data received DeleteRowPost:", data)
