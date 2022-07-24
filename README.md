@@ -69,7 +69,7 @@ func main() {
     // Creates a KaGo router
 	app := kago.New()
 
-    // You can add GLOBAL middlewares easily  (LOGS,GZIP,CORS,CSRF,LIMITER,RECOVERY)
+    // You can add GLOBAL middlewares easily  (GZIP,CORS,CSRF,LIMITER,RECOVERY)
 	app.UseMiddlewares(middlewares.GZIP)
 
 	// OR middleware for single handler (Auth,Admin,BasicAuth)
@@ -799,4 +799,58 @@ eventbus.Publish("any_topic", map[string]string{
 	"table":    b.tableName,
 	"database": b.database,
 })
+```
+
+## LOGS
+```bash
+go run main.go --logs
+
+will enable:
+	- /logs
+```
+
+## PPROF official golang profiling tools
+```bash
+go run main.go --profiler
+
+will enable:
+	- /debug/pprof/profile
+	- /debug/pprof/heap
+	- /debug/pprof/trace
+```
+
+## Prometheus monitoring
+```bash
+go run main.go --monitoring
+
+will enable:
+	- /metrics
+```
+
+## Build single binary with all static and html files
+```bash
+#you nedd to set at .env to true: 
+EMBED_STATIC=true
+EMBED_TEMPLATES=true
+```
+#### Then
+
+```go
+//go:embed assets/static
+var Static embed.FS
+//go:embed assets/templates
+var Templates embed.FS
+
+func main() {
+	app := New()
+	app.UseMiddlewares(middlewares.GZIP)
+	app.Embed(&Static,&Templates)
+	app.Run()
+}
+
+```
+
+#### Then
+```bash
+go build
 ```
