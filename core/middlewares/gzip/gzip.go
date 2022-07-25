@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"sync"
 )
 
 
@@ -27,10 +26,7 @@ func (wrw *WrappedResponseWriter) Header() http.Header {
 
 
 func (wrw *WrappedResponseWriter) WriteHeader(statuscode int) {
-	once := sync.Once{}
-	once.Do(func() {
-		wrw.w.WriteHeader(statuscode)
-	})
+	wrw.w.WriteHeader(statuscode)
 }
 
 func (wrw *WrappedResponseWriter) Write(d []byte) (int,error) {
