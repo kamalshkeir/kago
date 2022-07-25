@@ -265,7 +265,7 @@ func main() {
 	c.STATUS(200).JSONIndent(code int, body any)
 	c.STATUS(200).HTML(template_name string, data map[string]any)
 	c.STATUS(301).REDIRECT(path string) // redirect to path
-	c.BODY() map[string]any // get request body
+	c.BodyJson() map[string]any // get request body
 	c.StreamResponse(response string) error //SSE
 	c.ServeFile("application/json; charset=utf-8", "./test.json")
 	c.ServeEmbededFile(content_type string,embed_file []byte)
@@ -288,7 +288,7 @@ func main() {
 
 	app.POST("/ajax", func(c *kamux.Context) {
         // get json body to map[string]any
-		requestData := c.BODY()
+		requestData := c.BodyJson()
         if email,ok := requestData["email"]; ok {
             ...
         }
@@ -331,7 +331,7 @@ func main() {
 	
 	app.POST("/ajax", func(c *kamux.Context) {
         // get json body to map[string]any
-		requestData := c.BODY()
+		requestData := c.BodyJson()
         if email,ok := requestData["email"]; ok {
             ...
         }

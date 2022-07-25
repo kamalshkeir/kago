@@ -97,8 +97,8 @@ func (c *Context) StreamResponse(response string) error {
 	return nil
 }
 
-// BODY get json body from request and return map
-func (c *Context) BODY() map[string]any {
+// BodyJson get json body from request and return map
+func (c *Context) BodyJson() map[string]any {
 	// USAGE : data := template.GetJson(r)
 	d := map[string]any{}
 	dec := json.NewDecoder(c.Request.Body)

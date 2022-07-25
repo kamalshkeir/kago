@@ -34,7 +34,7 @@ var LoginView = func(c *kamux.Context) {
 }
 
 var LoginPOSTView = func(c *kamux.Context) {
-	requestData := c.BODY()
+	requestData := c.BodyJson()
 	email := requestData["email"]
 	passRequest := requestData["password"]
 
@@ -132,7 +132,7 @@ var AllModelsPost = func(c *kamux.Context) {
 		})
 		return
 	}
-	received := c.BODY()
+	received := c.BodyJson()
 	if received != nil {
 		if v,ok := received["page_num"];ok {
 			if page,ok := v.(string);!ok {
@@ -160,7 +160,7 @@ var AllModelsPost = func(c *kamux.Context) {
 }
 
 var DeleteRowPost = func(c *kamux.Context) {
-	data := c.BODY()
+	data := c.BodyJson()
 	if data["mission"] == "delete_row" {
 		if model,ok := data["model_name"];ok {
 			if mm,ok := model.(string);ok {
@@ -399,7 +399,7 @@ func handleFilesUpload(files map[string][]*multipart.FileHeader,model string,id 
 }
 
 var DropTablePost = func(c *kamux.Context) {
-	data := c.BODY()
+	data := c.BodyJson()
 	if table,ok := data["table"];ok && table != ""{
 		if t,ok := data["table"].(string);ok {
 			_,err := orm.Table(t).Drop()
