@@ -30,7 +30,6 @@ func (router *Router) initServer() {
 	} else {
 		handler = router
 	}
-	// add global cors
 	host := settings.GlobalConfig.Host
 	if host == "" {
 		host = "127.0.0.1"
@@ -46,9 +45,7 @@ func (router *Router) initServer() {
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 20 * time.Second,
 		IdleTimeout:  20 * time.Second,
-	}
-	fmt.Printf(logger.Yellow, logger.Ascii7)
-	fmt.Printf(logger.Blue, "-------⚡🚀 http://"+host+":"+port+" 🚀⚡-------")
+	}	
 	router.Server=&server
 }
 

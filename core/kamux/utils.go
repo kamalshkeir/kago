@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/csv"
 	"encoding/json"
+	"fmt"
 	"io/fs"
 	"net/http"
 	"os"
@@ -60,6 +61,19 @@ func (router *Router) LoadEnv(files ...string) {
 			settings.GlobalConfig.SmtpPort=v
 		}
 	}
+}
+
+func (router *Router) PrintServerStart() {
+	host := settings.GlobalConfig.Host
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	port := settings.GlobalConfig.Port
+	if port == "" {
+		port = "9313"
+	}
+	fmt.Printf(logger.Yellow, logger.Ascii7)
+	fmt.Printf(logger.Blue, "-------⚡🚀 http://"+host+":"+port+" 🚀⚡-------")
 }
 
 func LoadTranslations() {
