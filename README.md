@@ -270,6 +270,7 @@ func main() {
 	c.ServeFile("application/json; charset=utf-8", "./test.json")
 	c.ServeEmbededFile(content_type string,embed_file []byte)
 	c.UploadFile(received_filename,folder_out string, acceptedFormats ...string) (string,[]byte,error) // UploadFile upload received_filename into folder_out and return url,fileByte,error
+	c.UploadFiles(received_filenames []string,folder_out string, acceptedFormats ...string) ([]string,[][]byte,error) // UploadFilse handle also if it's the same name but multiple files or multiple names multiple files
 	c.DeleteFile(path string) error
 	c.Download(data_bytes []byte, asFilename string)
 	c.EnableTranslations() // EnableTranslations get user ip, then location country using nmap, so don't use it if u don't have it install, and then it parse csv file to find the language spoken in this country, to finaly set cookie 'lang' to 'en' or 'fr'... 

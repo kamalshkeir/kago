@@ -117,7 +117,7 @@ func (c *Context) BODY() map[string]any {
 
 // REDIRECT redirect the client to the specified path with a custom code
 func (c *Context) REDIRECT(path string) {
-	if c.status == 0 {c.status=http.StatusSeeOther}
+	if c.status == 0 {c.status=http.StatusTemporaryRedirect}
 	http.Redirect(c.ResponseWriter,c.Request,path,c.status)
 }
 
@@ -171,6 +171,58 @@ func (c *Context) UploadFile(received_filename,folder_out string, acceptedFormat
 	} else {
 		return "",nil,fmt.Errorf("expecting filename to finish to be %v",acceptedFormats)
 	}
+}
+
+func (c *Context) UploadFiles(received_filenames []string,folder_out string, acceptedFormats ...string) ([]string,[][]byte,error) {
+	_,formFiles := utils.ParseMultipartForm(c.Request)
+	urls := []string{}
+	datas := [][]byte{}
+	for inputName,files := range formFiles {
+		var buff bytes.Buffer
+		if len(files) > 0  && utils.SliceContains(received_filenames,inputName){
+			for _,f := range files {
+				file,err := f.Open()
+				if logger.CheckError(err) {
+					return nil,nil,err
+				}
+				defer file.Close()
+				// copy the uploaded file to the buffer
+				if _, err := io.Copy(&buff, file); err != nil {
+					return nil,nil,err
+				}
+
+				data_string := buff.String()
+
+				// make DIRS if not exist
+				err = os.MkdirAll("media/"+folder_out+"/",0664)
+				if err != nil {
+					return nil,nil,err
+				}
+				// make file
+				if len(acceptedFormats) == 0 {
+					acceptedFormats=[]string{"jpg","jpeg","png","json"}
+				} 
+				if utils.StringContains(f.Filename,acceptedFormats...) {
+					dst, err := os.Create("media/"+folder_out+"/" + f.Filename)
+					if err != nil {
+						return nil,nil,err
+					}
+					defer dst.Close()
+					dst.Write([]byte(data_string))
+					
+					url := "media/"+folder_out+"/"+f.Filename
+					urls = append(urls, url)
+					datas = append(datas, []byte(data_string))
+				} else {
+					logger.Info(f.Filename,"not handled")
+					return nil,nil,fmt.Errorf("expecting filename to finish to be %v",acceptedFormats)
+				}
+			}
+		}
+
+		
+	}
+	return urls,datas,nil
 }
 
 // DELETE FILE

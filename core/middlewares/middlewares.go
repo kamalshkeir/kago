@@ -75,14 +75,14 @@ func Admin(handler kamux.Handler) kamux.Handler {
 		session,err := c.GetCookie("session")
 		if err != nil || session == "" {
 			// NOT AUTHENTICATED
-			http.Redirect(c.ResponseWriter,c.Request,"/admin/login",http.StatusSeeOther)
+			http.Redirect(c.ResponseWriter,c.Request,"/admin/login",http.StatusTemporaryRedirect)
 			return
 		}
 		if SESSION_ENCRYPTION {
 			session,err = encryptor.Decrypt(session)
 			if err != nil {
 				c.DeleteCookie("session")
-				c.STATUS(http.StatusSeeOther).REDIRECT("/admin/login")
+				c.STATUS(http.StatusTemporaryRedirect).REDIRECT("/admin/login")
 				return
 			}
 		}
@@ -90,7 +90,7 @@ func Admin(handler kamux.Handler) kamux.Handler {
 		
 		if err != nil {
 			// AUTHENTICATED BUT NOT FOUND IN DB
-			c.STATUS(http.StatusSeeOther).REDIRECT("/admin/login")
+			c.STATUS(http.StatusTemporaryRedirect).REDIRECT("/admin/login")
 			return
 		}
 

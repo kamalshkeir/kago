@@ -86,7 +86,7 @@ var LoginPOSTView = func(c *kamux.Context) {
 
 var LogoutView = func(c *kamux.Context) {
 	c.DeleteCookie("session")
-	c.STATUS(http.StatusSeeOther).REDIRECT("/")
+	c.STATUS(http.StatusTemporaryRedirect).REDIRECT("/")
 }
 
 var AllModelsGet = func(c *kamux.Context) {
@@ -294,12 +294,7 @@ var SingleModelGet = func(c *kamux.Context) {
 
 var UpdateRowPost = func(c *kamux.Context) {
 	// parse the form and get data values + files
-	parseErr := c.Request.ParseMultipartForm(32 << 20)
-	if parseErr != nil {
-		logger.Error("Parse error = ", parseErr)
-	}
-	data := c.Request.Form
-	files := c.Request.MultipartForm.File
+	data,files := utils.ParseMultipartForm(c.Request)
 	// id from string to int
 	id := data["row_id"][0]
 	//handle file upload
@@ -310,6 +305,7 @@ var UpdateRowPost = func(c *kamux.Context) {
 		})
 		return
 	}
+
 	//get model from database
 	modelDB,err := orm.Table(data["table"][0]).Where("id = ?",id).One()
 	
@@ -351,9 +347,15 @@ var UpdateRowPost = func(c *kamux.Context) {
 				"success": key + " Updated successfully !",
 				"data":data,
 			})	
+			return
 		}//switch
 	}
 
+	if len(files) > 0 {
+		c.JSON(map[string]any{
+			"success":"Update Done",
+		})	
+	}
 	
 }
 
@@ -361,7 +363,8 @@ func handleFilesUpload(files map[string][]*multipart.FileHeader,model string,id 
 	if len(files) > 0 {
 		for key,val := range files {
 			file,_ := val[0].Open()
-			uploadedImage,err := utils.UploadFile(file,val[0].Filename)
+			defer file.Close()
+			uploadedImage,err := utils.UploadMultipartFile(file,val[0].Filename,"media/uploads/")
 			if err != nil {
 				return err
 			}
