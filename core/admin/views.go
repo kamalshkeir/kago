@@ -24,13 +24,13 @@ var PAGINATION_PER=6
 
 var IndexView = func(c *kamux.Context) {
 	allTables := orm.GetAllTables()
-	c.HTML("admin/admin_index.html", map[string]any{
+	c.Html("admin/admin_index.html", map[string]any{
 		"tables": allTables,
 	})
 }
 
 var LoginView = func(c *kamux.Context) {
-	c.HTML("admin/admin_login.html", map[string]any{})
+	c.Html("admin/admin_login.html", map[string]any{})
 }
 
 var LoginPOSTView = func(c *kamux.Context) {
@@ -40,19 +40,19 @@ var LoginPOSTView = func(c *kamux.Context) {
 
 	data,err := orm.Table("users").Where("email = ?",email).One()
 	if err != nil {
-		c.STATUS(500).JSON(map[string]any{
+		c.Status(500).Json(map[string]any{
 			"error":err.Error(),
 		})
 		return
 	}
 	if data["email"] == "" || data["email"] == nil {
-		c.STATUS(http.StatusNotFound).JSON( map[string]any{
+		c.Status(http.StatusNotFound).Json( map[string]any{
 			"error":"User doesn not Exist",
 		})
 		return
 	}
 	if data["is_admin"] == int64(0) || data["is_admin"] == 0 || data["is_admin"] == false {
-		c.STATUS(http.StatusForbidden).JSON(map[string]any{
+		c.Status(http.StatusForbidden).Json(map[string]any{
 			"error":"Not Allowed to access this page",
 		})
 		return
@@ -63,7 +63,7 @@ var LoginPOSTView = func(c *kamux.Context) {
 		if pp,ok := passRequest.(string);ok {
 			match, err := hash.ComparePasswordToHash(pp, passDB)
 			if !match || err != nil {
-				c.STATUS(http.StatusForbidden).JSON(map[string]any{
+				c.Status(http.StatusForbidden).Json(map[string]any{
 					"error":"Wrong Password",
 				})
 				return
@@ -74,7 +74,7 @@ var LoginPOSTView = func(c *kamux.Context) {
 						logger.CheckError(err)
 					}
 					c.SetCookie("session",uuid)
-					c.JSON(map[string]any{
+					c.Json(map[string]any{
 						"success":"U Are Logged In",
 					})
 					return
@@ -86,13 +86,13 @@ var LoginPOSTView = func(c *kamux.Context) {
 
 var LogoutView = func(c *kamux.Context) {
 	c.DeleteCookie("session")
-	c.STATUS(http.StatusTemporaryRedirect).REDIRECT("/")
+	c.Status(http.StatusTemporaryRedirect).Redirect("/")
 }
 
 var AllModelsGet = func(c *kamux.Context) {
 	model,ok := c.Params["model"]
 	if !ok {
-		c.JSON(map[string]any{
+		c.Json(map[string]any{
 			"error":"Error: No model given in params",
 		})
 		return
@@ -103,7 +103,7 @@ var AllModelsGet = func(c *kamux.Context) {
 		rows,err =orm.Table(model).All()
 		if err != nil {
 			// usualy should not use error string because it divulge information, but here only admin use it, so no worry
-			c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+			c.Status(http.StatusBadRequest).Json(map[string]any{
 				"error":err.Error(),
 			})
 			return
@@ -111,14 +111,14 @@ var AllModelsGet = func(c *kamux.Context) {
 	}
 	columns := orm.GetAllColumns(model)
 	if settings.GlobalConfig.DbType != "" {
-		c.HTML("admin/admin_all_models.html", map[string]any{
+		c.Html("admin/admin_all_models.html", map[string]any{
 			"dbType":settings.GlobalConfig.DbType,
 			"model_name":model,
 			"rows":rows,
 			"columns":columns,
 		})
 	} else {
-		c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+		c.Status(http.StatusBadRequest).Json(map[string]any{
 			"error":"dbType not known, do you have .env ?",
 		})
 	}
@@ -127,7 +127,7 @@ var AllModelsGet = func(c *kamux.Context) {
 var AllModelsPost = func(c *kamux.Context) {
 	model,ok := c.Params["model"]
 	if !ok {
-		c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+		c.Status(http.StatusBadRequest).Json(map[string]any{
 			"error":"No model given in params",
 		})
 		return
@@ -136,7 +136,7 @@ var AllModelsPost = func(c *kamux.Context) {
 	if received != nil {
 		if v,ok := received["page_num"];ok {
 			if page,ok := v.(string);!ok {
-				c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+				c.Status(http.StatusBadRequest).Json(map[string]any{
 					"error":"expecting page_num to be a sring",
 				})
 				return
@@ -145,7 +145,7 @@ var AllModelsPost = func(c *kamux.Context) {
 				if err == nil {
 					rows,err :=orm.Table(model).OrderBy("-id").Limit(PAGINATION_PER).Page(pagenum).All()
 					if err == nil {
-						c.JSON(map[string]any{
+						c.Json(map[string]any{
 							"rows":rows,
 						})
 					}
@@ -155,7 +155,7 @@ var AllModelsPost = func(c *kamux.Context) {
 			logger.Error("page_num not given",received)
 		}
 	} else {
-		c.JSON([]map[string]any{})
+		c.Json([]map[string]any{})
 	}
 }
 
@@ -168,7 +168,7 @@ var DeleteRowPost = func(c *kamux.Context) {
 				modelDB,err := orm.Table(mm).Where("id = ?",data["id"]).One() 
 				if logger.CheckError(err) {
 					logger.Info("data received DeleteRowPost:", data)
-					c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+					c.Status(http.StatusBadRequest).Json(map[string]any{
 						"error":err.Error(),
 					})
 					return
@@ -178,7 +178,7 @@ var DeleteRowPost = func(c *kamux.Context) {
 						_ = c.DeleteFile(vv)
 					} 
 				} else {
-					c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+					c.Status(http.StatusBadRequest).Json(map[string]any{
 						"error":"missing 'image' in request body",
 					})
 					return
@@ -188,11 +188,11 @@ var DeleteRowPost = func(c *kamux.Context) {
 					_,err = orm.Table(mm).Where("id = ?",idS).Delete()
 
 					if err != nil {
-						c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+						c.Status(http.StatusBadRequest).Json(map[string]any{
 							"error": err.Error(),
 						})
 					} else {
-						c.JSON(map[string]any{
+						c.Json(map[string]any{
 							"success": "Done !",
 							"id":data["id"],
 						})
@@ -201,13 +201,13 @@ var DeleteRowPost = func(c *kamux.Context) {
 				}
 				
 			} else {
-				c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+				c.Status(http.StatusBadRequest).Json(map[string]any{
 					"error":"expecting model_name to be string",
 				})
 				return
 			}
 		} else {
-			c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+			c.Status(http.StatusBadRequest).Json(map[string]any{
 				"error":"no model_name found in request body",
 			})
 			return
@@ -250,13 +250,13 @@ var CreateModelView = func(c *kamux.Context) {
 		values,
 	)
 	if logger.CheckError(err) {
-		c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+		c.Status(http.StatusBadRequest).Json(map[string]any{
 			"error": err.Error(),
 		})
 		return
 	}
 
-	c.JSON(map[string]any{
+	c.Json(map[string]any{
 		"success": "Done !",
 	})	
 }
@@ -264,27 +264,27 @@ var CreateModelView = func(c *kamux.Context) {
 var SingleModelGet = func(c *kamux.Context) {
 	model,ok := c.Params["model"]
 	if !ok {
-		c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+		c.Status(http.StatusBadRequest).Json(map[string]any{
 			"error": "param model not defined",
 		})
 		return
 	}
 	id,ok := c.Params["id"]
 	if !ok {
-		c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+		c.Status(http.StatusBadRequest).Json(map[string]any{
 			"error": "param id not defined",
 		})
 		return
 	}
 	modelRow,err := orm.Table(model).Where("id = ?",id).One()
 	if logger.CheckError(err) {
-		c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+		c.Status(http.StatusBadRequest).Json(map[string]any{
 			"error":err.Error(),
 		})
 		return
 	}
 	columns := orm.GetAllColumns(model)
-	c.HTML("admin/admin_single_model.html", map[string]any{
+	c.Html("admin/admin_single_model.html", map[string]any{
 		"model":modelRow,
 		"model_name":model,
 		"id":id,
@@ -300,7 +300,7 @@ var UpdateRowPost = func(c *kamux.Context) {
 	//handle file upload
 	err := handleFilesUpload(files,data["table"][0],id,c)
 	if err != nil {
-		c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+		c.Status(http.StatusBadRequest).Json(map[string]any{
 			"error":err.Error(),
 		})
 		return
@@ -310,7 +310,7 @@ var UpdateRowPost = func(c *kamux.Context) {
 	modelDB,err := orm.Table(data["table"][0]).Where("id = ?",id).One()
 	
 	if err != nil {
-		c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+		c.Status(http.StatusBadRequest).Json(map[string]any{
 			"error":err.Error(),
 		})
 		return
@@ -328,12 +328,12 @@ var UpdateRowPost = func(c *kamux.Context) {
 				_,err := orm.Table(data["table"][0]).Where("id = ?",id).Set(key+" = ?",val[0])
 				
 				if err != nil {
-					c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+					c.Status(http.StatusBadRequest).Json(map[string]any{
 						"error": err.Error(),
 					})
 					return
 				}
-				c.JSON(map[string]any{
+				c.Json(map[string]any{
 					"success": key + " successfully Updated !",
 				})
 				return
@@ -343,7 +343,7 @@ var UpdateRowPost = func(c *kamux.Context) {
 				_,err := orm.Table(data["table"][0]).Where("id = ?",id).Set(key+" = ?",val[0])
 				logger.CheckError(err)
 			}
-			c.JSON(map[string]any{
+			c.Json(map[string]any{
 				"success": key + " Updated successfully !",
 				"data":data,
 			})	
@@ -352,7 +352,7 @@ var UpdateRowPost = func(c *kamux.Context) {
 	}
 
 	if len(files) > 0 {
-		c.JSON(map[string]any{
+		c.Json(map[string]any{
 			"success":"Update Done",
 		})	
 	}
@@ -404,22 +404,22 @@ var DropTablePost = func(c *kamux.Context) {
 		if t,ok := data["table"].(string);ok {
 			_,err := orm.Table(t).Drop()
 			if logger.CheckError(err) {
-				c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+				c.Status(http.StatusBadRequest).Json(map[string]any{
 					"error":err.Error(),
 				})
 				return
 			}
 		} else {
-			c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+			c.Status(http.StatusBadRequest).Json(map[string]any{
 				"error":"expecting 'table' to be string",
 			})
 		}
 	} else {
-		c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+		c.Status(http.StatusBadRequest).Json(map[string]any{
 			"error":"missing 'table' in body request",
 		})
 	}
-	c.JSON(map[string]any{
+	c.Json(map[string]any{
 		"success":fmt.Sprintf("table %s Deleted !",data["table"]),
 	})
 }
@@ -427,7 +427,7 @@ var DropTablePost = func(c *kamux.Context) {
 var ExportView= func(c *kamux.Context) {
 	table,ok := c.Params["table"]
 	if !ok {
-		c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+		c.Status(http.StatusBadRequest).Json(map[string]any{
 			"error":"no param table found",
 		})
 		return
@@ -445,7 +445,7 @@ var ImportView= func(c *kamux.Context) {
 	// get table name
 	table := c.Request.FormValue("table")
 	if table == "" {
-		c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+		c.Status(http.StatusBadRequest).Json(map[string]any{
 			"error":"no table !",
 		})
 		return
@@ -453,7 +453,7 @@ var ImportView= func(c *kamux.Context) {
 	// upload file and return bytes of file
 	_,dataBytes,err := c.UploadFile("thefile","backup","json")
 	if logger.CheckError(err) {
-		c.STATUS(http.StatusBadRequest).JSON(map[string]any{
+		c.Status(http.StatusBadRequest).Json(map[string]any{
 			"error":err.Error(),
 		})
 		return
@@ -475,7 +475,7 @@ var ImportView= func(c *kamux.Context) {
 		values = values[:0]
 	} 
 
-	c.JSON(map[string]any{
+	c.Json(map[string]any{
 		"success":"Import Done , you can find backups at media folder",
 	})
 }
@@ -511,7 +511,7 @@ var RobotsTxtView = func(c *kamux.Context) {
 }
 
 var OfflineView= func (c *kamux.Context) {
-	c.TEXT("<h1>YOUR ARE OFFLINE, check connection</h1>")
+	c.Text("<h1>YOUR ARE OFFLINE, check connection</h1>")
 }
 
 
@@ -526,5 +526,5 @@ var LogsSSEView = func(c *kamux.Context) {
 }
 
 var LogsGetView = func (c *kamux.Context)  {
-	c.HTML("admin/logs.html",nil)
+	c.Html("admin/logs.html",nil)
 }

@@ -25,7 +25,7 @@ type Context struct {
 }
 
 // set status to context, will not be writed to header
-func (c *Context) STATUS(code int) *Context {
+func (c *Context) Status(code int) *Context {
 	c.status=code
 	return c
 }
@@ -35,8 +35,8 @@ func (c *Context) QueryParam(name string) string {
 	return c.Request.URL.Query().Get(name)
 }
 
-// JSON return json to the client
-func (c *Context) JSON(body any) {
+// Json return json to the client
+func (c *Context) Json(body any) {
 	c.ResponseWriter.Header().Set("Content-Type","application/json")
 	if c.status == 0 {c.status=200}
 	c.WriteHeader(c.status)
@@ -45,8 +45,8 @@ func (c *Context) JSON(body any) {
 	logger.CheckError(err)
 }
 
-// JSONIndent return json indented to the client
-func (c *Context) JSONIndent(code int, body any) {
+// JsonIndent return json indented to the client
+func (c *Context) JsonIndent(code int, body any) {
 	c.ResponseWriter.Header().Set("Content-Type","application/json")
 	if c.status == 0 {c.status=200}
 	c.WriteHeader(c.status)
@@ -56,16 +56,16 @@ func (c *Context) JSONIndent(code int, body any) {
 	logger.CheckError(err)
 }
 
-// TEXT return text with custom code to the client
-func (c *Context) TEXT(body string) {
+// Text return text with custom code to the client
+func (c *Context) Text(body string) {
 	c.ResponseWriter.Header().Set("Content-Type", "text/plain")
 	if c.status == 0 {c.status=200}
 	c.WriteHeader(c.status)
 	c.ResponseWriter.Write([]byte(body))
 }
 
-// HTML return template_name with data to the client
-func (c *Context) HTML(template_name string, data map[string]any) {
+// Html return template_name with data to the client
+func (c *Context) Html(template_name string, data map[string]any) {
 	const key utils.ContextKey = "user"
 	if data == nil { data = make(map[string]any) }
 	
@@ -115,8 +115,8 @@ func (c *Context) BodyJson() map[string]any {
 	}
 }
 
-// REDIRECT redirect the client to the specified path with a custom code
-func (c *Context) REDIRECT(path string) {
+// Redirect redirect the client to the specified path with a custom code
+func (c *Context) Redirect(path string) {
 	if c.status == 0 {c.status=http.StatusTemporaryRedirect}
 	http.Redirect(c.ResponseWriter,c.Request,path,c.status)
 }

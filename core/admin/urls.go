@@ -10,7 +10,7 @@ import (
 var once = sync.Once{}
 
 func UrlPatterns(r *kamux.Router) {
-	r.GET("/mon/ping",func(c *kamux.Context) {c.STATUS(200).TEXT("pong")})
+	r.GET("/mon/ping",func(c *kamux.Context) {c.Status(200).Text("pong")})
 	r.GET("/offline",OfflineView) 
 	r.GET("/manifest.webmanifest",ManifestView) 
 	r.GET("/sw.js",ServiceWorkerView) 

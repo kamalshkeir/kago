@@ -82,7 +82,7 @@ func Admin(handler kamux.Handler) kamux.Handler {
 			session,err = encryptor.Decrypt(session)
 			if err != nil {
 				c.DeleteCookie("session")
-				c.STATUS(http.StatusTemporaryRedirect).REDIRECT("/admin/login")
+				c.Status(http.StatusTemporaryRedirect).Redirect("/admin/login")
 				return
 			}
 		}
@@ -90,13 +90,13 @@ func Admin(handler kamux.Handler) kamux.Handler {
 		
 		if err != nil {
 			// AUTHENTICATED BUT NOT FOUND IN DB
-			c.STATUS(http.StatusTemporaryRedirect).REDIRECT("/admin/login")
+			c.Status(http.StatusTemporaryRedirect).Redirect("/admin/login")
 			return
 		}
 
 		// Not admin
 		if user["is_admin"] == int64(0) || user["is_admin"] == 0 || user["is_admin"] == false {
-			c.STATUS(403).TEXT("Middleware : Not allowed to access this page")
+			c.Status(403).Text("Middleware : Not allowed to access this page")
 			return
 		} 
 

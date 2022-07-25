@@ -73,7 +73,7 @@ func main() {
 	app.UseMiddlewares(middlewares.GZIP)
 
 	// OR middleware for single handler (Auth,Admin,BasicAuth)
-	// Auth ensure user is authenticated and pass to c.HTML '.user' and '.request', so accessible in all templates
+	// Auth ensure user is authenticated and pass to c.Html '.user' and '.request', so accessible in all templates
 	app.GET("/",middlewares.Auth(IndexHandler))
 
 	app.POST("/somePost", posting)
@@ -86,12 +86,12 @@ func main() {
 
 var IndexHandler = func(c *kamux.Context) {
     if param1,ok := c.Params["param1"];ok {
-        c.STATUS(200).JSON(map[string]any{
+        c.Status(200).Json(map[string]any{
             "param1":param1,
         }) // send json
     } else {
 		// P.S: 
-        c.STATUS(404).TEXT("Not Found") // STATUS will not write status to header,only when chained with JSON or TEXT will be executed
+        c.Status(404).Text("Not Found") // Status will not write status to header,only when chained with Json or Text will be executed
 		c.WriteHeader(404) // will set the status header
     }
 }
@@ -123,15 +123,15 @@ func main() {
 			}
 
 			// send Json to current user
-			err = c.JSON(map[string]any{
+			err = c.Json(map[string]any{
 				"Hello":"World",
 			})
 
 			// send Text to current user
-			err = c.TEXT("any data string")
+			err = c.Text("any data string")
 
 			// broadcast to all connected users
-			c.BROADCAST(map[string]any{
+			c.Broadcast(map[string]any{
 				"you can send":"struct insetead of maps here",
 			})
 
@@ -178,7 +178,7 @@ func main() {
     app.GET("/",func(c *kamux.Context) {
 		page := c.QueryParam("page")
 		if page != "" {
-			c.StatusJSON(200,map[string]any{
+			c.Status(200).Json(map[string]any{
 				"page":page,
 			})
 		} else {
@@ -190,11 +190,11 @@ func main() {
     // accepted param Type: string,slug,int,float and validated on the go, before it hit the handler
     app.POST("/param1:slug",func(c *kamux.Context) {
 		if param1,ok := c.Params["param1"];ok {
-			c.JSON(200,map[string]any{
+			c.Json(map[string]any{
 				"param1":param1,
 			})
 		} else {
-			c.TEXT(404,"Not Found")
+			c.Status(404).Text("Not Found")
 		}
 	})
 
@@ -203,11 +203,11 @@ func main() {
 	// param1 can be ascii, no symbole
 	app.PATCH("/test/:param1",func(c *kamux.Context) {
 		if param1,ok := c.Params["param1"];ok {
-			c.JSON(200,map[string]any{
+			c.Json(map[string]any{
 				"param1":param1,
 			})
 		} else {
-			c.TEXT(404,"Not Found")
+			c.Status(404).Text("Not Found")
 		}
 	})
 
@@ -241,7 +241,7 @@ func main() {
     app.GET("/",func(c *kamux.Context) {
 		page := c.QueryParam("page")
 		if page != "" {
-			c.Status(200).JSON(map[string]any{
+			c.Status(200).Json(map[string]any{
 				"page":page,
 			})
 		} else {
@@ -253,18 +253,18 @@ func main() {
     // accepted param Type: string,slug,int,float and validated on the go, before it hit the handler
     app.POST("/param1:slug",func(c *kamux.Context) {
 		if param1,ok := c.Params["param1"];ok {
-			c.JSON(200,map[string]any{
+			c.Json(map[string]any{
 				"param1":param1,
 			})
 		} else {
-			c.STATUS(404).TEXT("Not Found")
+			c.Status(404).Text("Not Found")
 		}
 	})
 
 	// and many more
-	c.STATUS(200).JSONIndent(code int, body any)
-	c.STATUS(200).HTML(template_name string, data map[string]any)
-	c.STATUS(301).REDIRECT(path string) // redirect to path
+	c.Status(200).JsonIndent(code int, body any)
+	c.Status(200).Html(template_name string, data map[string]any)
+	c.Status(301).Redirect(path string) // redirect to path
 	c.BodyJson() map[string]any // get request body
 	c.StreamResponse(response string) error //SSE
 	c.ServeFile("application/json; charset=utf-8", "./test.json")
@@ -294,7 +294,7 @@ func main() {
         }
 
         if err != nil {
-            c.STATUS.JSON(map[string]any{
+            c.Status(400).Json(map[string]any{
 			    "error":"User doesn not Exist",
 		    })
         }
@@ -314,7 +314,7 @@ func main() {
         //c.UploadFile(received_filename,folder_out string, acceptedFormats ...string) (string,[]byte,error)
         pathToFile,dataBytes,err := c.UploadFile("filename_from_form","images","png","jpg")
 		// you can save pathToFile in db from here
-		c.STATUS(200).TEXT(file.Filename + " uploaded")
+		c.Status(200).Text(file.Filename + " uploaded")
 	})
 
 
