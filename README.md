@@ -10,7 +10,7 @@ If you need performance and good productivity, you will love kago.
 
 ## Installation
 
-To install kago framework, you need to Go installed and set your Go workspace first.
+To install it, you need to Go installed and set your Go workspace first.
 
 1. You first need [Go](https://golang.org/) installed (**version 1.18+ is required**), then you can use the below Go command to install kago.
 
@@ -26,6 +26,8 @@ import "github.com/kamalshkeir/kago"
 
 ## Quick start
 
+make sure you have git installed
+
 Create main.go:
 ```go
 package main
@@ -39,7 +41,7 @@ func main() {
 ```
 
 ```
-# running 'go run main.go' the first time, will generate assets folder with all static and template files for admin
+# running 'go run main.go' the first time, will clone assets folder with all static and template files for admin using git
 $ go run main.go
 
 # make sure you copy 'assets/.env.example' beside your main at the root folder 
