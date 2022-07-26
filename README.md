@@ -1,5 +1,9 @@
-# KaGo Web Framework
+![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/kamalshkeir/kago) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/kamalshkeir/kago) [![BSDv3 License](https://img.shields.io/badge/License-BSD%20v3-blue.svg)](https://opensource.org/licenses/) ![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/kamalshkeir/kago)
 
+
+![GitHub Repo stars](https://img.shields.io/github/stars/kamalshkeir/kago?style=social) ![GitHub forks](https://img.shields.io/github/forks/kamalshkeir/kago?style=social)
+# KaGo Web Framework 
+<img src="https://user-images.githubusercontent.com/54605903/181124333-579e67dc-074f-4d13-9b35-12d2c9deb101.png" style="object-fit:cover;object-position: center 30%;" width="100%" height="40%"/>
 KaGo is a high-level web framework, that encourages rapid development and clean, pragmatic design
 
 Kago offer you an auto-generated CRUD admin panel, and an interactive shell also running 'go run main.go shell'
@@ -936,3 +940,12 @@ func main() {
 ```bash
 go build
 ```
+
+
+## 🔗 Links
+[![portfolio](https://img.shields.io/badge/my_portfolio-000?style=for-the-badge&logo=ko-fi&logoColor=white)](https://kamalshkeir.github.io/)
+[![linkedin](https://img.shields.io/badge/linkedin-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/kamal-shkeir/)
+
+
+# Licence
+Licence [BSD-3](./LICENSE)
