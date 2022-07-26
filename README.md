@@ -58,8 +58,8 @@ $ go run main.go -h 0.0.0.0 -p 3333 to run on http://0.0.0.0:3333
 app.GET("/admin/login",func(c *kamux.Context) {
 	...
 })
-// this will not add another handler, but remove the old one completely 
-// so we are sure it will never cause a problem
+// this will add another handler, and remove the old one completely 
+// so it is very safe to do it this way also
 ```
 
 ### The other way: i make all handlers and all middlewares as variables to give you full control on the behavior of any 
@@ -98,7 +98,7 @@ middlewares.Auth = func(handler kamux.Handler) kamux.Handler { // handlerFunc
 }
 // Example : how to override a Global middleware
 middlewares.GZIP = func(handler http.Handler) http.Handler { // Handler
-		
+		...
 }
 ```
 
