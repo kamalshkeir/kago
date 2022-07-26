@@ -532,15 +532,18 @@ orm.GetDatabases() []DatabaseEntity // get list of databases available to your a
 #### Utility database queries:
 ```go
 orm.GetAllTables(dbName ...string) []string // if dbName not given, .env used instead to default the db to get all tables in the given db
-GetAllColumns(table string, dbName ...string) map[string]string // clear i think
-CreateUser(email,password string,isAdmin int, dbName ...string) error // password will be hashed using argon2
+orm.GetAllColumns(table string, dbName ...string) map[string]string // clear i think
+orm.CreateUser(email,password string,isAdmin int, dbName ...string) error // password will be hashed using argon2
 ```
 
 #### Migrations
 ##### you can migrate from a struct
 ```go
+// execute AutoMigrate to migrate only, not if the table already exist in db, in this case you need only to link your model to the table using : orm.LinkModel
+orm.AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error // debug will print the query statement
 
-AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error // debug will print the query statement
+// if table already exist you can use LinkModel[T comparable](to_table_name string, dbNames ...string)
+orm.LinkModel[models.User]("users") // if dbNames empty , use default .env db
 
 //Example:
 type Bookmark struct {
