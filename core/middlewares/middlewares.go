@@ -30,10 +30,8 @@ import (
 
 var SESSION_ENCRYPTION = true
 
-
-
 // AuthMiddleware can be added to any handler to get user cookie authentication and pass it to handler and templates
-func Auth(handler kamux.Handler) kamux.Handler {
+var Auth = func (handler kamux.Handler) kamux.Handler {
 	const key utils.ContextKey = "user"
 	return func(c *kamux.Context) {
 		session,err := c.GetCookie("session")
@@ -69,7 +67,7 @@ func Auth(handler kamux.Handler) kamux.Handler {
 	}
 }
 
-func Admin(handler kamux.Handler) kamux.Handler {
+var Admin = func (handler kamux.Handler) kamux.Handler {
 	const key utils.ContextKey = "user"
 	return func(c *kamux.Context) {
 		session,err := c.GetCookie("session")
@@ -111,7 +109,7 @@ func Admin(handler kamux.Handler) kamux.Handler {
 	}
 }
 
-func BasicAuth(next kamux.Handler, user,pass string) kamux.Handler {
+var BasicAuth = func (next kamux.Handler, user,pass string) kamux.Handler {
 	return func(c *kamux.Context) {
         // Extract the username and password from the request 
         // Authorization header. If no Authentication header is present 
@@ -154,7 +152,7 @@ func BasicAuth(next kamux.Handler, user,pass string) kamux.Handler {
 	}
 }
 
-func CSRF(handler http.Handler) http.Handler {
+var CSRF = func(handler http.Handler) http.Handler {
 	// generate token
 	tokBytes := make([]byte, 64)
 	_, err := io.ReadFull(rand.Reader, tokBytes)
@@ -190,7 +188,7 @@ func CSRF(handler http.Handler) http.Handler {
 	})
 }
 
-func CORS(next http.Handler) http.Handler {
+var CORS = func(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Set headers
 		w.Header().Set("Access-Control-Allow-Headers:", "*")
@@ -205,7 +203,7 @@ func CORS(next http.Handler) http.Handler {
 	})
 }
 
-func GZIP(handler http.Handler) http.Handler {
+var GZIP= func(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path,"metrics") {
 			handler.ServeHTTP(w,r)
@@ -233,7 +231,7 @@ func GZIP(handler http.Handler) http.Handler {
 var banned = sync.Map{}
 var LIMITER_TOKENS=50
 var LIMITER_TIMEOUT=5*time.Minute
-func LIMITER(next http.Handler) http.Handler {
+var LIMITER= func(next http.Handler) http.Handler {
 	var limiter = rate.NewLimiter(1,LIMITER_TOKENS)
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		v,ok := banned.Load(r.RemoteAddr)
@@ -257,7 +255,7 @@ func LIMITER(next http.Handler) http.Handler {
     })
 }
 
-func RECOVERY(next http.Handler) http.Handler {
+var RECOVERY= func(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			err := recover()
@@ -275,7 +273,7 @@ func RECOVERY(next http.Handler) http.Handler {
 	})
 }
 
-func LOGS(h http.Handler) http.Handler {
+var LOGS = func(h http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {	
 		if utils.StringContains(r.URL.Path,"metrics","sw.js","favicon","/static/","/sse/","/ws/","/wss/") {
 			h.ServeHTTP(w,r)

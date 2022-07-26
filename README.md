@@ -62,7 +62,8 @@ app.GET("/admin/login",func(c *kamux.Context) {
 // so we are sure it will never cause a problem
 ```
 
-### The other way: i make all handlers as variables to give you full control on the behavior of any handler already written by me
+### The other way: i make all handlers and all middlewares as variables to give you full control on the behavior of any 
+### handler/middleware already written by me
 ```go
 // all these handlers can be overriden
 r.GET("/mon/ping",func(c *kamux.Context) {c.Status(200).Text("pong")})
@@ -86,9 +87,18 @@ r.POST("/admin/import", middlewares.Admin(ImportView))
 r.GET("/logs",middlewares.Admin(LogsGetView))
 r.SSE("/sse/logs",middlewares.Admin(LogsSSEView))
 
-// Example : how to override
+// Example : how to override a handler
 admin.LoginView=func(c *kamux.Context) {
 	...		
+}
+
+// Example : how to override a middleware
+middlewares.Auth = func(handler kamux.Handler) kamux.Handler { // handlerFunc
+		...
+}
+// Example : how to override a Global middleware
+middlewares.GZIP = func(handler http.Handler) http.Handler { // Handler
+		
 }
 ```
 
