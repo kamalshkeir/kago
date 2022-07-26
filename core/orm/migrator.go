@@ -43,7 +43,10 @@ func AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error {
 		mFieldName_Type[fname] = ftype.Name()
 		if ftag, ok := typeOfT.Field(i).Tag.Lookup("orm"); ok {
 			tags := strings.Split(ftag, ";")
-			mFieldName_Tags[fname] = tags
+			for i := range tags {
+				tags[i]=strings.TrimSpace(tags[i])
+			}
+			mFieldName_Tags[fname] =  tags
 		}
 	}
 

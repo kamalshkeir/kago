@@ -487,14 +487,42 @@ CreateUser(email,password string,isAdmin int, dbName ...string) error // passwor
 ```
 
 #### Migrations
+##### you can migrate from a struct
 ```go
-//you can migrate from struct using:
-AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error // debug will print the query statement
-// Usage: orm.AutoMigrate[models.User]("db","users")
 
-// OR
-// using the shell, you can migrate a .sql file
+AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error // debug will print the query statement
+
+//Example:
+type Bookmark struct {
+	Id      uint   `orm:"autoinc"`
+	UserId  int    `orm:"fk:users.id:cascade"`
+	IsUsed	bool
+	ToCheck string `orm:"size:50; notnull ;unique ; check:len(to_check) > 10"`
+	Content string `orm:"text"`
+	CreatedAt time.Time `orm:"now"`
+}
+
+// To migrate execute:
+err := orm.AutoMigrate[Bookmark]("db", "bookmarks",true)
+
+// will produce:
+CREATE TABLE IF NOT EXISTS bookmarks (
+  id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, 
+  user_id INTEGER, 
+  is_used INTEGER NOT NULL CHECK (
+    is_used IN (0, 1)
+  ), 
+  to_check VARCHAR(50) UNIQUE NOT NULL CHECK (
+    length(to_check) > 10
+  ), 
+  content TEXT, 
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, 
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
 ```
+##### OR
+##### using the shell, you can migrate a .sql file 'go run main.go shell'
+
 
 ## Queries and Sql Builder
 #### to query, insert, update and delete using structs:
