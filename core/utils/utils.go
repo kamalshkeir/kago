@@ -12,6 +12,7 @@ import (
 	"io/ioutil"
 	mrand "math/rand"
 	"mime/multipart"
+	"net"
 	"net/http"
 	"net/smtp"
 	"net/url"
@@ -349,6 +350,7 @@ func ReverseSlice[S ~[]E, E any](s S)  {
     }
 }
 
+// IsSameSlice check if both slice are equal
 func IsSameSlice[A []T ,B []T,T comparable](x []T,y []T) bool {
     if len(x) != len(y) {
         return false
@@ -372,6 +374,18 @@ func IsSameSlice[A []T ,B []T,T comparable](x []T,y []T) bool {
     return len(diff) == 0
 }
 
+
+func GetLocalPrivateIps() []string {
+	ips := []string{}
+	host, _ := os.Hostname()
+	addrs, _ := net.LookupIP(host)
+	for _, addr := range addrs {
+		if ipv4 := addr.To4(); ipv4 != nil {
+			ips = append(ips,ipv4.String())
+		}  
+	}
+	return ips
+}
 
 func randomizeStringSlice(slice []string) []string  {
 	mrand.Seed(time.Now().UnixNano())

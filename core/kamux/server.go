@@ -18,6 +18,8 @@ import (
 
 
 var midwrs []func(http.Handler) http.Handler
+var privateIps = []string{}
+
 
 // InitServer init the server with midws,
 func (router *Router) initServer() {
@@ -212,13 +214,28 @@ func checkSameSite(c Context) bool {
 			host="localhost"
 		} else if strings.Contains(origin,"127.0.0.1") {
 			host="127.0.0.1"
+		} else {
+			host="127.0.0.1"
 		}
 	}
 	port := settings.GlobalConfig.Port
 	if port != "" {
 		port=":"+port
 	}
-	if strings.Contains(origin,host+port) {
+
+	foundInPrivateIps := false
+	if host == "0.0.0.0" {
+		if len(privateIps) == 0 {
+			privateIps = utils.GetLocalPrivateIps()
+		}
+		for _,pIP := range privateIps {
+			if strings.Contains(origin,pIP+port) {
+				foundInPrivateIps=true
+			}
+		} 
+	}
+
+	if strings.Contains(host+port,origin) || foundInPrivateIps {
 		return true
 	} else {
 		return false
