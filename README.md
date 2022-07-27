@@ -1,5 +1,5 @@
 <div align="center">
-	<img src="./logo.png" width="auto" style="margin:0 auto 0 auto;"/>
+	<img src="./images/logo.png" width="auto" style="margin:0 auto 0 auto;"/>
 </div>
 <br>
 
@@ -603,22 +603,24 @@ orm.CreateUser(email,password string,isAdmin int, dbName ...string) error // pas
 ```
 
 #### Migrations
+##### using the shell, you can migrate a .sql file 'go run main.go shell'
+##### OR
 ##### you can migrate from a struct
 ```go
 // execute AutoMigrate to migrate only, not if the table already exist in db, in this case you need only to link your model to the table using : orm.LinkModel
 orm.AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error // debug will print the query statement
 
 // if table already exist you can use LinkModel[T comparable](to_table_name string, dbNames ...string)
-orm.LinkModel[models.User]("users") // if dbNames empty , use default .env db
+orm.LinkModel[models.User]("users") // if dbName empty , use default .env db
 
 //Example:
 type Bookmark struct {
 	Id      uint   `orm:"autoinc"`
-	UserId  int    `orm:"fk:users.id:cascade"`
+	UserId  int    `orm:"fk:users.id:cascade"` // options on delete: cascade, donothing, noaction
 	IsUsed	bool
-	ToCheck string `orm:"size:50; notnull ;unique ; check:len(to_check) > 10"`
-	Content string `orm:"text"`
-	CreatedAt time.Time `orm:"now"`
+	ToCheck string `orm:"size:50; notnull; unique; check:len(to_check) > 10"`  // column type will be VARCHAR(50)
+	Content string `orm:"text"` // column type will be TEXT
+	CreatedAt time.Time `orm:"now"` // now is default to current timestamp
 }
 
 // To migrate execute:
@@ -639,8 +641,14 @@ CREATE TABLE IF NOT EXISTS bookmarks (
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 ```
-##### OR
-##### using the shell, you can migrate a .sql file 'go run main.go shell'
+
+##### And in the admin panel, you can see that 'bookmarks' table created, with a rich text editor for the column 'content'
+##### this is because all columns with field type TEXT will be rendered as a rich text editor automatically
+<div align="center">
+	<img src="./images/model.png" width="auto" style="margin:0 auto 0 auto;"/>
+</div>
+
+
 
 
 ## Queries and Sql Builder

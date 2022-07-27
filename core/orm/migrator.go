@@ -145,7 +145,7 @@ func handleMigrationInt(dialect, fName, ty string, mFieldName_Tags *map[string][
 						}
 						*fkeys = append(*fkeys, fkey)
 					} else {
-						logger.Error("wtf ?, it should be fk:users.id:cascade/donothing")
+						logger.Error("allowed options cascade/donothing/noaction")
 					}
 				case "check":
 					if strings.Contains(strings.ToLower(sp[1]), "len") {
