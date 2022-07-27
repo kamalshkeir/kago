@@ -1,5 +1,25 @@
-![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/kamalshkeir/kago) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/kamalshkeir/kago) [![BSDv3 License](https://img.shields.io/badge/License-BSD%20v3-blue.svg)](https://opensource.org/licenses/) ![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/kamalshkeir/kago) ![GitHub Repo stars](https://img.shields.io/github/stars/kamalshkeir/kago?style=social) ![GitHub forks](https://img.shields.io/github/forks/kamalshkeir/kago?style=social)
+<div style="display:flex;justify-content-center;">
+	<img src="./logo.png" width="auto" style="margin:0 auto 0 auto;"/>
+</div>
+<br>
+
+<div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap">
+	<img src="https://img.shields.io/github/go-mod/go-version/kamalshkeir/kago" width="auto" height="20px">
+	<img src="https://img.shields.io/github/languages/code-size/kamalshkeir/kago" width="auto" height="20px">
+	<img src="https://img.shields.io/badge/License-BSD%20v3-blue.svg" width="auto" height="20px">
+	<img src="https://img.shields.io/badge/License-BSD%20v3-blue.svg" width="auto" height="20px">
+	<img src="https://img.shields.io/github/v/tag/kamalshkeir/kago" width="auto" height="20px">
+	<img src="https://img.shields.io/github/stars/kamalshkeir/kago?style=social" width="auto" height="20px">
+	<img src="https://img.shields.io/github/forks/kamalshkeir/kago?style=social" width="auto" height="20px">
+</div>
+<br>
+<div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap">
+	<img src="https://img.shields.io/badge/my_portfolio-000?style=for-the-badge&logo=ko-fi&logoColor=white" width="auto" height="auto">
+	<img src="https://img.shields.io/badge/linkedin-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" width="auto" height="auto">
+</div>
+
 # KaGo Web Framework 
+<br>
 KaGo is a high-level web framework, that encourages clean and rapid development.
 
 You can literally get up and running using two lines of code, easier than Django and with a compiled language performance.
