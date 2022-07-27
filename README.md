@@ -1,9 +1,9 @@
-<div style="display:flex;justify-content-center;">
+<div align="center">
 	<img src="./logo.png" width="auto" style="margin:0 auto 0 auto;"/>
 </div>
 <br>
 
-<div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap">
+<div align="center">
 	<img src="https://img.shields.io/github/go-mod/go-version/kamalshkeir/kago" width="auto" height="20px">
 	<img src="https://img.shields.io/github/languages/code-size/kamalshkeir/kago" width="auto" height="20px">
 	<img src="https://img.shields.io/badge/License-BSD%20v3-blue.svg" width="auto" height="20px">
@@ -13,11 +13,11 @@
 	<img src="https://img.shields.io/github/forks/kamalshkeir/kago?style=social" width="auto" height="20px">
 </div>
 <br>
-<div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap">
+<div align="center">
 	<a href="https://kamalshkeir.github.io/" target="_blank">
 		<img src="https://img.shields.io/badge/my_portfolio-000?style=for-the-badge&logo=ko-fi&logoColor=white" width="auto" height="auto">
 	</a>
-	<a href="https://www.linkedin.com/in/kamal-shkeir/" target="_blank">
+	<a href="https://www.linkedin.com/in/kamal-shkeir/">
 		<img src="https://img.shields.io/badge/linkedin-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" width="auto" height="auto">
 	</a>
 </div>
