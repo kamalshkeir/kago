@@ -103,10 +103,12 @@ var AllModelsGet = func(c *kamux.Context) {
 		rows,err =orm.Table(model).All()
 		if err != nil {
 			// usualy should not use error string because it divulge information, but here only admin use it, so no worry
-			c.Status(http.StatusBadRequest).Json(map[string]any{
-				"error":err.Error(),
-			})
-			return
+			if err.Error() != "no data found" {
+				c.Status(http.StatusBadRequest).Json(map[string]any{
+					"error":err.Error(),
+				})
+				return
+			}
 		}
 	}
 	columns := orm.GetAllColumns(model)

@@ -23,7 +23,7 @@ import (
 )
 
 var allTemplates = template.New("")
-var repo_name = "kago-assets"
+
 
 
 // initTemplatesAndAssets init templates from a folder and download admin skeleton html files
@@ -185,16 +185,16 @@ func (router *Router) cloneTemplatesAndStatic()  {
     new_name := "assets"
     if _,err := os.Stat(new_name);err != nil && !settings.GlobalConfig.EmbedStatic && !settings.GlobalConfig.EmbedTemplates {
         // if not generated
-        cmd := exec.Command("git", "clone", "https://github.com/kamalshkeir/"+repo_name)
+        cmd := exec.Command("git", "clone", "https://github.com/"+settings.REPO_USER+"/"+settings.REPO_NAME)
         err := cmd.Run()
 		if logger.CheckError(err) {return}
-		err = os.RemoveAll(repo_name+"/.git")
+		err = os.RemoveAll(settings.REPO_NAME+"/.git")
 		if err != nil {
-			logger.Error("unable to delete",repo_name+"/.git :",err)
+			logger.Error("unable to delete",settings.REPO_NAME+"/.git :",err)
 		}
-        err = os.Rename(repo_name,new_name)
+        err = os.Rename(settings.REPO_NAME,new_name)
 		if err != nil {
-			logger.Error("unable to rename",repo_name,err)
+			logger.Error("unable to rename",settings.REPO_NAME,err)
 		}
 		generated=true
     } 

@@ -70,6 +70,7 @@ func (router *Router) PrintServerStart() {
 	}
 	port := settings.GlobalConfig.Port
 	if port == "" {
+		settings.GlobalConfig.Port="9313"
 		port = "9313"
 	}
 	fmt.Printf(logger.Yellow, logger.Ascii7)

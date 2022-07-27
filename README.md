@@ -110,8 +110,13 @@ go run main.go -h 0.0.0.0 -p 3333
 
 
 ## Generated Admin Dashboard
-##### you can easily override any handler of any url by creating a new one with the same method and path.
-### for example, to override the handler at GET /admin/login:
+##### an easy way to create your own theme, is to modify files inside assets , upload the assets folder into a repo and set these 2 values:
+```shell
+settings.REPO_USER="YOUR_REPO_USER" // default kamalshkeir
+settings.REPO_NAME="YOUR_REPO_NAME" // default kago-assets
+```
+
+##### you can easily override any handler of any url by creating a new one with the same method and path.<br> for example, to override the handler at GET /admin/login:
 ```go
 app.GET("/admin/login",func(c *kamux.Context) {
 	...

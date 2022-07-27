@@ -221,7 +221,7 @@ func checkSameSite(c Context) bool {
 	port := settings.GlobalConfig.Port
 	if port != "" {
 		port=":"+port
-	}
+	} 
 
 	foundInPrivateIps := false
 	if host == "0.0.0.0" {
@@ -234,8 +234,7 @@ func checkSameSite(c Context) bool {
 			}
 		} 
 	}
-
-	if strings.Contains(host+port,origin) || foundInPrivateIps {
+	if strings.Contains(origin,host+port) || foundInPrivateIps {
 		return true
 	} else {
 		return false
