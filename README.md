@@ -1,11 +1,33 @@
 ![GitHub go.mod Go version](https://img.shields.io/github/go-mod/go-version/kamalshkeir/kago) ![GitHub code size in bytes](https://img.shields.io/github/languages/code-size/kamalshkeir/kago) [![BSDv3 License](https://img.shields.io/badge/License-BSD%20v3-blue.svg)](https://opensource.org/licenses/) ![GitHub tag (latest by date)](https://img.shields.io/github/v/tag/kamalshkeir/kago) ![GitHub Repo stars](https://img.shields.io/github/stars/kamalshkeir/kago?style=social) ![GitHub forks](https://img.shields.io/github/forks/kamalshkeir/kago?style=social)
 # KaGo Web Framework 
 <img src="https://user-images.githubusercontent.com/54605903/181124333-579e67dc-074f-4d13-9b35-12d2c9deb101.png" style="object-fit:cover;object-position: center 30%;" width="100%" height="40%"/>
-KaGo is a high-level web framework, that encourages rapid development and clean, pragmatic design
+KaGo is a high-level web framework, that encourages clean and rapid development.
 
-Kago offer you an auto-generated CRUD admin panel, and an interactive shell also running 'go run main.go shell'
+You can literally get up and running using two lines of code, easier than Django and with a compiled language performance.
 
-If you need performance and good productivity, you will love kago.
+Kago offer you :
+- Fully editable CRUD Admin Dashboard (assets folder)
+- Ready to use Progressive Web App Support (pure js, without workbox)
+- Realtime Logs at `/logs` running with flag `go run main.go --logs`
+- Convenient router that handle params with regex type checking, Websockets and SSE protocols also 
+- Interactive Shell `go run main.go shell`
+- Performant and Easy ORM and SQL builder using go generics (working with sqlite, mysql and postgres)
+- OpenApi docs at `/docs` running with flag `go run main.go --docs` with dedicated package docs to help you manipulate docs.json file
+- AES encryption for authentication sessions using package encryptor
+- Argon2 hashing using package hash
+- EnvLoader using package envloader
+- Internal Eventbus using go routines and channels (very powerful), use cases are endless
+- Monitoring Prometheus/grafana `/metrics` running with flag `go run main.go --monitoring`
+- Profiler golang official debug pprof `/debug/pprof/(heap|profile\trace)` running with flag `go run main.go --profiler`
+
+If you aim performance and good productivity, you will love KaGo.
+
+Many features will be added in the future, like:
+- the possibility to choose a theme and create your own
+- automatic backups and send by email
+- Mongo DB support (soon)
+
+Join our  [discussions here](https://github.com/kamalshkeir/kago/discussions/1)
 
 
 ## Installation
@@ -40,20 +62,28 @@ func main() {
 }
 ```
 
+#### 1- running 'go run main.go' the first time, will clone assets folder with all static and template files for admin using git
+```shell
+go run main.go
 ```
-# running 'go run main.go' the first time, will clone assets folder with all static and template files for admin using git
-$ go run main.go
 
-# make sure you copy 'assets/.env.example' beside your main at the root folder 
-and rename it to '.env'
-# if u want to use different database, you can change it at .env
+#### 2- make sure you copy 'assets/.env.example' beside your main at the root folder and rename it to '.env'
 
-# make sure you run go run *.go shell and then createsuperuser to create admin account
+#### 3- go to the shell to create admin account
+```shell
+go run main.go shell    
 
-# you can change port and host by putting Env Vars 'HOST' and 'PORT' or using flags:
-$ go run main.go -h 0.0.0.0 -p 3333 to run on http://0.0.0.0:3333
- 
+-> createsuperuser
 ```
+
+
+#### 4- you can change port and host by putting Env Vars 'HOST' and 'PORT' or using flags:
+```zsh
+go run main.go -h 0.0.0.0 -p 3333
+```
+###### will run on http://[privateIP]:3333 
+
+
 ## Generated Admin Dashboard
 ##### you can easily override any handler of any url by creating a new one with the same method and path.
 ### for example, to override the handler at GET /admin/login:
