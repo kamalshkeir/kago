@@ -378,10 +378,13 @@ func main() {
 	})
 
 	// and many more
+	c.AddHeader(key,value string) // append a header if key exist
+	c.SetHeader(key,value string) // replace a header if key exist
 	c.Status(200).JsonIndent(code int, body any)
 	c.Status(200).Html(template_name string, data map[string]any)
 	c.Status(301).Redirect(path string) // redirect to path
-	c.BodyJson() map[string]any // get request body
+	c.BodyJson() map[string]any // get request body as map
+	c.BodyText() string // get request body as string
 	c.StreamResponse(response string) error //SSE
 	c.ServeFile("application/json; charset=utf-8", "./test.json")
 	c.ServeEmbededFile(content_type string,embed_file []byte)

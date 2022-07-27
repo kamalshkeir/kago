@@ -311,7 +311,8 @@ func handleHttp(c *Context,rt Route) {
 	} else {
 		// cross origin
 		if len(rt.AllowedOrigines) == 0 {
-			c.Status(http.StatusBadRequest).Text("you are not allowed cross origin for this url")
+			logger.Warn(c.Request.Header.Get("Origin"),"not allowed csrf") 
+			c.Status(http.StatusBadRequest).Text("you are not allowed cross origin for this url,origin")
 			return
 		} else {
 			allowed := false
@@ -332,11 +333,11 @@ func handleHttp(c *Context,rt Route) {
 }
 
 func sseHeaders(c *Context) {
-	c.ResponseWriter.Header().Set("Access-Control-Allow-Origin", "*")
-    c.ResponseWriter.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-    c.ResponseWriter.Header().Set("Content-Type", "text/event-stream")
-    c.ResponseWriter.Header().Set("Cache-Control", "no-cache")
-    c.ResponseWriter.Header().Set("Connection", "keep-alive")
+	c.SetHeader("Access-Control-Allow-Origin", "*")
+    c.SetHeader("Access-Control-Allow-Headers", "Content-Type")
+    c.SetHeader("Content-Type", "text/event-stream")
+    c.SetHeader("Cache-Control", "no-cache")
+    c.SetHeader("Connection", "keep-alive")
 }
 
 

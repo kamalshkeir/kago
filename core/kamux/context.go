@@ -24,10 +24,20 @@ type Context struct {
 	status int
 }
 
-// set status to context, will not be writed to header
+// Status set status to context, will not be writed to header
 func (c *Context) Status(code int) *Context {
 	c.status=code
 	return c
+}
+
+// AddHeader Add append a header value to key if exist
+func (c *Context) AddHeader(key,value string) {
+	c.ResponseWriter.Header().Add(key, value)
+}
+
+// SetHeader Set the header value to the new value, old removed
+func (c *Context) SetHeader(key,value string) {
+	c.ResponseWriter.Header().Set(key, value)
 }
 
 // QueryParam get query param
@@ -37,7 +47,7 @@ func (c *Context) QueryParam(name string) string {
 
 // Json return json to the client
 func (c *Context) Json(body any) {
-	c.ResponseWriter.Header().Set("Content-Type","application/json")
+	c.SetHeader("Content-Type","application/json")
 	if c.status == 0 {c.status=200}
 	c.WriteHeader(c.status)
 	enc := json.NewEncoder(c.ResponseWriter)
@@ -47,7 +57,7 @@ func (c *Context) Json(body any) {
 
 // JsonIndent return json indented to the client
 func (c *Context) JsonIndent(code int, body any) {
-	c.ResponseWriter.Header().Set("Content-Type","application/json")
+	c.SetHeader("Content-Type","application/json")
 	if c.status == 0 {c.status=200}
 	c.WriteHeader(c.status)
 	enc := json.NewEncoder(c.ResponseWriter)
@@ -58,7 +68,7 @@ func (c *Context) JsonIndent(code int, body any) {
 
 // Text return text with custom code to the client
 func (c *Context) Text(body string) {
-	c.ResponseWriter.Header().Set("Content-Type", "text/plain")
+	c.SetHeader("Content-Type", "text/plain")
 	if c.status == 0 {c.status=200}
 	c.WriteHeader(c.status)
 	c.ResponseWriter.Write([]byte(body))
@@ -79,7 +89,7 @@ func (c *Context) Html(template_name string, data map[string]any) {
 		data["is_authenticated"] = false
 		data["user"] = nil
 	}
-	c.ResponseWriter.Header().Set("Content-Type","text/html; charset=utf-8")
+	c.SetHeader("Content-Type","text/html; charset=utf-8")
 	if c.status == 0 {c.status=200}
 	c.WriteHeader(c.status)
 	err := allTemplates.ExecuteTemplate(c.ResponseWriter,template_name,data)
@@ -98,8 +108,8 @@ func (c *Context) StreamResponse(response string) error {
 }
 
 // BodyJson get json body from request and return map
+// USAGE : data := c.BodyJson(r)
 func (c *Context) BodyJson() map[string]any {
-	// USAGE : data := template.GetJson(r)
 	d := map[string]any{}
 	dec := json.NewDecoder(c.Request.Body)
 	defer c.Request.Body.Close()
@@ -115,6 +125,16 @@ func (c *Context) BodyJson() map[string]any {
 	}
 }
 
+func (c *Context) BodyText() string {
+	defer c.Request.Body.Close()
+	b, err := io.ReadAll(c.Request.Body)
+	// b, err := ioutil.ReadAll(resp.Body)  Go.1.15 and earlier
+	if logger.CheckError(err) {
+		return ""
+	}
+	return string(b)
+}
+
 // Redirect redirect the client to the specified path with a custom code
 func (c *Context) Redirect(path string) {
 	if c.status == 0 {c.status=http.StatusTemporaryRedirect}
@@ -123,13 +143,13 @@ func (c *Context) Redirect(path string) {
 
 // ServeFile serve a file from handler
 func (c *Context) ServeFile(content_type,path_to_file string) {
-	c.ResponseWriter.Header().Set("Content-Type", content_type)
+	c.SetHeader("Content-Type", content_type)
 	http.ServeFile(c.ResponseWriter, c.Request, path_to_file)
 }
 
 // ServeEmbededFile serve an embeded file from handler
 func (c *Context) ServeEmbededFile(content_type string,embed_file []byte) {
-	c.ResponseWriter.Header().Set("Content-Type", content_type)
+	c.SetHeader("Content-Type", content_type)
 		_,_ = c.ResponseWriter.Write(embed_file)
 }
 
@@ -238,8 +258,8 @@ func (c *Context) DeleteFile(path string) error {
 // Download download data_bytes(content) asFilename(test.json,data.csv,...) to the client
 func (c *Context) Download(data_bytes []byte, asFilename string) {
 	bytesReader := bytes.NewReader(data_bytes)
-	c.ResponseWriter.Header().Set("Content-Disposition", "attachment; filename=" + strconv.Quote(asFilename))
-	c.ResponseWriter.Header().Set("Content-Type", c.Request.Header.Get("Content-Type"))
+	c.SetHeader("Content-Disposition", "attachment; filename=" + strconv.Quote(asFilename))
+	c.SetHeader("Content-Type", c.Request.Header.Get("Content-Type"))
 	io.Copy(c.ResponseWriter,bytesReader)
 }
 
