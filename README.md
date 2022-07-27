@@ -14,8 +14,8 @@
 </div>
 <br>
 <div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap">
-	<img src="https://img.shields.io/badge/my_portfolio-000?style=for-the-badge&logo=ko-fi&logoColor=white" width="auto" height="auto">
-	<img src="https://img.shields.io/badge/linkedin-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" width="auto" height="auto">
+	<img src="https://img.shields.io/badge/my_portfolio-000?style=for-the-badge&logo=ko-fi&logoColor=white" href="https://kamalshkeir.github.io/" width="auto" height="auto">
+	<img src="https://img.shields.io/badge/linkedin-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" href="https://www.linkedin.com/in/kamal-shkeir/" width="auto" height="auto">
 </div>
 
 # KaGo Web Framework 
