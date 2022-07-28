@@ -511,6 +511,18 @@ func GetIpCountry(ip string) string {
 	return ""
 }
 
-
+func PrintServerStart() {
+	host := settings.GlobalConfig.Host
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	port := settings.GlobalConfig.Port
+	if port == "" {
+		settings.GlobalConfig.Port="9313"
+		port = "9313"
+	}
+	fmt.Printf(logger.Yellow, logger.Ascii7)
+	fmt.Printf(logger.Blue, "-------⚡🚀 http://"+host+":"+port+" 🚀⚡-------")
+}
 
 

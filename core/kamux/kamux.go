@@ -9,6 +9,7 @@ import (
 
 	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/settings"
+	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 	"golang.org/x/net/websocket"
 )
@@ -61,22 +62,18 @@ func New(envFiles ...string) *Router {
 			c.Status(404).Text("Page Not Found")
 		},
 	}
-	wg.Add(1)
-	// Load Env
-	go func(envFiles ...string) {
-		if len(envFiles) > 0 {
-			app.LoadEnv(envFiles...)
-		} else {
-			if _, err := os.Stat(".env"); os.IsNotExist(err) {
-				if os.Getenv("DB_NAME") == "" && os.Getenv("DB_DSN") == "" {
-					logger.Warn("Environment variables not loaded, you can copy it from generated assets folder and rename it to .env, or set them manualy")
-				}
-			} else {
-				app.LoadEnv(".env")
+	
+	if len(envFiles) > 0 {
+		app.LoadEnv(envFiles...)
+	} else {
+		if _, err := os.Stat(".env"); os.IsNotExist(err) {
+			if os.Getenv("DB_NAME") == "" && os.Getenv("DB_DSN") == "" {
+				logger.Warn("Environment variables not loaded, you can copy it from generated assets folder and rename it to .env, or set them manualy")
 			}
+		} else {
+			app.LoadEnv(".env")
 		}
-		wg.Done()
-	}(envFiles...)
+	}
 	
 	// check flags
 	wg.Add(1)
@@ -93,7 +90,6 @@ func New(envFiles ...string) *Router {
 		settings.GlobalConfig.Monitoring=*monitoring
 		settings.GlobalConfig.Docs=*docs
 		settings.GlobalConfig.Profiler=*profiler
-
 		if *p != "9313" {
 			settings.GlobalConfig.Port=*p
 		}
@@ -132,6 +128,7 @@ func New(envFiles ...string) *Router {
 		wg.Done()
 	}()
 	wg.Wait()
+	utils.PrintServerStart()
 	return app
 }
 
@@ -190,7 +187,7 @@ func (router *Router) WS(pattern string, wsHandler WsHandler, allowed_origines .
 	router.handle(WS,pattern,nil,wsHandler,allowed_origines)
 }
 
-// Delete handle DELETE to a route
+// SSE handle SSE to a route
 func (router *Router) SSE(pattern string, handler Handler, allowed_origines ...string) {
 	router.handle(SSE,pattern,handler,nil,allowed_origines)
 }
