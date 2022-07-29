@@ -25,7 +25,7 @@
 	
 </div>
 
-
+---
 
 # KaGo Web Framework 
 <br>
@@ -57,7 +57,7 @@ Many features will be added in the future, like:
 
 Join our  [discussions here](https://github.com/kamalshkeir/kago/discussions/1)
 
-<hr>
+---
 ## Installation
 
 To install it, you need to Go installed and set your Go workspace first.
@@ -73,7 +73,7 @@ $ go get github.com/kamalshkeir/kago
 ```go
 import "github.com/kamalshkeir/kago"
 ```
-<hr>
+---
 ## Quick start
 
 make sure you have git installed
@@ -111,7 +111,7 @@ go run main.go -h 0.0.0.0 -p 3333
 ```
 ###### will run on http://[privateIP]:3333 
 
-<hr>
+---
 ## Generated Admin Dashboard
 ##### an easy way to create your own theme, is to modify files inside assets , upload the assets folder into a repo and set these 2 values:
 ```shell
@@ -167,7 +167,7 @@ middlewares.GZIP = func(handler http.Handler) http.Handler { // Handler
 		...
 }
 ```
-<hr>
+---
 ## Routing
 ### Using GET, POST, PUT, PATCH, DELETE
 
@@ -282,7 +282,7 @@ func main() {
 	app.Run()
 }
 ```
-<hr>
+---
 ## Parameters (path + query)
 
 ```go
@@ -489,7 +489,7 @@ var functions = template.FuncMap{
 }
 
 ```
-<hr>
+---
 ## Add Custom Static And Templates Folders
 ##### you can build all your static and templates files into the binary by simply embeding folder using app.Embed
 
@@ -500,7 +500,7 @@ app.ServeEmbededDir(pathLocalDir string, embeded embed.FS, webPath string)
 app.AddLocalTemplates(pathToDir string) error
 app.AddEmbededTemplates(template_embed embed.FS,rootDir string) error
 ```
-<hr>
+---
 ## Middlewares
 
 #### Global server middlewares
@@ -580,7 +580,7 @@ r.GET("/admin", middlewares.Admin(IndexView)) // will check from session cookie 
 r.GET("/admin/login",middlewares.Auth(LoginView)) // will get session from cookies decrypt it and validate it
 r.GET("/test",middlewares.BasicAuth(LoginView,"username","password"))
 ```
-<hr>
+---
 # ORM
 ###### i waited go1.18 and generics to make this package orm to keep performance at it's best with convenient way to query your data, even from multiple databases
 ## queries are cached using powerfull eventbus style that empty cache when changes in database may corrupt your data, so use it until you have a problem with it
@@ -770,7 +770,7 @@ orm.Table("users").Where("id = ?",1).Set("email = ?","new@example.com")
 
 ```
 
-<hr>
+---
 
 # SHELL
 ##### Very useful shell to explore, no need to install extra dependecies or binary, you can run:
@@ -819,7 +819,7 @@ createuser, getall, get, drop, delete, clear/cls, q/quit/exit, help/commands]
   'clear/cls':
 	  clear console
 ```
-<hr>
+---
 ## Env Loader
 #### this minimalistic package is one of my favorite, you basicaly need to Load env variables from file and to fill a struct Config with these values
 #### First you may need to env vars from file and set them using : ``` envloader.Load(...files)```
@@ -895,7 +895,7 @@ type Config struct {
 	SmtpPort       string `env:"SMTP_PORT"`
 }
 ```
-<hr>
+---
 
 ## OpenApi documentation ready if enabled using flags or settings vars
 ```bash
@@ -952,7 +952,7 @@ doc.AddPath("/admin/login","post",docs.Path{
 })
 doc.Save()
 ```
-<hr>
+---
 
 ## Encryption
 ```go
@@ -960,7 +960,7 @@ doc.Save()
 encryptor.Encrypt(data string) (string,error)
 encryptor.Decrypt(data string) (string,error)
 ```
-<hr>
+---
 
 ## Hashing
 ```go
@@ -969,7 +969,7 @@ hash.GenerateHash(password string) (string, error)
 hash.ComparePasswordToHash(password, hash string) (bool, error)
 ```
 
-<hr>
+---
 
 ## Eventbus Internal
 ```go
@@ -984,7 +984,7 @@ eventbus.Publish("any_topic", map[string]string{
 })
 ```
 
-<hr>
+---
 
 ## LOGS
 ```bash
@@ -993,7 +993,7 @@ go run main.go --logs
 will enable:
 	- /logs
 ```
-<hr>
+---
 
 ## PPROF official golang profiling tools
 ```bash
@@ -1005,7 +1005,7 @@ will enable:
 	- /debug/pprof/trace
 ```
 
-<hr>
+---
 
 ## Prometheus monitoring
 ```bash
@@ -1015,7 +1015,7 @@ will enable:
 	- /metrics
 ```
 
-<hr>
+---
 
 ## Build single binary with all static and html files
 ```bash
@@ -1045,7 +1045,7 @@ func main() {
 go build
 ```
 
-<hr>
+---
 
 ## Some Benchmarks
 ```shell
@@ -1095,13 +1095,14 @@ BenchmarkGetAllTables-4         52592826                20.39 ns/op            0
 BenchmarkGetAllColumns-4        64293176                20.87 ns/op            0 B/op          0 allocs/op
 
 ```
-<hr>
+---
 
 ## 🔗 Links
 [![portfolio](https://img.shields.io/badge/my_portfolio-000?style=for-the-badge&logo=ko-fi&logoColor=white)](https://kamalshkeir.github.io/)
 [![linkedin](https://img.shields.io/badge/linkedin-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/kamal-shkeir/)
 
-<hr>
+
+---
 
 # Licence
 Licence [BSD-3](./LICENSE)
