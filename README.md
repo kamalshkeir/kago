@@ -57,7 +57,7 @@ Many features will be added in the future, like:
 
 Join our  [discussions here](https://github.com/kamalshkeir/kago/discussions/1)
 
-
+<hr>
 ## Installation
 
 To install it, you need to Go installed and set your Go workspace first.
@@ -73,7 +73,7 @@ $ go get github.com/kamalshkeir/kago
 ```go
 import "github.com/kamalshkeir/kago"
 ```
-
+<hr>
 ## Quick start
 
 make sure you have git installed
@@ -111,7 +111,7 @@ go run main.go -h 0.0.0.0 -p 3333
 ```
 ###### will run on http://[privateIP]:3333 
 
-
+<hr>
 ## Generated Admin Dashboard
 ##### an easy way to create your own theme, is to modify files inside assets , upload the assets folder into a repo and set these 2 values:
 ```shell
@@ -167,7 +167,7 @@ middlewares.GZIP = func(handler http.Handler) http.Handler { // Handler
 		...
 }
 ```
-
+<hr>
 ## Routing
 ### Using GET, POST, PUT, PATCH, DELETE
 
@@ -282,7 +282,7 @@ func main() {
 	app.Run()
 }
 ```
-
+<hr>
 ## Parameters (path + query)
 
 ```go
@@ -489,7 +489,7 @@ var functions = template.FuncMap{
 }
 
 ```
-
+<hr>
 ## Add Custom Static And Templates Folders
 ##### you can build all your static and templates files into the binary by simply embeding folder using app.Embed
 
@@ -500,7 +500,7 @@ app.ServeEmbededDir(pathLocalDir string, embeded embed.FS, webPath string)
 app.AddLocalTemplates(pathToDir string) error
 app.AddEmbededTemplates(template_embed embed.FS,rootDir string) error
 ```
-
+<hr>
 ## Middlewares
 
 #### Global server middlewares
@@ -580,7 +580,7 @@ r.GET("/admin", middlewares.Admin(IndexView)) // will check from session cookie 
 r.GET("/admin/login",middlewares.Auth(LoginView)) // will get session from cookies decrypt it and validate it
 r.GET("/test",middlewares.BasicAuth(LoginView,"username","password"))
 ```
-
+<hr>
 # ORM
 ###### i waited go1.18 and generics to make this package orm to keep performance at it's best with convenient way to query your data, even from multiple databases
 ## queries are cached using powerfull eventbus style that empty cache when changes in database may corrupt your data, so use it until you have a problem with it
@@ -770,7 +770,7 @@ orm.Table("users").Where("id = ?",1).Set("email = ?","new@example.com")
 
 ```
 
-
+<hr>
 
 # SHELL
 ##### Very useful shell to explore, no need to install extra dependecies or binary, you can run:
@@ -819,56 +819,83 @@ createuser, getall, get, drop, delete, clear/cls, q/quit/exit, help/commands]
   'clear/cls':
 	  clear console
 ```
-
-## Database Benchmarks
-```shell
-////////////////////////////////////// postgres without cache
-BenchmarkGetAllS-4                  1472            723428 ns/op            5271 B/op         80 allocs/op
-BenchmarkGetAllM-4                  1502            716418 ns/op            4912 B/op         85 allocs/op
-BenchmarkGetRowS-4                   826           1474674 ns/op            2288 B/op         44 allocs/op
-BenchmarkGetRowM-4                   848           1392919 ns/op            2216 B/op         44 allocs/op
-BenchmarkGetAllTables-4             1176            940142 ns/op             592 B/op         20 allocs/op
-BenchmarkGetAllColumns-4             417           2862546 ns/op            1456 B/op         46 allocs/op
-////////////////////////////////////// postgres with cache
-BenchmarkGetAllS-4               2825896               427.9 ns/op           208 B/op          2 allocs/op
-BenchmarkGetAllM-4               6209617               188.9 ns/op            16 B/op          1 allocs/op
-BenchmarkGetRowS-4               2191544               528.1 ns/op           240 B/op          4 allocs/op
-BenchmarkGetRowM-4               3799377               305.5 ns/op            48 B/op          3 allocs/op
-BenchmarkGetAllTables-4         76298504                21.41 ns/op            0 B/op          0 allocs/op
-BenchmarkGetAllColumns-4        59004012                19.92 ns/op            0 B/op          0 allocs/op
-///////////////////////////////////// mysql without cache
-BenchmarkGetAllS-4                  1221            865469 ns/op            7152 B/op        162 allocs/op
-BenchmarkGetAllM-4                  1484            843395 ns/op            8272 B/op        215 allocs/op
-BenchmarkGetRowS-4                   427           3539007 ns/op            2368 B/op         48 allocs/op
-BenchmarkGetRowM-4                   267           4481279 ns/op            2512 B/op         54 allocs/op
-BenchmarkGetAllTables-4              771           1700035 ns/op             832 B/op         26 allocs/op
-BenchmarkGetAllColumns-4             760           1537301 ns/op            1392 B/op         44 allocs/op
-///////////////////////////////////// mysql with cache
-BenchmarkGetAllS-4               2933072               414.5 ns/op           208 B/op          2 allocs/op
-BenchmarkGetAllM-4               6704588               180.4 ns/op            16 B/op          1 allocs/op
-BenchmarkGetRowS-4               2136634               545.4 ns/op           240 B/op          4 allocs/op
-BenchmarkGetRowM-4               4111814               292.6 ns/op            48 B/op          3 allocs/op
-BenchmarkGetAllTables-4         58835394                21.52 ns/op            0 B/op          0 allocs/op
-BenchmarkGetAllColumns-4        59059225                19.99 ns/op            0 B/op          0 allocs/op
-///////////////////////////////////// sqlite without cache
-BenchmarkGetAllS-4                 13664             85506 ns/op            2056 B/op         62 allocs/op
-BenchmarkGetAllS_GORM-4            10000            101665 ns/op            9547 B/op        155 allocs/op
-BenchmarkGetAllM-4                 13747             83989 ns/op            1912 B/op         61 allocs/op
-BenchmarkGetAllM_GORM-4            10000            107810 ns/op            8387 B/op        237 allocs/op
-BenchmarkGetRowS-4                 12702             91958 ns/op            2192 B/op         67 allocs/op
-BenchmarkGetRowM-4                 13256             89095 ns/op            2048 B/op         66 allocs/op
-BenchmarkGetAllTables-4            14264             83939 ns/op             672 B/op         32 allocs/op
-BenchmarkGetAllColumns-4           15236             79498 ns/op            1760 B/op         99 allocs/op
-///////////////////////////////////// sqlite with cache
-BenchmarkGetAllS-4               2951642               399.5 ns/op           208 B/op          2 allocs/op
-BenchmarkGetAllM-4               6537204               177.2 ns/op            16 B/op          1 allocs/op
-BenchmarkGetRowS-4               2248524               531.4 ns/op           240 B/op          4 allocs/op
-BenchmarkGetRowM-4               4084453               287.9 ns/op            48 B/op          3 allocs/op
-BenchmarkGetAllTables-4         52592826                20.39 ns/op            0 B/op          0 allocs/op
-BenchmarkGetAllColumns-4        64293176                20.87 ns/op            0 B/op          0 allocs/op
-
+<hr>
+## Env Loader
+#### this minimalistic package is one of my favorite, you basicaly need to Load env variables from file and to fill a struct Config with these values
+#### First you may need to env vars from file and set them using : ``` envloader.Load(...files)```
+###### here is how tediously i was loading env variables:
+## Before:
+```go
+//  
+func (router *Router) LoadEnv(files ...string) {
+	m,err := envloader.LoadToMap(files...)
+	if err != nil {
+		return
+	}
+	for k,v := range m {
+		switch k {
+		case "SECRET":
+			settings.Secret=v
+		case "EMBED_STATIC":
+			if b,err := strconv.ParseBool(v);!logger.CheckError(err) {
+				settings.GlobalConfig.EmbedStatic=b
+			}
+		case "EMBED_TEMPLATES":
+			if b,err := strconv.ParseBool(v);!logger.CheckError(err) {
+				settings.GlobalConfig.EmbedTemplates=b
+			}
+		case "DB_TYPE":
+			if v == "" {v="sqlite"}
+			settings.GlobalConfig.DbType=v
+		case "DB_DSN":
+			if v == "" {v="db.sqlite"}
+			settings.GlobalConfig.DbDSN=v
+		case "DB_NAME":
+			if v == "" {
+				logger.Error("DB_NAME from env file cannot be empty")
+				os.Exit(1)
+			}
+			settings.GlobalConfig.DbName=v
+		case "SMTP_EMAIL":
+			settings.GlobalConfig.SmtpEmail=v
+		case "SMTP_PASS":
+			settings.GlobalConfig.SmtpPass=v
+		case "SMTP_HOST":
+			settings.GlobalConfig.SmtpHost=v
+		case "SMTP_PORT":
+			settings.GlobalConfig.SmtpPort=v
+		}
+	}
+}
+```
+## After:
+```go
+envloader.Load(".env") // load env files and add to env vars
+// the command:
+err := envloader.FillStruct(&Config) // fill struct with env vars
 ```
 
+## Struct to fill
+```go
+type Config struct {
+	Host           string `env:"HOST|localhost"`
+	Port           string `env:"PORT|9313"`
+	Profiler       bool   `env:"PROFILER|false"`
+	Docs           bool   `env:"DOCS|false"`
+	Logs           bool   `env:"LOGS|false"`
+	Monitoring     bool   `env:"MONITORING|false"`
+	EmbedStatic    bool   `env:"EMBED_STATIC|false"`
+	EmbedTemplates bool   `env:"EMBED_TEMPLATES|false"`
+	DbType         string `env:"DB_TYPE|sqlite"`
+	DbDSN          string `env:"DB_DSN"`
+	DbName         string `env:"DB_NAME|db"`
+	SmtpEmail      string `env:"SMTP_EMAIL"`
+	SmtpPass       string `env:"SMTP_PASS"`
+	SmtpHost       string `env:"SMTP_HOST"`
+	SmtpPort       string `env:"SMTP_PORT"`
+}
+```
+<hr>
 
 ## OpenApi documentation ready if enabled using flags or settings vars
 ```bash
@@ -925,6 +952,7 @@ doc.AddPath("/admin/login","post",docs.Path{
 })
 doc.Save()
 ```
+<hr>
 
 ## Encryption
 ```go
@@ -932,6 +960,7 @@ doc.Save()
 encryptor.Encrypt(data string) (string,error)
 encryptor.Decrypt(data string) (string,error)
 ```
+<hr>
 
 ## Hashing
 ```go
@@ -940,11 +969,7 @@ hash.GenerateHash(password string) (string, error)
 hash.ComparePasswordToHash(password, hash string) (bool, error)
 ```
 
-## Env Loader
-```go
-envloader.Load(files ...string) error
-envloader.LoadToMap(files ...string) (map[string]string,error)
-```
+<hr>
 
 ## Eventbus Internal
 ```go
@@ -959,6 +984,8 @@ eventbus.Publish("any_topic", map[string]string{
 })
 ```
 
+<hr>
+
 ## LOGS
 ```bash
 go run main.go --logs
@@ -966,6 +993,7 @@ go run main.go --logs
 will enable:
 	- /logs
 ```
+<hr>
 
 ## PPROF official golang profiling tools
 ```bash
@@ -977,6 +1005,8 @@ will enable:
 	- /debug/pprof/trace
 ```
 
+<hr>
+
 ## Prometheus monitoring
 ```bash
 go run main.go --monitoring
@@ -984,6 +1014,8 @@ go run main.go --monitoring
 will enable:
 	- /metrics
 ```
+
+<hr>
 
 ## Build single binary with all static and html files
 ```bash
@@ -1013,11 +1045,63 @@ func main() {
 go build
 ```
 
+<hr>
+
+## Some Benchmarks
+```shell
+////////////////////////////////////// postgres without cache
+BenchmarkGetAllS-4                  1472            723428 ns/op            5271 B/op         80 allocs/op
+BenchmarkGetAllM-4                  1502            716418 ns/op            4912 B/op         85 allocs/op
+BenchmarkGetRowS-4                   826           1474674 ns/op            2288 B/op         44 allocs/op
+BenchmarkGetRowM-4                   848           1392919 ns/op            2216 B/op         44 allocs/op
+BenchmarkGetAllTables-4             1176            940142 ns/op             592 B/op         20 allocs/op
+BenchmarkGetAllColumns-4             417           2862546 ns/op            1456 B/op         46 allocs/op
+////////////////////////////////////// postgres with cache
+BenchmarkGetAllS-4               2825896               427.9 ns/op           208 B/op          2 allocs/op
+BenchmarkGetAllM-4               6209617               188.9 ns/op            16 B/op          1 allocs/op
+BenchmarkGetRowS-4               2191544               528.1 ns/op           240 B/op          4 allocs/op
+BenchmarkGetRowM-4               3799377               305.5 ns/op            48 B/op          3 allocs/op
+BenchmarkGetAllTables-4         76298504                21.41 ns/op            0 B/op          0 allocs/op
+BenchmarkGetAllColumns-4        59004012                19.92 ns/op            0 B/op          0 allocs/op
+///////////////////////////////////// mysql without cache
+BenchmarkGetAllS-4                  1221            865469 ns/op            7152 B/op        162 allocs/op
+BenchmarkGetAllM-4                  1484            843395 ns/op            8272 B/op        215 allocs/op
+BenchmarkGetRowS-4                   427           3539007 ns/op            2368 B/op         48 allocs/op
+BenchmarkGetRowM-4                   267           4481279 ns/op            2512 B/op         54 allocs/op
+BenchmarkGetAllTables-4              771           1700035 ns/op             832 B/op         26 allocs/op
+BenchmarkGetAllColumns-4             760           1537301 ns/op            1392 B/op         44 allocs/op
+///////////////////////////////////// mysql with cache
+BenchmarkGetAllS-4               2933072               414.5 ns/op           208 B/op          2 allocs/op
+BenchmarkGetAllM-4               6704588               180.4 ns/op            16 B/op          1 allocs/op
+BenchmarkGetRowS-4               2136634               545.4 ns/op           240 B/op          4 allocs/op
+BenchmarkGetRowM-4               4111814               292.6 ns/op            48 B/op          3 allocs/op
+BenchmarkGetAllTables-4         58835394                21.52 ns/op            0 B/op          0 allocs/op
+BenchmarkGetAllColumns-4        59059225                19.99 ns/op            0 B/op          0 allocs/op
+///////////////////////////////////// sqlite without cache
+BenchmarkGetAllS-4                 13664             85506 ns/op            2056 B/op         62 allocs/op
+BenchmarkGetAllS_GORM-4            10000            101665 ns/op            9547 B/op        155 allocs/op
+BenchmarkGetAllM-4                 13747             83989 ns/op            1912 B/op         61 allocs/op
+BenchmarkGetAllM_GORM-4            10000            107810 ns/op            8387 B/op        237 allocs/op
+BenchmarkGetRowS-4                 12702             91958 ns/op            2192 B/op         67 allocs/op
+BenchmarkGetRowM-4                 13256             89095 ns/op            2048 B/op         66 allocs/op
+BenchmarkGetAllTables-4            14264             83939 ns/op             672 B/op         32 allocs/op
+BenchmarkGetAllColumns-4           15236             79498 ns/op            1760 B/op         99 allocs/op
+///////////////////////////////////// sqlite with cache
+BenchmarkGetAllS-4               2951642               399.5 ns/op           208 B/op          2 allocs/op
+BenchmarkGetAllM-4               6537204               177.2 ns/op            16 B/op          1 allocs/op
+BenchmarkGetRowS-4               2248524               531.4 ns/op           240 B/op          4 allocs/op
+BenchmarkGetRowM-4               4084453               287.9 ns/op            48 B/op          3 allocs/op
+BenchmarkGetAllTables-4         52592826                20.39 ns/op            0 B/op          0 allocs/op
+BenchmarkGetAllColumns-4        64293176                20.87 ns/op            0 B/op          0 allocs/op
+
+```
+<hr>
 
 ## 🔗 Links
 [![portfolio](https://img.shields.io/badge/my_portfolio-000?style=for-the-badge&logo=ko-fi&logoColor=white)](https://kamalshkeir.github.io/)
 [![linkedin](https://img.shields.io/badge/linkedin-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/kamal-shkeir/)
 
+<hr>
 
 # Licence
 Licence [BSD-3](./LICENSE)
