@@ -609,19 +609,21 @@ orm.CreateUser(email,password string,isAdmin int, dbName ...string) error // pas
 ##### using the shell, you can migrate a .sql file 'go run main.go shell'
 ##### OR
 ##### you can migrate from a struct
-```go
-// execute AutoMigrate to migrate only, not if the table already exist in db, in this case you need only to link your model to the table using : orm.LinkModel
-orm.AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error // debug will print the query statement
+##### on compilation time all models registered using AutoMigrate will be synchronized with the database so if you add a field to you struct or add a column to your table, you will have a prompt proposing solutions
+##### execute AutoMigrate and don't think about it, it will handle all synchronisations between your project structs types like 'Bookmark' below
 
-// if table already exist you can use LinkModel[T comparable](to_table_name string, dbNames ...string)
-orm.LinkModel[models.User]("users") // if dbName empty , use default .env db
+## For the BONUS part: notice that if you add a struct field with tags, tags are handled too, so you can add foreign keys, remove foreign keys, all from your struct, the result will be mirrored in the database after your confirmation
+###### if you need to change a tag, remove the field and put new one with the new tag ;) 
+```go
+
+orm.AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error // debug (optional) will print the query statement
 
 //Example:
 type Bookmark struct {
 	Id      uint   `orm:"autoinc"`
 	UserId  int    `orm:"fk:users.id:cascade"` // options on delete: cascade, donothing, noaction
 	IsUsed	bool
-	ToCheck string `orm:"size:50; notnull; unique; check:len(to_check) > 10"`  // column type will be VARCHAR(50)
+	ToCheck string `orm:"size:50; notnull; check:len(to_check) > 10"`  // column type will be VARCHAR(50)
 	Content string `orm:"text"` // column type will be TEXT
 	CreatedAt time.Time `orm:"now"` // now is default to current timestamp
 }
@@ -676,9 +678,6 @@ orm.One() (T, error) // finisher
 ```
 #### Examples
 ```go
-// if a model struct exist already in the database but not linked, you can't migrate it again, so you can link it using:
-orm.LinkModel[models.User]("users")
-
 // then you can query your data as models.User data
 // you have 2 finisher : All and One
 

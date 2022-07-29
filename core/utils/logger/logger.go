@@ -51,9 +51,35 @@ func Printf(pattern string,anything ...interface{}) {
 			colorCode=34
 	}
 	if colorUsed {
-		pattern =  fmt.Sprintf("\033[1;%dm %s[line:%d]: %s \033[0m \n",colorCode,runtime.FuncForPC(pc).Name(),line,pattern[2:])
+		pattern =  fmt.Sprintf("\033[1;%dm%s[line:%d]: %s \033[0m \n",colorCode,runtime.FuncForPC(pc).Name(),line,pattern[2:])
 	} else {
-		pattern =  fmt.Sprintf("\033[1;%dm %s[line:%d]: %s \033[0m \n",colorCode,runtime.FuncForPC(pc).Name(),line,pattern)
+		pattern =  fmt.Sprintf("\033[1;%dm%s[line:%d]: %s \033[0m \n",colorCode,runtime.FuncForPC(pc).Name(),line,pattern)
+	}
+	fmt.Printf(pattern,anything...)
+}
+
+func Printfs(pattern string,anything ...interface{}) {
+	var colorCode int
+	var colorUsed = true
+	switch pattern[:2] {
+		case "rd":
+			colorCode=31
+		case "gr":
+			colorCode=32
+		case "yl":
+			colorCode=33
+		case "bl":
+			colorCode=34
+		case "mg":
+			colorCode=35
+		default:
+			colorUsed = false
+			colorCode=34
+	}
+	if colorUsed {
+		pattern =  fmt.Sprintf("\033[1;%dm%s \033[0m \n",colorCode,pattern[2:])
+	} else {
+		pattern =  fmt.Sprintf("\033[1;%dm%s \033[0m \n",colorCode,pattern)
 	}
 	fmt.Printf(pattern,anything...)
 }

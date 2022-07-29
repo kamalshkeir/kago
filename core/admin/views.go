@@ -180,8 +180,8 @@ var DeleteRowPost = func(c *kamux.Context) {
 						_ = c.DeleteFile(vv)
 					} 
 				} else {
-					c.Status(http.StatusBadRequest).Json(map[string]any{
-						"error":"missing 'image' in request body",
+					c.Status(200).Json(map[string]any{
+						"message":"missing 'image' in request body",
 					})
 					return
 				}
@@ -343,7 +343,12 @@ var UpdateRowPost = func(c *kamux.Context) {
 		default:
 			if modelDB[key] != val[0] {
 				_,err := orm.Table(data["table"][0]).Where("id = ?",id).Set(key+" = ?",val[0])
-				logger.CheckError(err)
+				if err != nil {
+					c.Json(map[string]any{
+						"error":err.Error(),
+					})
+					return
+				}
 			}
 			c.Json(map[string]any{
 				"success": key + " Updated successfully !",

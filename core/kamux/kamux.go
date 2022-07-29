@@ -9,6 +9,7 @@ import (
 
 	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/settings"
+	"github.com/kamalshkeir/kago/core/shell"
 	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 	"golang.org/x/net/websocket"
@@ -128,6 +129,8 @@ func New(envFiles ...string) *Router {
 		wg.Done()
 	}()
 	wg.Wait()
+	// init orm shell
+	if shell.InitShell() {os.Exit(0)}
 	utils.PrintServerStart()
 	return app
 }

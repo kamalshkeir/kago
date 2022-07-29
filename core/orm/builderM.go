@@ -276,7 +276,6 @@ func (b *BuilderM) Insert(fields_comma_separated string, fields_values []any) (i
 		if con, ok := mDbNameConnection[b.database]; ok {
 			b.conn = con
 		} else {
-			
 			b.conn = databases[0].Conn
 		}
 	}	
@@ -399,7 +398,7 @@ func (b *BuilderM) Set(query string, args ...any) (int, error) {
 
 func (b *BuilderM) Delete() (int, error) {
 	if b.tableName == "" {
-		return 0, errors.New("unable to find model, try orm.LinkModel before")
+		return 0, errors.New("unable to find model, try orm.AutoMigrate before")
 	}
 	if b.database == ""  {
 		b.database=settings.GlobalConfig.DbName

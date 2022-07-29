@@ -26,7 +26,6 @@ var (
 	mDbNameConnection = map[string]*sql.DB{}
 	mDbNameDialect = map[string]string{}
 	mModelTablename = map[any]string{}
-	mModelDatabase = map[any]DatabaseEntity{}
 	mTablenameDatabasename = map[string][]string{}
 	cacheGetAllTables = safemap.New[string,[]string]()
 	cacheGetAllColumns = safemap.New[string,map[string]string]()
@@ -39,10 +38,21 @@ const (
 	CACHE_TOPIC = "internale-db-cache"
 )
 
+type TableEntity struct {
+	Name string
+	Pk string
+	Columns []string
+	Types map[string]string
+	ModelTypes map[string]string
+	Tags map[string][]string
+	Fkeys []string
+}
+
 type DatabaseEntity struct {
 	Name string
 	Conn *sql.DB
 	Dialect string
+	Tables []TableEntity
 }
 
 func InitDB() (error) {
@@ -85,6 +95,9 @@ func InitDB() (error) {
 	default:
 		dsn = settings.GlobalConfig.DbName+".sqlite"
 		if dsn == "" {dsn="db.sqlite"}
+	}
+	if settings.GlobalConfig.DbType == "sqlite" {
+		dsn+="?_pragma=foreign_keys(1)"
 	}
 	dbConn, err := sql.Open(settings.GlobalConfig.DbType, dsn)
 	if logger.CheckError(err) {
@@ -166,6 +179,9 @@ func NewDatabaseFromDSN(dbType,dbName string,dbDSN ...string) (error) {
 		dsn = dbName+".sqlite"
 		if dsn == "" {dsn="db.sqlite"}
 	}
+	if dbType == "sqlite" {
+		dsn+="?_pragma=foreign_keys(1)"
+	}
 	conn, err := sql.Open(dbType, dsn)
 	if logger.CheckError(err) {
 		return err
@@ -226,15 +242,18 @@ func NewDatabaseFromConnection(dbType,dbName string,conn *sql.DB) (error) {
 
 func GetConnection(dbName ...string) *sql.DB {
 	if len(dbName) > 0 {
+		if v,ok := mDbNameConnection[dbName[0]];ok {
+			return v
+		}
 		for _,db := range databases {
 			if db.Name == dbName[0] {
 				return db.Conn
 			}
 		}
-	}
-	db := settings.GlobalConfig.DbName
-	if v,ok := mDbNameConnection[db];ok {
-		return v
+	} else {
+		if v,ok := mDbNameConnection[settings.GlobalConfig.DbName];ok {
+			return v
+		}
 	}
 	return nil
 }
@@ -261,6 +280,29 @@ func UseForAdmin(dbName string) {
 
 func GetDatabases() []DatabaseEntity {
 	return databases
+}
+
+func GetDatabase(dbName string) (*DatabaseEntity,error) {
+	for i := range databases {
+		if databases[i].Name == dbName {
+			return &databases[i],nil
+		}
+	}
+	return &DatabaseEntity{},errors.New("database not found")
+}
+
+func GetDatabaseTableFromMemory(dbName,tableName string) (*TableEntity,error) {
+	for i := range databases {
+		db := &databases[i]
+		if db.Name == dbName {
+			for j := range db.Tables {
+				if db.Tables[j].Name == tableName {
+					return &db.Tables[j],nil
+				}
+			}
+		}
+	}
+	return &TableEntity{},errors.New("database or table not found")
 }
 
 func GetAllTables(dbName ...string) []string {

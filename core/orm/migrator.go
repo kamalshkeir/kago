@@ -2,14 +2,13 @@ package orm
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 	"time"
 
 	"github.com/kamalshkeir/kago/core/admin/models"
 	"github.com/kamalshkeir/kago/core/settings"
-	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
@@ -21,13 +20,8 @@ func Migrate() error {
 	return nil
 }
 
-func AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error {
-	var dialect string
-	if dia,ok := mDbNameDialect[dbName];ok {
-		dialect = dia
-	} else {
-		dialect = settings.GlobalConfig.DbType
-	}
+func autoMigrate[T comparable](db *DatabaseEntity, tableName string, debug ...bool) error {
+	dialect := db.Dialect
 	s := reflect.ValueOf(new(T)).Elem()
 	typeOfT := s.Type()
 	mFieldName_Type := map[string]string{}
@@ -39,7 +33,7 @@ func AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error {
 		fname := typeOfT.Field(i).Name
 		fname = ToSnakeCase(fname)
 		ftype := f.Type()
-		cols = append(cols, fname)
+		cols = append(cols,fname)
 		mFieldName_Type[fname] = ftype.Name()
 		if ftag, ok := typeOfT.Field(i).Tag.Lookup("orm"); ok {
 			tags := strings.Split(ftag, ";")
@@ -49,10 +43,8 @@ func AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error {
 			mFieldName_Tags[fname] =  tags
 		}
 	}
-
 	res := map[string]string{}
 	fkeys := []string{}
-	utils.ReverseSlice(cols)
 	for _, fName := range cols {
 		if ty, ok := mFieldName_Type[fName]; ok {
 			switch ty {
@@ -71,41 +63,111 @@ func AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error {
 			}
 		}
 	}
-
-	statement := prepareCreateStatement(tableName, res, fkeys, cols)
-	if len(debug) > 0 && debug[0] {
-		logger.Debug("statement:", statement)
+	statement := prepareCreateStatement(tableName, res, fkeys, cols,db)
+	tbFound := false
+	for _,t := range db.Tables {
+		if t.Name == tableName {
+			tbFound=true
+			if len(t.Columns) == 0 {t.Columns=cols}
+			if len(t.Fkeys) == 0 {t.Fkeys=fkeys}
+			if len(t.Tags) == 0 {t.Tags=mFieldName_Tags}
+			if len(t.Types) == 0 {t.Types=mFieldName_Type}
+		}
 	}
-	if conn, ok := mDbNameConnection[dbName]; ok {
-		c, cancel := context.WithTimeout(context.TODO(), 3*time.Second)
-		defer cancel()
-		res, err := conn.ExecContext(c, statement)
-		if err != nil {
-			logger.Info(statement)
-			return err
+	if !tbFound {
+		db.Tables = append(db.Tables, TableEntity{
+			Name: tableName,
+			Columns: cols,
+			Fkeys: fkeys,
+			Tags:mFieldName_Tags,
+			ModelTypes: mFieldName_Type,
+		})
+	}
+	if len(debug) > 0 && debug[0] {
+		fmt.Printf(logger.Blue,"statement: "+ statement)
+	}
+	
+	c, cancel := context.WithTimeout(context.TODO(), 5*time.Second)
+	defer cancel()
+	ress, err := db.Conn.ExecContext(c, statement)
+	if err != nil {
+		return err
+	}
+	_, err = ress.RowsAffected()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error {
+	db,err := GetDatabase(dbName)
+	if err != nil {
+		return err
+	}
+	mModelTablename[*new(T)] = tableName	
+	if dbs,ok := mTablenameDatabasename[tableName];ok {
+		found := false
+		for i := range dbs {
+			if dbs[i] == db.Name {
+				found = true
+			}
 		}
-		_, err = res.RowsAffected()
-		if err != nil {
-			return err
+		if !found {
+			mTablenameDatabasename[tableName]=append(mTablenameDatabasename[tableName], db.Name)
 		}
-		tables := GetAllTables(dbName)
-		if len(tables) > 0 {
-			for _, t := range tables {
-				if t == tableName {
-					LinkModel[T](tableName, dbName)
-				}
+	} else {
+		mTablenameDatabasename[tableName]=append([]string{}, db.Name)
+	}
+
+	tbFoundDB := false
+	tables := GetAllTables(db.Name)
+	for _, t := range tables {
+		if t == tableName {
+			tbFoundDB=true
+		}
+	}
+	
+	tbFoundLocal := false
+	if len(db.Tables) == 0 {
+		if tbFoundDB {
+			// found db not local
+			linkModel[T](tableName,db)
+			return nil
+		} else {
+			// not db and not local
+			err := autoMigrate[T](db,tableName,debug...)
+			if logger.CheckError(err) {
+				return err
 			}
 		}
 	} else {
-		logger.Info(mDbNameConnection)
-		return errors.New("no connection found for " + dbName)
-	}
+		// db have tables
+		for _,t := range db.Tables {
+			if t.Name == tableName {
+				tbFoundLocal=true
+			}
+		}
+	} 
+
+	
+	if !tbFoundLocal {
+		if tbFoundDB {
+			linkModel[T](tableName,db)
+			return nil
+		} else {
+			err := autoMigrate[T](db,tableName,debug...)
+			if logger.CheckError(err) {
+				return err
+			}
+		}
+	} 
 
 	return nil
 }
 
 func handleMigrationInt(dialect, fName, ty string, mFieldName_Tags *map[string][]string, fkeys *[]string, res *map[string]string) {
-	primary, autoinc, unique, notnull, defaultt, check := "", "", "", "", "", ""
+	primary,index, autoinc, notnull, defaultt, check := "", "", "", "", "", ""
 	tags := (*mFieldName_Tags)[fName]
 	for _, tag := range tags {
 		switch tag {
@@ -122,8 +184,6 @@ func handleMigrationInt(dialect, fName, ty string, mFieldName_Tags *map[string][
 			default:
 				logger.Error("dialect can be sqlite, postgres or mysql only, not ", dialect)
 			}
-		case "unique":
-			unique = " UNIQUE"
 		case "notnull":
 			notnull = "NOT NULL"
 		default:
@@ -178,12 +238,12 @@ func handleMigrationInt(dialect, fName, ty string, mFieldName_Tags *map[string][
 		if primary != "" {
 			(*res)[fName] += primary
 		} else {
-			if unique != "" {
-				(*res)[fName] += unique
-			}
 			if notnull != "" {
 				(*res)[fName] += notnull
 			}
+		}
+		if index != "" {
+			(*res)[fName] += index
 		}
 		if defaultt != "" {
 			(*res)[fName] += defaultt
@@ -196,7 +256,7 @@ func handleMigrationInt(dialect, fName, ty string, mFieldName_Tags *map[string][
 
 func handleMigrationBool(_, fName, ty string, mFieldName_Tags *map[string][]string, fkeys *[]string, res *map[string]string) {
 	defaultt := ""
-	(*res)[fName] = "INTEGER NOT NULL CHECK (" + fName + " IN (0, 1))"
+	(*res)[fName] = "INTEGER NOT NULL CHECK (" + fName + " IN (0, 1)) "
 	tags := (*mFieldName_Tags)[fName]
 	for _, tag := range tags {
 		if strings.Contains(tag, ":") {
@@ -490,8 +550,7 @@ func handleMigrationTime(dialect, fName, ty string, mFieldName_Tags *map[string]
 	}
 }
 
-func prepareCreateStatement(tbName string, fields map[string]string, fkeys, cols []string) string {
-	utils.ReverseSlice(cols)
+func prepareCreateStatement(tbName string, fields map[string]string, fkeys, cols []string,db *DatabaseEntity) string {
 	st := "CREATE TABLE IF NOT EXISTS "
 	st += tbName + " ("
 	for i, col := range cols {

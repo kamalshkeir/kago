@@ -10,7 +10,6 @@ import (
 
 	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/settings"
-	"github.com/kamalshkeir/kago/core/shell"
 	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 	"golang.org/x/net/websocket"
@@ -59,8 +58,6 @@ func (router *Router) UseMiddlewares(midws ...func(http.Handler) http.Handler) {
 
 // Run start the server
 func (router *Router) Run() {
-	// init orm shell
-	if shell.InitShell() {os.Exit(0)}
 	// init templates and assets
 	initTemplatesAndAssets(router)
 	// init server
@@ -78,8 +75,6 @@ func (router *Router) Run() {
 
 // RunTLS start the server TLS
 func (router *Router) RunTLS(certFile string,keyFile string) {
-	// init orm shell
-	if shell.InitShell() {os.Exit(0)}
 	// init templates and assets
 	initTemplatesAndAssets(router)
 	// init server

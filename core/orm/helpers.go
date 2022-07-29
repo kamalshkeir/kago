@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils"
+	"github.com/kamalshkeir/kago/core/utils/input"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
@@ -33,72 +33,231 @@ type dbCache struct {
 	args       string
 }
 
-// LinkModel link a struct model to a  db_table_name
-// Usage: orm.LinkModel[User]("users")
-func LinkModel[T comparable](to_table_name string, dbNames ...string) {
-	var dbName string
-	if len(dbNames) == 0 {
-		dbName = settings.GlobalConfig.DbName
-	} else {
-		dbName = dbNames[0]
-	}
-
-	fields, _, _, _ := getStructInfos(new(T))
-
-	var dialect string
-	conn := GetConnection(dbNames...)
-	if conn != nil {
-		if dialct, ok := mDbNameDialect[dbName]; ok {
-			dialect = dialct
-		} else {
-			logger.Error("unable to find dialect")
-			return
-		}
-	} else {
-		logger.Error("no connection found for db", dbName)
-		return
-	}
-
-	tables := GetAllTables(dbName)
-	found := false
-	for _, t := range tables {
-		if t == to_table_name {
-			found = true
-		}
-	}
-	if !found {
-		logger.Error("table", to_table_name, "not found in database", dbName)
-		return
-	}
-
+// linkModel link a struct model to a  db_table_name
+func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
+	fields, _, ftypes, ftags := getStructInfos(new(T))
 	// get columns from db
-	colsNameType := GetAllColumns(to_table_name,dbName)
+	colsNameType := GetAllColumns(to_table_name,db.Name)
 	names := []string{}
+	var pkTable string
 	for k := range colsNameType {
 		names = append(names, k)
 	}
+	tFound := false
+	for _,t := range db.Tables {
+		if t.Name == to_table_name {
+			tFound=true
+		}
+	}
+	fkkeys := []string{}
+	for col,tgs := range ftags {
+		for _,t := range tgs {
+			if t == "autoinc" {
+				pkTable=col
+			}
+		}	
+	}
 
 	// check if not the same list as struct fields
-	if !utils.IsSameSlice(names, fields) {
-		logger.Error("your model doesn't match with the table in the database, all struct fields names to snakeCase should match column name from the table")
-		logger.Info("struct fields:", fields)
-		logger.Info("db columns:", names)
-		return
-	}
-	mModelTablename[*new(T)] = to_table_name
-	mTablenameDatabasename[to_table_name]=append(mTablenameDatabasename[to_table_name], dbName)
-	dbEntity := DatabaseEntity{
-		Name:    dbName,
-		Conn:    conn,
-		Dialect: dialect,
-	}
+	diff := utils.Difference(fields,names)
+	if len(names) > len(fields) {
+		for _,d := range diff {
+			fmt.Println(" ")
+			logger.Printfs("/!\\ found extra column '%s' in the database table '%s'",d,to_table_name)
+			statement := "ALTER TABLE "+to_table_name+" DROP COLUMN "+d
+			choice := input.Input(input.Yellow,"> do you want to remove it ? (Y/n):")
+			if utils.SliceContains([]string{"yes","Y","y"},choice) {
+				if len(databases) > 1 {
+					ddb := input.Input(input.Blue,"> There are more than one database connected, database name:")
+					conn := GetConnection(ddb)
+					if conn != nil {
+						_,err := conn.Exec(statement)
+						if logger.CheckError(err) {
+							return 
+						}
+					}
+				} else {
+					conn := GetConnection()
+					if conn != nil {
+						_,err := conn.Exec(statement)
+						if logger.CheckError(err) {
+							return 
+						}
+						fmt.Printf(logger.Green,"Done, you may want to restart your server")
+					}
+				}
+			}
+		}
+	} else if len(names) < len(fields) {
+		for _,d := range diff {
+			fmt.Println(" ")
+			logger.Printfs("/!\\ column '%s' is missing from the database table '%s'",d,to_table_name)
+			choice,err := input.String(input.Yellow,"> do you want to add it ? (Y/n):")
+			logger.CheckError(err)
+			statement := "ALTER TABLE "+to_table_name+" ADD "+d+" "
+			if ty,ok := ftypes[d];ok {
+				ty = strings.ToLower(ty)
+				switch  {
+				case strings.Contains(ty,"str"):
+					res := map[string]string{}
+					fkeys := []string{}
+					handleMigrationString(db.Dialect,d,ty,&ftags,&fkeys,&res)
+					var s string
+					var fkey string
+					if v,ok := res[d];ok {
+						s=v
+					} else {
+						s="VARCHAR(255)"
+					}
+					for _,fk := range fkeys {
+						sp := strings.Split(fk," ")
+						fkey = strings.Join(sp[2:]," ") 
+					}				
+					if fkey != "" {
+						s += " "+fkey
+						fkkeys = append(fkkeys, d)
+					}
+					statement += s
+				case strings.Contains(ty,"bool"):
+					res := map[string]string{}
+					fkeys := []string{}
+					handleMigrationBool(db.Dialect,d,ty,&ftags,&fkeys,&res)
+					var s string
+					var fkey string
+					if v,ok := res[d];ok {
+						s=v
+					} else {
+						s="INTEGER NOT NULL CHECK (" + d + " IN (0, 1)) DEFAULT 0"
+					}
+					for _,fk := range fkeys {
+						sp := strings.Split(fk," ")
+						fkey = strings.Join(sp[2:]," ") 
+					}
+					if fkey != "" {
+						s += " "+fkey
+						fkkeys = append(fkkeys, d)
+					}
+					statement += s
+				case strings.Contains(ty,"int"):
+					res := map[string]string{}
+					fkeys := []string{}
+					handleMigrationInt(db.Dialect,d,ty,&ftags,&fkeys,&res)
+					var s string
+					var fkey string
+					if v,ok := res[d];ok {
+						s=v
+					} else {
+						s="INTEGER"
+					}
+					for _,fk := range fkeys {
+						sp := strings.Split(fk," ")
+						fkey = strings.Join(sp[2:]," ") 
+					}
+					if fkey != "" {
+						s += " "+fkey
+						fkkeys = append(fkkeys, d)
+					}
+					statement += s
+				case strings.Contains(ty,"floa"):
+					res := map[string]string{}
+					fkeys := []string{}
+					handleMigrationFloat(db.Dialect,d,ty,&ftags,&fkeys,&res)
+					var s string
+					var fkey string
+					if v,ok := res[d];ok {
+						s=v
+					} else {
+						s="DECIMAL(5,2)"
+					}
+					for _,fk := range fkeys {
+						sp := strings.Split(fk," ")
+						fkey = strings.Join(sp[2:]," ") 
+					}
+					if fkey != "" {
+						s += " "+fkey
+						fkkeys = append(fkkeys, d)
+					}
+					statement += s
+				case strings.Contains(ty,"time"):
+					res := map[string]string{}
+					fkeys := []string{}
+					handleMigrationTime(db.Dialect,d,ty,&ftags,&fkeys,&res)
+					var s string
+					var fkey string
+					if v,ok := res[d];ok {
+						s=v
+					} else {
+						if strings.Contains(db.Dialect,"sqlite") {
+							s="TEXT"
+						}  else {
+							s="TIMESTAMP"
+						}
+					}
+					s = strings.ToLower(s)
+					if strings.Contains(s,"default") {
+						sp := strings.Split(s," ")
+						s = strings.Join(sp[:len(sp)-2]," ")
+					}
+					if strings.Contains(s,"not null") {
+						s = strings.ReplaceAll(s,"not null","")
+					}
+					for _,fk := range fkeys {
+						sp := strings.Split(fk," ")
+						fkey = strings.Join(sp[2:]," ") 
+					}
+					if fkey != "" {
+						s += " "+fkey
+						fkkeys = append(fkkeys, d)
+					}
+					statement += s
+				default:
+					logger.Info("case not handled:",ty)
+					return
+				}
 
-	if v, ok := mModelDatabase[*new(T)]; ok {
-		v.Conn = conn
-		v.Dialect = dialect
-		v.Name = dbName
-	} else {
-		mModelDatabase[*new(T)] = dbEntity
+				if utils.SliceContains([]string{"yes","Y","y"},choice) {
+					if len(databases) > 1 {
+						ddb := input.Input(input.Blue,"> There are more than one database connected, database name:")
+						conn := GetConnection(ddb)
+						if conn != nil {
+							_,err := conn.Exec(statement)
+							if logger.CheckError(err) {
+								return 
+							}
+							logger.Printfs("Done, you may want to restart your server")
+						}
+					} else {
+						conn := GetConnection()
+						if conn != nil {
+							_,err := conn.Exec(statement)
+							if logger.CheckError(err) {
+								logger.Info(statement)
+								return 
+							}
+							logger.Printfs("Done, you may want to restart your server")
+						}
+					}
+				} else {
+					logger.Info("Nothing changed")
+				}
+			} else {
+				logger.Info("case not handled:",ty,ftypes[d])
+			}
+		}
+	} 
+	
+	
+	// set maps
+	if !tFound {
+		db.Tables=append(db.Tables, TableEntity{
+			Name: to_table_name,
+			Columns: names,
+			ModelTypes: ftypes,
+			Types: colsNameType,
+			Tags: ftags,
+			Fkeys: fkkeys,
+			Pk: pkTable,
+		})
 	}
 }
 
@@ -223,7 +382,7 @@ func fillStruct[T comparable](struct_to_fill *T, values_to_fill ...any) {
 			}
 		case reflect.Bool:
 			//logger.Info("Bool", tt.Field(i).Name, ":", valueToSet.Interface(), fmt.Sprintf("%T", valueToSet.Interface()))
-			switch reflect.ValueOf(values_to_fill[i]).Kind() {
+			switch valueToSet.Kind() {
 			case reflect.Int:
 				if values_to_fill[i] == 1 {
 					field.SetBool(true)
@@ -278,29 +437,34 @@ func fillStruct[T comparable](struct_to_fill *T, values_to_fill ...any) {
 		case reflect.SliceOf(reflect.TypeOf("")).Kind():
 			field.SetString(strings.Join(valueToSet.Interface().([]string), ","))
 		case reflect.Struct:
-			switch v := valueToSet.Interface().(type) {
-			case string:
-				l := len("2006-01-02T15:04")
-				if strings.Contains(v[:l], "T") {
-					if len(v) >= l {
-						t, err := time.Parse("2006-01-02T15:04", v[:l])
-						if !logger.CheckError(err) {
-							field.Set(reflect.ValueOf(t))
+			if valueToSet.IsValid() {
+				switch v := valueToSet.Interface().(type) {
+				case string:
+					if utils.StringContains(v,":","-") {
+						l := len("2006-01-02T15:04")
+						if strings.Contains(v[:l], "T") {
+							if len(v) >= l {
+								t, err := time.Parse("2006-01-02T15:04", v[:l])
+								if !logger.CheckError(err) {
+									field.Set(reflect.ValueOf(t))
+								}
+							}
+						} else if len(v) >= len("2006-01-02 15:04:05") {
+							t, err := time.Parse("2006-01-02 15:04:05", v[:len("2006-01-02 15:04:05")])
+							if !logger.CheckError(err) {
+								field.Set(reflect.ValueOf(t))
+							}
+						} else {
+							logger.Info("doesn't match any case", v)
 						}
-					}
-				} else if len(v) >= len("2006-01-02 15:04:05") {
-					t, err := time.Parse("2006-01-02 15:04:05", v[:len("2006-01-02 15:04:05")])
-					if !logger.CheckError(err) {
-						field.Set(reflect.ValueOf(t))
-					}
-				} else {
-					logger.Info("doesn't match any case", v)
+					}			
+				case time.Time:
+					logger.Info(v)
+					field.Set(reflect.ValueOf(v))
+				default:
+					logger.Error("field struct with value", v, "not handled")
 				}
-			case time.Time:
-				field.Set(reflect.ValueOf(v))
-			default:
-				logger.Error("field struct with value", v, "not handled")
-			}
+			} 
 		default:
 			field.Set(reflect.ValueOf(valueToSet.Interface()))
 			logger.Error("type not handled for fieldType", field.Kind(), "value=", valueToSet.Interface())
@@ -416,28 +580,30 @@ func fillStructColumns[T comparable](struct_to_fill *T, columns_to_fill string, 
 						fieldToUpdate.SetFloat(v)
 					}
 				case reflect.Struct:
-					switch v := valueToSet.Interface().(type) {
-					case string:
-						l := len("2006-01-02T15:04")
-						if strings.Contains(v[:l], "T") {
-							if len(v) >= l {
-								t, err := time.Parse("2006-01-02T15:04", v[:l])
+					if valueToSet.IsValid() {
+						switch v := valueToSet.Interface().(type) {
+						case string:
+							l := len("2006-01-02T15:04")
+							if strings.Contains(v[:l], "T") {
+								if len(v) >= l {
+									t, err := time.Parse("2006-01-02T15:04", v[:l])
+									if !logger.CheckError(err) {
+										fieldToUpdate.Set(reflect.ValueOf(t))
+									}
+								}
+							} else if len(v) >= len("2006-01-02 15:04:05") {
+								t, err := time.Parse("2006-01-02 15:04:05", v[:len("2006-01-02 15:04:05")])
 								if !logger.CheckError(err) {
 									fieldToUpdate.Set(reflect.ValueOf(t))
 								}
+							} else {
+								logger.Info("v string doesn't match any case,v=", v)
 							}
-						} else if len(v) >= len("2006-01-02 15:04:05") {
-							t, err := time.Parse("2006-01-02 15:04:05", v[:len("2006-01-02 15:04:05")])
-							if !logger.CheckError(err) {
-								fieldToUpdate.Set(reflect.ValueOf(t))
-							}
-						} else {
-							logger.Info("v string doesn't match any case,v=", v)
+						case time.Time:
+							fieldToUpdate.Set(reflect.ValueOf(v))
+						default:
+							logger.Error("field struct with value", v, "not handled")
 						}
-					case time.Time:
-						fieldToUpdate.Set(reflect.ValueOf(v))
-					default:
-						logger.Error("field struct with value", v, "not handled")
 					}
 				case reflect.Bool:
 					switch reflect.ValueOf(values_to_fill[i]).Kind() {

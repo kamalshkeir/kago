@@ -2,7 +2,9 @@ package input
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"runtime"
@@ -30,7 +32,11 @@ func Int(color,desc string) (int,error) {
 	// read line
 	out,err := reader.ReadString('\n')
 	if err != nil {
-		return 0,err
+		if errors.Is(err,io.EOF) {
+			os.Exit(0)
+		} else {
+			return 0,err
+		}
 	}
 	out = strings.Replace(out, "\r\n", "", -1)
 	out = strings.TrimSpace(out) 
@@ -49,7 +55,11 @@ func Bool(color,desc string) (bool,error) {
 	// read line
 	out,err := reader.ReadString('\n')
 	if err != nil {
-		return false,err
+		if errors.Is(err,io.EOF) {
+			os.Exit(0)
+		} else {
+			return false,err
+		}
 	}
 	out = strings.Replace(out, "\r\n", "", -1)
 	out = strings.TrimSpace(out) 
@@ -68,7 +78,11 @@ func String(color,desc string) (string,error) {
 	// read line
 	out,err := reader.ReadString('\n')
 	if err != nil {
-		return "",err
+		if errors.Is(err,io.EOF) {
+			os.Exit(0)
+		} else {
+			return "",err
+		}
 	}
 	out = strings.Replace(out, "\r\n", "", -1)
 	out = strings.TrimSpace(out) 
@@ -80,7 +94,13 @@ func Input(color,desc string) string {
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Printf(color,desc)
 	out,err := reader.ReadString('\n')
-	if err != nil {return ""}
+	if err != nil {
+		if errors.Is(err,io.EOF) {
+			os.Exit(0)
+		} else {
+			return ""
+		}
+	}
 	out = strings.Replace(out, "\r\n", "", -1)
 	return strings.TrimSpace(out) 
 }
@@ -88,7 +108,13 @@ func Input(color,desc string) string {
 func Hidden(color,desc string) string {
 	fmt.Printf(color,desc)
 	out,err := term.ReadPassword(int(syscall.Stdin))
-	if err != nil {return ""}
+	if err != nil {
+		if errors.Is(err,io.EOF) {
+			os.Exit(0)
+		} else {
+			return ""
+		}
+	}
 	res:=string(out)
 	res = strings.Replace(res, "\r\n", "", -1)
 	fmt.Println(" ")
