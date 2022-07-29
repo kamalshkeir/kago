@@ -58,7 +58,7 @@ Many features will be added in the future, like:
 Join our  [discussions here](https://github.com/kamalshkeir/kago/discussions/1)
 
 ---
-## Installation
+# Installation
 
 To install it, you need to Go installed and set your Go workspace first.
 
@@ -74,7 +74,7 @@ $ go get github.com/kamalshkeir/kago
 import "github.com/kamalshkeir/kago"
 ```
 ---
-## Quick start
+# Quick start
 
 make sure you have git installed
 
@@ -112,7 +112,8 @@ go run main.go -h 0.0.0.0 -p 3333
 ###### will run on http://[privateIP]:3333 
 
 ---
-## Generated Admin Dashboard
+
+# Generated Admin Dashboard
 ##### an easy way to create your own theme, is to modify files inside assets , upload the assets folder into a repo and set these 2 values:
 ```shell
 settings.REPO_USER="YOUR_REPO_USER" // default kamalshkeir
@@ -168,7 +169,7 @@ middlewares.GZIP = func(handler http.Handler) http.Handler { // Handler
 }
 ```
 ---
-## Routing
+# Routing
 ### Using GET, POST, PUT, PATCH, DELETE
 
 ```go
@@ -283,7 +284,8 @@ func main() {
 }
 ```
 ---
-## Parameters (path + query)
+
+# Parameters (path + query)
 
 ```go
 func main() {
@@ -345,7 +347,7 @@ func main() {
 ```
 
 
-### Router Http Context
+## Router Http Context
 ###### There is also WsContext seen above
 
 ```go
@@ -399,7 +401,7 @@ func main() {
 }
 ```
 
-### Multipart/Urlencoded Form
+## Multipart/Urlencoded Form
 
 ```go
 func main() {
@@ -422,7 +424,7 @@ func main() {
 }
 ```
 
-### Upload file
+## Upload file
 ```go
 func main() {
 	app := kago.New()
@@ -441,7 +443,7 @@ func main() {
 }
 ```
 
-### Cookies
+## Cookies
 ```go
 func main() {
 	app := kago.New()
@@ -465,7 +467,7 @@ func main() {
 }
 ```
 
-### HTML functions maps
+## HTML functions maps
 ```go
 
 // To add one, automatically loaded into your html
@@ -490,7 +492,7 @@ var functions = template.FuncMap{
 
 ```
 ---
-## Add Custom Static And Templates Folders
+# Add Custom Static And Templates Folders
 ##### you can build all your static and templates files into the binary by simply embeding folder using app.Embed
 
 ```go
@@ -501,7 +503,7 @@ app.AddLocalTemplates(pathToDir string) error
 app.AddEmbededTemplates(template_embed embed.FS,rootDir string) error
 ```
 ---
-## Middlewares
+# Middlewares
 
 #### Global server middlewares
 ```go
@@ -581,6 +583,7 @@ r.GET("/admin/login",middlewares.Auth(LoginView)) // will get session from cooki
 r.GET("/test",middlewares.BasicAuth(LoginView,"username","password"))
 ```
 ---
+
 # ORM
 ###### i waited go1.18 and generics to make this package orm to keep performance at it's best with convenient way to query your data, even from multiple databases
 ## queries are cached using powerfull eventbus style that empty cache when changes in database may corrupt your data, so use it until you have a problem with it
@@ -656,7 +659,7 @@ CREATE TABLE IF NOT EXISTS bookmarks (
 
 
 
-## Queries and Sql Builder
+# Queries and Sql Builder
 #### to query, insert, update and delete using structs:
 ```go
 orm.Model[T comparable]() *Builder[T]
@@ -676,7 +679,7 @@ orm.Debug() *Builder[T] // print the query statement
 orm.All() ([]T, error) // finisher
 orm.One() (T, error) // finisher
 ```
-#### Examples
+# Examples
 ```go
 // then you can query your data as models.User data
 // you have 2 finisher : All and One
@@ -731,7 +734,7 @@ orm.Set(query string, args ...any) (int, error)
 orm.Delete() (int, error)
 orm.Drop() (int, error)
 ```
-#### Examples
+# Examples
 ```go
 // for using maps , no need to link any model of course
 // then you can query your data as models.User data
@@ -820,7 +823,7 @@ createuser, getall, get, drop, delete, clear/cls, q/quit/exit, help/commands]
 	  clear console
 ```
 ---
-## Env Loader
+# Env Loader
 #### this minimalistic package is one of my favorite, you basicaly need to Load env variables from file and to fill a struct Config with these values
 #### First you may need to env vars from file and set them using : ``` envloader.Load(...files)```
 ###### here is how tediously i was loading env variables:
@@ -897,7 +900,7 @@ type Config struct {
 ```
 ---
 
-## OpenApi documentation ready if enabled using flags or settings vars
+# OpenApi documentation ready if enabled using flags or settings vars
 ```bash
 // running the app using flag --docs
 go run main.go --docs
@@ -954,7 +957,7 @@ doc.Save()
 ```
 ---
 
-## Encryption
+# Encryption
 ```go
 // AES Encrypt use SECRET in .env
 encryptor.Encrypt(data string) (string,error)
@@ -962,7 +965,7 @@ encryptor.Decrypt(data string) (string,error)
 ```
 ---
 
-## Hashing
+# Hashing
 ```go
 // Argon2 hashing
 hash.GenerateHash(password string) (string, error)
@@ -971,7 +974,7 @@ hash.ComparePasswordToHash(password, hash string) (bool, error)
 
 ---
 
-## Eventbus Internal
+# Eventbus Internal
 ```go
 eventbus.Subscribe("any_topic",func(data map[string]string) {
 	...
@@ -986,8 +989,8 @@ eventbus.Publish("any_topic", map[string]string{
 
 ---
 
-## LOGS
-```bash
+# LOGS
+```sh
 go run main.go --logs
 
 will enable:
@@ -995,8 +998,8 @@ will enable:
 ```
 ---
 
-## PPROF official golang profiling tools
-```bash
+# PPROF official golang profiling tools
+```sh
 go run main.go --profiler
 
 will enable:
@@ -1007,8 +1010,8 @@ will enable:
 
 ---
 
-## Prometheus monitoring
-```bash
+# Prometheus monitoring
+```sh
 go run main.go --monitoring
 
 will enable:
@@ -1017,13 +1020,13 @@ will enable:
 
 ---
 
-## Build single binary with all static and html files
-```bash
+# Build single binary with all static and html files
+```sh
 #you nedd to set at .env to true: 
 EMBED_STATIC=true
 EMBED_TEMPLATES=true
 ```
-#### Then
+# Then
 
 ```go
 //go:embed assets/static
@@ -1040,14 +1043,14 @@ func main() {
 
 ```
 
-#### Then
+# Then
 ```bash
 go build
 ```
 
 ---
 
-## Some Benchmarks
+# Some Benchmarks
 ```shell
 ////////////////////////////////////// postgres without cache
 BenchmarkGetAllS-4                  1472            723428 ns/op            5271 B/op         80 allocs/op
@@ -1097,7 +1100,7 @@ BenchmarkGetAllColumns-4        64293176                20.87 ns/op            0
 ```
 ---
 
-## 🔗 Links
+# 🔗 Links
 [![portfolio](https://img.shields.io/badge/my_portfolio-000?style=for-the-badge&logo=ko-fi&logoColor=white)](https://kamalshkeir.github.io/)
 [![linkedin](https://img.shields.io/badge/linkedin-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/kamal-shkeir/)
 
