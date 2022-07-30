@@ -33,7 +33,7 @@ func init() {
 		return
 	}
 	// migrate user to 'db2'
-	err = orm.AutoMigrate[models.User](otherDB, "users")
+	err = orm.AutoMigrate[models.User]("users",otherDB)
 	if logger.CheckError(err) {
 		return
 	}
@@ -160,7 +160,7 @@ type TestModel struct {
 }
 
 func TestAutoMigrate(t *testing.T) {
-	err := orm.AutoMigrate[TestModel](otherDB,"test_model")
+	err := orm.AutoMigrate[TestModel]("test_model",otherDB)
 	if err != nil {
 		t.Error(err)
 		return

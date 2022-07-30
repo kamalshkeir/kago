@@ -14,7 +14,7 @@ func init() {
 	r := kamux.Router{}
 	r.LoadEnv("../../../.env")
 	_ = orm.InitDB()
-	orm.UseCache=false
+	orm.UseCache=true
 	//migrate
 	err := orm.Migrate()
 	if logger.CheckError(err) {return}

@@ -504,11 +504,18 @@ func (b *BuilderM) Drop() (int, error) {
 }
 
 func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface{}, error) {
-	adaptPlaceholdersToDialect(&statement, b.dialect)
 	if b.database == ""  {
 		b.database=settings.GlobalConfig.DbName
 	} 
-	
+	if b.dialect == "" {
+		if dial, ok := mDbNameDialect[b.database]; ok {
+			b.dialect = dial
+		} else {
+			b.dialect = databases[0].Dialect
+		}
+	}
+	adaptPlaceholdersToDialect(&statement, b.dialect)
+		
 	if b.conn == nil {
 		if con, ok := mDbNameConnection[b.database]; ok {
 			b.conn = con
@@ -517,13 +524,7 @@ func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface
 			b.conn = databases[0].Conn
 		}
 	}	
-	if b.dialect == "" {
-		if dial, ok := mDbNameDialect[b.database]; ok {
-			b.dialect = dial
-		} else {
-			b.dialect = databases[0].Dialect
-		}
-	}
+	
 	var rows *sql.Rows
 	var err error
 	if b.ctx != nil {
@@ -559,10 +560,76 @@ func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface
 
 		m := map[string]interface{}{}
 		for i := range columns {
-			if b.dialect == "mysql" {
-				if v, ok := modelsPtrs[i].([]byte); ok {
-					modelsPtrs[i] = string(v)
-				}
+			if v, ok := modelsPtrs[i].([]byte); ok {
+				modelsPtrs[i] = string(v)
+			}
+			m[columns[i]] = modelsPtrs[i]
+		}
+		listMap = append(listMap, m)
+	}
+	if len(listMap) == 0 {
+		return nil, errors.New("no data found")
+	}
+	return listMap, nil
+}
+
+
+func Query(db DatabaseEntity,statement string, args ...any) ([]map[string]interface{}, error) {
+	var conn *sql.DB
+	if db.Name == ""  {
+		db.Name=settings.GlobalConfig.DbName
+	} 
+	if db.Dialect == "" {
+		if dial, ok := mDbNameDialect[db.Name]; ok {
+			db.Dialect = dial
+		} else {
+			db.Dialect = databases[0].Dialect
+		}
+	}
+	adaptPlaceholdersToDialect(&statement, db.Dialect)
+		
+	if conn == nil {
+		if con, ok := mDbNameConnection[db.Name]; ok {
+			conn = con
+		} else {
+			
+			conn = databases[0].Conn
+		}
+	}	
+	
+	var rows *sql.Rows
+	var err error
+	rows, err = conn.Query(statement, args...)
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("queryM: no data found")
+	} else if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+
+	models := make([]interface{}, len(columns))
+	modelsPtrs := make([]interface{}, len(columns))
+
+	listMap := make([]map[string]interface{}, 0)
+
+	for rows.Next() {
+		for i := range models {
+			models[i] = &modelsPtrs[i]
+		}
+
+		err := rows.Scan(models...)
+		if err != nil {
+			return nil, err
+		}
+
+		m := map[string]interface{}{}
+		for i := range columns {
+			if v, ok := modelsPtrs[i].([]byte); ok {
+				modelsPtrs[i] = string(v)
 			}
 			m[columns[i]] = modelsPtrs[i]
 		}

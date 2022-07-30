@@ -619,7 +619,7 @@ orm.CreateUser(email,password string,isAdmin int, dbName ...string) error // pas
 ###### if you need to change a tag, remove the field and put new one with the new tag ;) 
 ```go
 
-orm.AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error // debug (optional) will print the query statement
+orm.AutoMigrate[T comparable](tableName string, dbName ...string) error 
 
 //Example:
 type Bookmark struct {
@@ -631,8 +631,10 @@ type Bookmark struct {
 	CreatedAt time.Time `orm:"now"` // now is default to current timestamp
 }
 
-// To migrate execute:
-err := orm.AutoMigrate[Bookmark]("db", "bookmarks",true)
+// To migrate/connect/sync with database:
+err := orm.AutoMigrate[Bookmark]("bookmarks")
+
+// after this command if you remove a field from struct model, you will have a prompt wit suggestions to resolve the problem
 
 // will produce:
 CREATE TABLE IF NOT EXISTS bookmarks (

@@ -26,7 +26,6 @@ var (
 	mDbNameConnection = map[string]*sql.DB{}
 	mDbNameDialect = map[string]string{}
 	mModelTablename = map[any]string{}
-	mTablenameDatabasename = map[string][]string{}
 	cacheGetAllTables = safemap.New[string,[]string]()
 	cacheGetAllColumns = safemap.New[string,map[string]string]()
 	cachesOneM = safemap.New[dbCache,map[string]any]()
@@ -40,7 +39,6 @@ const (
 
 type TableEntity struct {
 	Name string
-	Pk string
 	Columns []string
 	Types map[string]string
 	ModelTypes map[string]string
@@ -288,7 +286,7 @@ func GetDatabase(dbName string) (*DatabaseEntity,error) {
 			return &databases[i],nil
 		}
 	}
-	return &DatabaseEntity{},errors.New("database not found")
+	return &databases[0],errors.New("database not found")
 }
 
 func GetDatabaseTableFromMemory(dbName,tableName string) (*TableEntity,error) {

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"os"
 	"reflect"
 	"regexp"
 	"strconv"
@@ -35,64 +36,87 @@ type dbCache struct {
 
 // linkModel link a struct model to a  db_table_name
 func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
+	if db.Name == "" {
+		db=&databases[0]
+	}
+	fkkeys := []string{}
 	fields, _, ftypes, ftags := getStructInfos(new(T))
 	// get columns from db
 	colsNameType := GetAllColumns(to_table_name,db.Name)
-	names := []string{}
-	var pkTable string
+	cols := []string{}
 	for k := range colsNameType {
-		names = append(names, k)
+		cols = append(cols, k)
 	}
+	
+
+	diff := utils.Difference(fields,cols)
+
+	// add or remove field from struct
+	handleAddOrRemove(to_table_name,fields,cols,diff,fkkeys,db,ftypes,ftags)
+
+	// rename field
+	handleRename(to_table_name,fields,cols,diff,db)
+
+
 	tFound := false
 	for _,t := range db.Tables {
 		if t.Name == to_table_name {
 			tFound=true
 		}
 	}
-	fkkeys := []string{}
-	for col,tgs := range ftags {
-		for _,t := range tgs {
-			if t == "autoinc" {
-				pkTable=col
-			}
-		}	
+	if !tFound {
+		db.Tables=append(db.Tables, TableEntity{
+			Name: to_table_name,
+			Columns: cols,
+			ModelTypes: ftypes,
+			Types: colsNameType,
+			Tags: ftags,
+			Fkeys: fkkeys,
+		})
 	}
+}
 
-	// check if not the same list as struct fields
-	diff := utils.Difference(fields,names)
-	if len(names) > len(fields) {
+// handleAddOrRemove handle sync with db when adding or removing from a struct auto migrated
+func handleAddOrRemove(to_table_name string,fields,cols,diff,fkkeys []string, db *DatabaseEntity,ftypes map[string]string,ftags map[string][]string) {
+	if len(cols) > len(fields) { // extra column db
 		for _,d := range diff {
 			fmt.Println(" ")
 			logger.Printfs("/!\\ found extra column '%s' in the database table '%s'",d,to_table_name)
 			statement := "ALTER TABLE "+to_table_name+" DROP COLUMN "+d
-			choice := input.Input(input.Yellow,"> do you want to remove it ? (Y/n):")
+			choice := input.Input(input.Yellow,"> do you want to remove '"+d+"' from database ? (Y/n): ")
 			if utils.SliceContains([]string{"yes","Y","y"},choice) {
-				if len(databases) > 1 {
-					ddb := input.Input(input.Blue,"> There are more than one database connected, database name:")
+				if len(databases) > 1 && db.Name == "" {
+					ddb := input.Input(input.Blue,"> There are more than one database connected, enter database name: ")
 					conn := GetConnection(ddb)
 					if conn != nil {
 						_,err := conn.Exec(statement)
 						if logger.CheckError(err) {
 							return 
 						}
+						logger.Printfs("grDone, '%s' removed from '%s'",d,to_table_name)
+						os.Exit(0)
 					}
 				} else {
-					conn := GetConnection()
+					conn := db.Conn
 					if conn != nil {
 						_,err := conn.Exec(statement)
 						if logger.CheckError(err) {
+							logger.Info(statement)
 							return 
 						}
-						fmt.Printf(logger.Green,"Done, you may want to restart your server")
+						logger.Printfs("grDone, '%s' removed from '%s'",d,to_table_name)
+						os.Exit(0)
 					}
 				}
+			} else {
+				fmt.Printf(logger.Green,"Nothing changed.")
 			}
 		}
-	} else if len(names) < len(fields) {
+	} else if len(cols) < len(fields) { // missing column db
 		for _,d := range diff {
 			fmt.Println(" ")
-			logger.Printfs("/!\\ column '%s' is missing from the database table '%s'",d,to_table_name)
-			choice,err := input.String(input.Yellow,"> do you want to add it ? (Y/n):")
+			logger.Printfs("[WARNING] column '%s' is missing from the database table '%s'",d,to_table_name)
+			choice,err := input.String(input.Yellow,"> do you want to add '"+d+"' to the database ? (Y/n):")
 			logger.CheckError(err)
 			statement := "ALTER TABLE "+to_table_name+" ADD "+d+" "
 			if ty,ok := ftypes[d];ok {
@@ -131,7 +155,7 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 					}
 					for _,fk := range fkeys {
 						sp := strings.Split(fk," ")
-						fkey = strings.Join(sp[2:]," ") 
+						fkey = strings.Join(sp[3:]," ") 
 					}
 					if fkey != "" {
 						s += " "+fkey
@@ -151,7 +175,7 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 					}
 					for _,fk := range fkeys {
 						sp := strings.Split(fk," ")
-						fkey = strings.Join(sp[2:]," ") 
+						fkey = strings.Join(sp[3:]," ") 
 					}
 					if fkey != "" {
 						s += " "+fkey
@@ -171,7 +195,7 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 					}
 					for _,fk := range fkeys {
 						sp := strings.Split(fk," ")
-						fkey = strings.Join(sp[2:]," ") 
+						fkey = strings.Join(sp[3:]," ") 
 					}
 					if fkey != "" {
 						s += " "+fkey
@@ -203,7 +227,7 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 					}
 					for _,fk := range fkeys {
 						sp := strings.Split(fk," ")
-						fkey = strings.Join(sp[2:]," ") 
+						fkey = strings.Join(sp[3:]," ") 
 					}
 					if fkey != "" {
 						s += " "+fkey
@@ -216,25 +240,26 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 				}
 
 				if utils.SliceContains([]string{"yes","Y","y"},choice) {
-					if len(databases) > 1 {
+					if len(databases) > 1 && db.Name == "" {
 						ddb := input.Input(input.Blue,"> There are more than one database connected, database name:")
 						conn := GetConnection(ddb)
-						if conn != nil {
-							_,err := conn.Exec(statement)
-							if logger.CheckError(err) {
-								return 
-							}
-							logger.Printfs("Done, you may want to restart your server")
-						}
-					} else {
-						conn := GetConnection()
 						if conn != nil {
 							_,err := conn.Exec(statement)
 							if logger.CheckError(err) {
 								logger.Info(statement)
 								return 
 							}
-							logger.Printfs("Done, you may want to restart your server")
+							logger.Printfs("grDone, '%s' added to '%s', you may want to restart your server",d,to_table_name)
+						}
+					} else {
+						conn := GetConnection(db.Name)
+						if conn != nil {
+							_,err := conn.Exec(statement)
+							if logger.CheckError(err) {
+								logger.Info(statement)
+								return 
+							}
+							logger.Printfs("grDone, '%s' added to '%s', you may want to restart your server",d,to_table_name)
 						}
 					}
 				} else {
@@ -245,20 +270,185 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 			}
 		}
 	} 
-	
-	
-	// set maps
-	if !tFound {
-		db.Tables=append(db.Tables, TableEntity{
-			Name: to_table_name,
-			Columns: names,
-			ModelTypes: ftypes,
-			Types: colsNameType,
-			Tags: ftags,
-			Fkeys: fkkeys,
-			Pk: pkTable,
-		})
+}
+
+// handleRename handle sync with db when renaming fields struct
+func handleRename(to_table_name string,fields,cols,diff []string, db *DatabaseEntity) {
+	// rename field
+	old := []string{}
+	new := []string{}
+	if len(fields) == len(cols) && len(diff) % 2 == 0 && len(diff) > 0 {
+		for _,d := range diff {
+			if !utils.SliceContains(cols,d) { // d is new
+				 new = append(new, d)
+			} else { // d is old
+				old = append(old, d)
+			}
+		}
+	}	
+	if len(new) > 0 && len(new) == len(old){
+		if len(new) == 1 {
+			choice := input.Input(input.Yellow,"> you renamed '"+old[0]+"' to '"+new[0]+"', execute these changes to db ? (Y/n):")
+			if utils.SliceContains([]string{"yes","Y","y"},choice) {
+				statement := "ALTER TABLE "+to_table_name+" RENAME COLUMN "+old[0]+" TO " + new[0]
+				if len(databases) > 1 && db.Name == "" {
+					ddb := input.Input(input.Blue,"> There are more than one database connected, database name:")
+					conn := GetConnection(ddb)
+					if conn != nil {
+						_,err := conn.Exec(statement)
+						if logger.CheckError(err) {
+							return 
+						}
+						logger.Printfs("grDone, '%s' has been changed to %s",old[0],new[0])
+					}
+				} else {
+					conn := db.Conn
+					if conn != nil {
+						_,err := conn.Exec(statement)
+						if logger.CheckError(err) {
+							return 
+						}
+						logger.Printfs("grDone, '%s' has been changed to %s",old[0],new[0])
+					}
+				}
+			} else {
+				logger.Printfs("grNothing changed")
+			}	
+		} else {
+			for _,n := range new {
+				for _,o := range old {
+					if strings.HasPrefix(n,o) || strings.HasPrefix(o,n) {
+						choice := input.Input(input.Yellow,"> you renamed '"+o+"' to '"+n+"', execute these changes to db ? (Y/n):")
+						if utils.SliceContains([]string{"yes","Y","y"},choice) {
+							statement := "ALTER TABLE "+to_table_name+" RENAME COLUMN "+o+" TO " + n
+							if len(databases) > 1 && db.Name == "" {
+								ddb := input.Input(input.Blue,"> There are more than one database connected, database name:")
+								conn := GetConnection(ddb)
+								if conn != nil {
+									_,err := conn.Exec(statement)
+									if logger.CheckError(err) {
+										return 
+									}
+								}
+							} else {
+								conn := GetConnection(db.Name)
+								if conn != nil {
+									_,err := conn.Exec(statement)
+									if logger.CheckError(err) {
+										return 
+									}
+								}
+							}
+							logger.Printfs("grDone, '%s' has been changed to %s",o,n)
+						} 
+					}
+				}
+			}
+		}
 	}
+}
+
+
+func GetConstraints(db *DatabaseEntity,tableName string) map[string][]string {
+	res := map[string][]string{}
+	switch db.Dialect {
+	case "sqlite":
+		st := "select sql from sqlite_master where type='table' and name='"+tableName+"';"
+		d,err := Query(*db,st)
+		if logger.CheckError(err){
+			return nil
+		}
+		sqlStat := d[0]["sql"]
+		if _,after,found := strings.Cut(sqlStat.(string),"(");found {
+			lines := strings.Split(after[:len(after)-1],",") 
+			for _,l := range lines {
+				sp := strings.Split(l," ")
+				if len(sp) > 1 && sp[1] != ""{
+					col := sp[0]
+					tags := sp[1:]
+					if col != "" && len(tags) > 1 {
+						for _,t := range tags {
+							switch t {
+							case "PRIMARY","PRIMARY KEY":
+								res[col]=append(res[col], "pkey")
+							case "NOT NULL","NULL":
+								res[col]=append(res[col], "notnull")
+							case "FOREIGN","FOREIGN KEY":
+								res[col]=append(res[col], "fkey")
+							case "CHECK":
+								res[col]=append(res[col], "chk")
+							case "UNIQUE":
+								res[col]=append(res[col], "key")
+							default:
+								if t == "KEY" && col == "FOREIGN" {
+									col := tags[1][1:len(tags[1])-1]
+									res[col]=append(res[col], "fkey")
+								} 
+							}
+						}
+					}
+				}
+			}
+		}
+	case "postgres","mysql":
+		st :="select table_name,constraint_type,constraint_name from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where table_name='"+tableName+"';"
+		d,err := Query(*db,st)
+		if !logger.CheckError(err) {
+			for _,dd := range d {
+				logger.Success(dd)
+				switch {
+				case strings.HasPrefix(dd["constraint_name"].(string),"chk_"):
+					ln := len("chk_")+len(tableName)+1
+					col := dd["constraint_name"].(string)[ln:]
+					res[col]=append(res[col], "chk")
+				case strings.HasSuffix(dd["constraint_name"].(string),"_pkey"):
+					sp := strings.Split(dd["constraint_name"].(string),"_")
+					sp = sp[:len(sp)-1]
+					col := strings.Join(sp,"_")
+					res[col]=append(res[col], "pkey")
+				case strings.HasSuffix(dd["constraint_name"].(string),"_fkey"):
+					if constraintName,ok := dd["constraint_name"].(string);ok {
+						sp := strings.Split(constraintName,"_")
+						table := sp[0]
+						if table != tableName {
+							for i := 2;true;i++ {
+								table = strings.Join(sp[0:i],"_")
+								if table == tableName {
+									break
+								}
+							}
+							
+						}
+						ln := len(table)+2
+						col := constraintName[ln:(len(constraintName)-len("_fkey"))]
+						res[col]=append(res[col], "fkey")
+							
+					}
+				case strings.HasSuffix(dd["constraint_name"].(string),"_key"):
+					if constraintName,ok := dd["constraint_name"].(string);ok {
+						// users_email_key
+						sp := strings.Split(constraintName,"_")
+						table := sp[0]
+						if table != tableName {
+							for i := 2;true;i++ {
+								table = strings.Join(sp[0:i],"_")
+								if table == tableName {
+									break
+								}
+							}
+							
+						}
+						ln := len(table)+2
+						col := constraintName[ln:len(constraintName)-len("_key")]
+						res[col]=append(res[col], "key")
+							
+					}
+				default:
+				}
+			}
+		}
+	}
+	return res
 }
 
 func ShutdownDatabases(databasesName ...string) error {

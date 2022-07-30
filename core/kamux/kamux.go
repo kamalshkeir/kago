@@ -75,7 +75,7 @@ func New(envFiles ...string) *Router {
 			app.LoadEnv(".env")
 		}
 	}
-	
+
 	// check flags
 	wg.Add(1)
 	go func() {
@@ -102,26 +102,6 @@ func New(envFiles ...string) *Router {
 		wg.Done()
 	}()
 	
-
-	// init orm
-	wg.Add(1)
-	go func() {
-		err := orm.InitDB()
-		if err != nil {
-			if os.Getenv("DB_NAME") == "" && os.Getenv("DB_DSN") == "" {
-				logger.Warn("Environment variables not loaded, you can copy it from generated assets folder and rename it to .env, or set them manualy")
-			} else {
-				logger.Error(err)
-			}
-		} 
-		if len(orm.GetAllTables()) > 0 {
-			// migrate initial models
-			err := orm.Migrate()
-			logger.CheckError(err)
-		}
-		wg.Done()
-	}()
-
 	// load translations
 	wg.Add(1)
 	go func() {
@@ -129,6 +109,20 @@ func New(envFiles ...string) *Router {
 		wg.Done()
 	}()
 	wg.Wait()
+
+	err := orm.InitDB()
+	if err != nil {
+		if settings.GlobalConfig.DbName == "" && settings.GlobalConfig.DbDSN == "" {
+			logger.Warn("Environment variables not loaded, you can copy it from generated assets folder and rename it to .env, or set them manualy")
+		} else {
+			logger.Error(err)
+		}
+	} 
+	if len(orm.GetAllTables()) == 0 {
+		// migrate initial models
+		err := orm.Migrate()
+		logger.CheckError(err)
+	}
 	// init orm shell
 	if shell.InitShell() {os.Exit(0)}
 	utils.PrintServerStart()

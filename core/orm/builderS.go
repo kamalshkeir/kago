@@ -587,18 +587,8 @@ func (b *Builder[T]) One() (T, error) {
 }
 
 func (b *Builder[T]) queryS(query string, args ...any) ([]T, error) {
-	adaptPlaceholdersToDialect(&query, b.dialect)
-	res := make([]T, 0)
 	if b.database == "" {
 		b.database = settings.GlobalConfig.DbName
-	}
-	if b.conn == nil {
-		if con, ok := mDbNameConnection[b.database]; ok {
-			b.conn = con
-		} else {
-
-			b.conn = databases[0].Conn
-		}
 	}
 	if b.dialect == "" {
 		if dial, ok := mDbNameDialect[b.database]; ok {
@@ -607,6 +597,18 @@ func (b *Builder[T]) queryS(query string, args ...any) ([]T, error) {
 			b.dialect = databases[0].Dialect
 		}
 	}
+	adaptPlaceholdersToDialect(&query, b.dialect)
+	res := make([]T, 0)
+	
+	if b.conn == nil {
+		if con, ok := mDbNameConnection[b.database]; ok {
+			b.conn = con
+		} else {
+
+			b.conn = databases[0].Conn
+		}
+	}
+	
 	var rows *sql.Rows
 	var err error
 	if b.ctx != nil {

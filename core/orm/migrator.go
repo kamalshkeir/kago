@@ -13,7 +13,7 @@ import (
 )
 
 func Migrate() error {
-	err := AutoMigrate[models.User](settings.GlobalConfig.DbName, "users")
+	err := AutoMigrate[models.User]("users",settings.GlobalConfig.DbName)
 	if logger.CheckError(err) {
 		return err
 	}
@@ -100,28 +100,29 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string, debug ...bo
 	return nil
 }
 
-func AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error {
-	db,err := GetDatabase(dbName)
-	if err != nil {
-		return err
+func AutoMigrate[T comparable](tableName string, dbName ...string) error {
+	if _,ok := mModelTablename[*new(T)];!ok {
+		mModelTablename[*new(T)]=tableName
 	}
-	mModelTablename[*new(T)] = tableName	
-	if dbs,ok := mTablenameDatabasename[tableName];ok {
-		found := false
-		for i := range dbs {
-			if dbs[i] == db.Name {
-				found = true
+	var db *DatabaseEntity
+	var err error
+	if len(dbName) > 0 {
+		db,err = GetDatabase(dbName[0])
+		if err != nil || db == nil {
+			db,err = GetDatabase(settings.GlobalConfig.DbName)
+			if err != nil || db == nil {
+				logger.Warn("unable to get",dbName,"using default instead")
 			}
 		}
-		if !found {
-			mTablenameDatabasename[tableName]=append(mTablenameDatabasename[tableName], db.Name)
-		}
 	} else {
-		mTablenameDatabasename[tableName]=append([]string{}, db.Name)
+		db,err = GetDatabase(settings.GlobalConfig.DbName)
+		if err != nil || db == nil {
+			logger.Warn("unable to get database")
+		}
 	}
-
+	
 	tbFoundDB := false
-	tables := GetAllTables(db.Name)
+	tables := GetAllTables(settings.GlobalConfig.DbName)
 	for _, t := range tables {
 		if t == tableName {
 			tbFoundDB=true
@@ -136,10 +137,11 @@ func AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error {
 			return nil
 		} else {
 			// not db and not local
-			err := autoMigrate[T](db,tableName,debug...)
+			err := autoMigrate[T](db,tableName,false)
 			if logger.CheckError(err) {
 				return err
 			}
+			return nil
 		}
 	} else {
 		// db have tables
@@ -148,15 +150,13 @@ func AutoMigrate[T comparable](dbName, tableName string, debug ...bool) error {
 				tbFoundLocal=true
 			}
 		}
-	} 
-
-	
+	} 	
 	if !tbFoundLocal {
 		if tbFoundDB {
 			linkModel[T](tableName,db)
 			return nil
 		} else {
-			err := autoMigrate[T](db,tableName,debug...)
+			err := autoMigrate[T](db,tableName,false)
 			if logger.CheckError(err) {
 				return err
 			}
@@ -180,7 +180,7 @@ func handleMigrationInt(dialect, fName, ty string, mFieldName_Tags *map[string][
 			case "postgres":
 				autoinc = "SERIAL NOT NULL PRIMARY KEY"
 			case "mysql":
-				autoinc = "MEDIUMINT NOT NULL PRIMARY KEY AUTO_INCREMENT"
+				autoinc = "INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT"
 			default:
 				logger.Error("dialect can be sqlite, postgres or mysql only, not ", dialect)
 			}
@@ -271,7 +271,7 @@ func handleMigrationBool(_, fName, ty string, mFieldName_Tags *map[string][]stri
 			case "fk":
 				ref := strings.Split(sp[1], ".")
 				if len(ref) == 2 {
-					fkey := "FOREIGN KEY(\"" + fName + "\") REFERENCES " + ref[0] + "(\"" + ref[1] + "\")"
+					fkey := "FOREIGN KEY(" + fName + ") REFERENCES " + ref[0] + "(" + ref[1] + ")"
 					if len(sp) > 2 {
 						if sp[2] == "cascade" {
 							fkey += " ON DELETE CASCADE"
@@ -321,7 +321,7 @@ func handleMigrationString(dialect, fName, ty string, mFieldName_Tags *map[strin
 				case "fk":
 					ref := strings.Split(sp[1], ".")
 					if len(ref) == 2 {
-						fkey := "FOREIGN KEY(\"" + fName + "\") REFERENCES " + ref[0] + "(\"" + ref[1] + "\")"
+						fkey := "FOREIGN KEY(" + fName + ") REFERENCES " + ref[0] + "(" + ref[1] + ")"
 						if len(sp) > 2 {
 							if sp[2] == "cascade" {
 								fkey += " ON DELETE CASCADE"
@@ -408,7 +408,7 @@ func handleMigrationFloat(dialect, fName, _ string, mFieldName_Tags *map[string]
 				case "fk":
 					ref := strings.Split(sp[1], ".")
 					if len(ref) == 2 {
-						fkey := "FOREIGN KEY(\"" + fName + "\") REFERENCES " + ref[0] + "(\"" + ref[1] + "\")"
+						fkey := "FOREIGN KEY(" + fName + ") REFERENCES " + ref[0] + "(" + ref[1] + ")"
 						if len(sp) > 2 {
 							if sp[2] == "cascade" {
 								fkey += " ON DELETE CASCADE"
@@ -489,7 +489,7 @@ func handleMigrationTime(dialect, fName, ty string, mFieldName_Tags *map[string]
 				case "fk":
 					ref := strings.Split(sp[1], ".")
 					if len(ref) == 2 {
-						fkey := "FOREIGN KEY(\"" + fName + "\") REFERENCES " + ref[0] + "(\"" + ref[1] + "\")"
+						fkey := "FOREIGN KEY(" + fName + ") REFERENCES " + ref[0] + "(" + ref[1] + ")"
 						if len(sp) > 2 {
 							if sp[2] == "cascade" {
 								fkey += " ON DELETE CASCADE"
