@@ -170,6 +170,9 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 					var fkey string
 					if v, ok := res[d]; ok {
 						s = v
+						if !strings.Contains(v,"DEFAULT 0") {
+							s += " DEFAULT 0"
+						}
 					} else {
 						s = "INTEGER NOT NULL CHECK (" + d + " IN (0, 1)) DEFAULT 0"
 					}
@@ -245,9 +248,6 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 					for _, fk := range fkeys {
 						r := strings.Index(fk,"REFERENCE")
 						fkey = fk[r:]
-					}
-					if fkey != "" {
-						s += " " + fkey
 					}
 					if fkey != "" {
 						s += " " + fkey

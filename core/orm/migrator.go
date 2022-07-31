@@ -64,7 +64,7 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string, debug ...bo
 			}
 		}
 	}
-	statement := prepareCreateStatement(tableName, res, fkeys, cols,db)
+	statement := prepareCreateStatement(tableName, res, fkeys, cols,db,mFieldName_Tags)
 	tbFound := false
 	for _,t := range db.Tables {
 		if t.Name == tableName {
@@ -255,18 +255,12 @@ func handleMigrationInt(dialect, fName, ty string, mFieldName_Tags *map[string][
 
 func handleMigrationBool(_, fName, ty string, mFieldName_Tags *map[string][]string, fkeys *[]string, res *map[string]string) {
 	defaultt := ""
-	(*res)[fName] = "INTEGER NOT NULL CHECK (" + fName + " IN (0, 1)) DEFAULT 0"
+	(*res)[fName] = "INTEGER NOT NULL CHECK (" + fName + " IN (0, 1))"
 	tags := (*mFieldName_Tags)[fName]
 	for _, tag := range tags {
 		if strings.Contains(tag, ":") {
 			sp := strings.Split(tag, ":")
 			switch sp[0] {
-			case "default":
-				if sp[1] == "true" || sp[1] == "1" {
-					defaultt = " DEFAULT 1"
-				} else {
-					defaultt = " DEFAULT 0"
-				}
 			case "fk":
 				ref := strings.Split(sp[1], ".")
 				if len(ref) == 2 {
@@ -282,8 +276,6 @@ func handleMigrationBool(_, fName, ty string, mFieldName_Tags *map[string][]stri
 				} else {
 					logger.Error("wtf ?, it should be fk:users.id:cascade/donothing")
 				}
-			default:
-				logger.Error("not handled", sp[0], "for", tag, ",field:", fName)
 			}
 		} else {
 			logger.Error("tag", tag, "not handled for", fName, "of type", ty)
@@ -549,7 +541,7 @@ func handleMigrationTime(dialect, fName, ty string, mFieldName_Tags *map[string]
 	}
 }
 
-func prepareCreateStatement(tbName string, fields map[string]string, fkeys, cols []string,db *DatabaseEntity) string {
+func prepareCreateStatement(tbName string, fields map[string]string, fkeys, cols []string,db *DatabaseEntity,ftags map[string][]string) string {
 	st := "CREATE TABLE IF NOT EXISTS "
 	st += tbName + " ("
 	for i, col := range cols {
