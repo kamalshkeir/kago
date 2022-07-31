@@ -34,6 +34,7 @@ KaGo is a high-level web framework, that encourages clean and rapid development.
 You can literally get up and running using two lines of code, easier than Django and with a compiled language performance.
 
 Kago offer you :
+- NEW: <strong>orm.AutoMigrate</strong> will handle all your migrations from a struct model, if you remove a field from the migrated struct, you will be prompted to do the migration, by far this is the most advanced migrations tool for golang sql 
 - Fully editable CRUD Admin Dashboard (assets folder)
 - Ready to use Progressive Web App Support (pure js, without workbox)
 - Realtime Logs at `/logs` running with flag `go run main.go --logs`
@@ -43,7 +44,7 @@ Kago offer you :
 - OpenApi docs at `/docs` running with flag `go run main.go --docs` with dedicated package docs to help you manipulate docs.json file
 - AES encryption for authentication sessions using package encryptor
 - Argon2 hashing using package hash
-- EnvLoader using package envloader
+- EnvLoader using package envloader directly load to struct
 - Internal Eventbus using go routines and channels (very powerful), use cases are endless
 - Monitoring Prometheus/grafana `/metrics` running with flag `go run main.go --monitoring`
 - Profiler golang official debug pprof `/debug/pprof/(heap|profile\trace)` running with flag `go run main.go --profiler`
@@ -107,9 +108,10 @@ go run main.go shell
 
 #### 4- you can change port and host by putting Env Vars 'HOST' and 'PORT' or using flags:
 ```zsh
+# default: -h localhost -p 9313
 go run main.go -h 0.0.0.0 -p 3333
 ```
-###### will run on http://[privateIP]:3333 
+###### AND YOU ARE DONE, you can visit /admin
 
 ---
 
@@ -615,8 +617,8 @@ orm.CreateUser(email,password string,isAdmin int, dbName ...string) error // pas
 ##### on compilation time all models registered using AutoMigrate will be synchronized with the database so if you add a field to you struct or add a column to your table, you will have a prompt proposing solutions
 ##### execute AutoMigrate and don't think about it, it will handle all synchronisations between your project structs types like 'Bookmark' below
 
-## For the BONUS part: notice that if you add a struct field with tags, tags are handled too, so you can add foreign keys, remove foreign keys, all from your struct, the result will be mirrored in the database after your confirmation
-###### if you need to change a tag, remove the field and put new one with the new tag ;) 
+## BONUS: notice that if you add a struct field with tags, tags are handled too, so you can add foreign keys, remove foreign keys, all from your struct, the result will be mirrored in the database after your confirmation
+###### if you need to change a tag, remove the field, restart, put new one with the new tag, that's it ;) 
 ```go
 
 orm.AutoMigrate[T comparable](tableName string, dbName ...string) error 
