@@ -43,7 +43,6 @@ type TableEntity struct {
 	Types map[string]string
 	ModelTypes map[string]string
 	Tags map[string][]string
-	Fkeys []string
 }
 
 type DatabaseEntity struct {

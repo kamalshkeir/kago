@@ -447,12 +447,6 @@ func (b *Builder[T]) All() ([]T, error) {
 	if b.tableName == "" {
 		return nil, errors.New("error: this model is not linked, execute orm.AutoMigrate before")
 	}
-	/* t,err := GetDatabaseTableFromMemory(b.database,b.tableName)
-	if err != nil {
-		logger.Error(err)
-	} else {
-		logger.Success(t)
-	}	 */
 	c := dbCache{
 		database:   b.database,
 		table:      b.tableName,
@@ -520,6 +514,9 @@ func (b *Builder[T]) All() ([]T, error) {
 }
 
 func (b *Builder[T]) One() (T, error) {
+	if b.database == "" {
+		b.database=settings.GlobalConfig.DbName
+	}
 	if b.tableName == "" {
 		return *new(T), errors.New("error: this model is not linked, execute orm.AutoMigrate first")
 	}
@@ -588,33 +585,21 @@ func (b *Builder[T]) One() (T, error) {
 
 func (b *Builder[T]) queryS(query string, args ...any) ([]T, error) {
 	if b.database == "" {
-		b.database = settings.GlobalConfig.DbName
+		b.database=settings.GlobalConfig.DbName
 	}
-	if b.dialect == "" {
-		if dial, ok := mDbNameDialect[b.database]; ok {
-			b.dialect = dial
-		} else {
-			b.dialect = databases[0].Dialect
-		}
+	db,err := GetDatabase(b.database)
+	if logger.CheckError(err) {
+		return nil,err
 	}
-	adaptPlaceholdersToDialect(&query, b.dialect)
+
+	adaptPlaceholdersToDialect(&query, db.Dialect)
 	res := make([]T, 0)
 	
-	if b.conn == nil {
-		if con, ok := mDbNameConnection[b.database]; ok {
-			b.conn = con
-		} else {
-
-			b.conn = databases[0].Conn
-		}
-	}
-	
 	var rows *sql.Rows
-	var err error
 	if b.ctx != nil {
-		rows, err = b.conn.QueryContext(b.ctx, query, args...)
+		rows, err = db.Conn.QueryContext(b.ctx, query, args...)
 	} else {
-		rows, err = b.conn.Query(query, args...)
+		rows, err = db.Conn.Query(query, args...)
 	}
 
 	if err == sql.ErrNoRows {

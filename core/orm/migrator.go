@@ -2,6 +2,7 @@ package orm
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -69,7 +70,6 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string, debug ...bo
 		if t.Name == tableName {
 			tbFound=true
 			if len(t.Columns) == 0 {t.Columns=cols}
-			if len(t.Fkeys) == 0 {t.Fkeys=fkeys}
 			if len(t.Tags) == 0 {t.Tags=mFieldName_Tags}
 			if len(t.Types) == 0 {t.Types=mFieldName_Type}
 		}
@@ -78,7 +78,6 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string, debug ...bo
 		db.Tables = append(db.Tables, TableEntity{
 			Name: tableName,
 			Columns: cols,
-			Fkeys: fkeys,
 			Tags:mFieldName_Tags,
 			ModelTypes: mFieldName_Type,
 		})
@@ -106,23 +105,23 @@ func AutoMigrate[T comparable](tableName string, dbName ...string) error {
 	}
 	var db *DatabaseEntity
 	var err error
+	dbname := ""
 	if len(dbName) > 0 {
-		db,err = GetDatabase(dbName[0])
+		dbname = dbName[0]
+		db,err = GetDatabase(dbname)
 		if err != nil || db == nil {
-			db,err = GetDatabase(settings.GlobalConfig.DbName)
-			if err != nil || db == nil {
-				logger.Warn("unable to get",dbName,"using default instead")
-			}
+			return errors.New("database not found")
 		}
 	} else {
-		db,err = GetDatabase(settings.GlobalConfig.DbName)
+		dbname = settings.GlobalConfig.DbName
+		db,err = GetDatabase(dbname)
 		if err != nil || db == nil {
-			logger.Warn("unable to get database")
+			return errors.New("database not found")
 		}
 	}
 	
 	tbFoundDB := false
-	tables := GetAllTables(settings.GlobalConfig.DbName)
+	tables := GetAllTables(dbname)
 	for _, t := range tables {
 		if t == tableName {
 			tbFoundDB=true
@@ -256,7 +255,7 @@ func handleMigrationInt(dialect, fName, ty string, mFieldName_Tags *map[string][
 
 func handleMigrationBool(_, fName, ty string, mFieldName_Tags *map[string][]string, fkeys *[]string, res *map[string]string) {
 	defaultt := ""
-	(*res)[fName] = "INTEGER NOT NULL CHECK (" + fName + " IN (0, 1)) "
+	(*res)[fName] = "INTEGER NOT NULL CHECK (" + fName + " IN (0, 1)) DEFAULT 0"
 	tags := (*mFieldName_Tags)[fName]
 	for _, tag := range tags {
 		if strings.Contains(tag, ":") {

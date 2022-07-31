@@ -179,12 +179,7 @@ var DeleteRowPost = func(c *kamux.Context) {
 					if vv,ok := val.(string);ok && vv != "" {
 						_ = c.DeleteFile(vv)
 					} 
-				} else {
-					c.Status(200).Json(map[string]any{
-						"message":"missing 'image' in request body",
-					})
-					return
-				}
+				} 
 
 				if idS,ok := data["id"].(string);ok {
 					_,err = orm.Table(mm).Where("id = ?",idS).Delete()

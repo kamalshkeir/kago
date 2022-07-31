@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kamalshkeir/kago/core/utils"
@@ -37,310 +38,328 @@ type dbCache struct {
 // linkModel link a struct model to a  db_table_name
 func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 	if db.Name == "" {
-		db=&databases[0]
+		db = &databases[0]
 	}
-	fkkeys := []string{}
 	fields, _, ftypes, ftags := getStructInfos(new(T))
 	// get columns from db
-	colsNameType := GetAllColumns(to_table_name,db.Name)
+	colsNameType := GetAllColumns(to_table_name, db.Name)
 	cols := []string{}
 	for k := range colsNameType {
 		cols = append(cols, k)
 	}
-	
 
-	diff := utils.Difference(fields,cols)
+	diff := utils.Difference(fields, cols)
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		// add or remove field from struct
+		handleAddOrRemove[T](to_table_name, fields, cols, diff, db, ftypes, ftags)
+		wg.Done()
+	}()
 
-	// add or remove field from struct
-	handleAddOrRemove(to_table_name,fields,cols,diff,fkkeys,db,ftypes,ftags)
-
-	// rename field
-	handleRename(to_table_name,fields,cols,diff,db)
-
+	go func() {
+		// rename field
+		handleRename(to_table_name, fields, cols, diff, db)
+		wg.Done()
+	}()
 
 	tFound := false
-	for _,t := range db.Tables {
+	for _, t := range db.Tables {
 		if t.Name == to_table_name {
-			tFound=true
+			tFound = true
 		}
 	}
 	if !tFound {
-		db.Tables=append(db.Tables, TableEntity{
-			Name: to_table_name,
-			Columns: cols,
+		db.Tables = append(db.Tables, TableEntity{
+			Name:       to_table_name,
+			Columns:    cols,
 			ModelTypes: ftypes,
-			Types: colsNameType,
-			Tags: ftags,
-			Fkeys: fkkeys,
+			Types:      colsNameType,
+			Tags:       ftags,
 		})
 	}
 }
 
 // handleAddOrRemove handle sync with db when adding or removing from a struct auto migrated
-func handleAddOrRemove(to_table_name string,fields,cols,diff,fkkeys []string, db *DatabaseEntity,ftypes map[string]string,ftags map[string][]string) {
+func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []string, db *DatabaseEntity, ftypes map[string]string, ftags map[string][]string) {
 	if len(cols) > len(fields) { // extra column db
-		for _,d := range diff {
+		for _, d := range diff {
 			fmt.Println(" ")
-			logger.Printfs("/!\\ found extra column '%s' in the database table '%s'",d,to_table_name)
-			statement := "ALTER TABLE "+to_table_name+" DROP COLUMN "+d
-			choice := input.Input(input.Yellow,"> do you want to remove '"+d+"' from database ? (Y/n): ")
-			if utils.SliceContains([]string{"yes","Y","y"},choice) {
+			logger.Printfs("[WARNING] found extra column '%s' in the database table '%s'", d, to_table_name)
+			statement := "ALTER TABLE " + to_table_name + " DROP COLUMN " + d
+			choice := input.Input(input.Yellow, "> do you want to remove '"+d+"' from database ? (Y/n): ")
+			if utils.SliceContains([]string{"yes", "Y", "y"}, choice) {
 				if len(databases) > 1 && db.Name == "" {
-					ddb := input.Input(input.Blue,"> There are more than one database connected, enter database name: ")
+					ddb := input.Input(input.Blue, "> There are more than one database connected, enter database name: ")
 					conn := GetConnection(ddb)
 					if conn != nil {
-						_,err := conn.Exec(statement)
-						if logger.CheckError(err) {
-							return 
+						_, err := conn.Exec(statement)
+						if err != nil {
+							temp := to_table_name+"_temp"
+							err := autoMigrate[T](db,temp)
+							if logger.CheckError(err) {return}
+							cls := strings.Join(fields,",")
+							_, err =conn.Exec("INSERT INTO "+temp+" SELECT "+cls+" FROM "+to_table_name)
+							if logger.CheckError(err) {return}
+							_,err = Table(to_table_name).Database(db.Name).Drop()
+							if logger.CheckError(err) {return}
+							_, err =conn.Exec("ALTER TABLE "+temp+" RENAME TO "+to_table_name)
+							if logger.CheckError(err) {return}
 						}
-						logger.Printfs("grDone, '%s' removed from '%s'",d,to_table_name)
+						logger.Printfs("grDone, '%s' removed from '%s'", d, to_table_name)
 						os.Exit(0)
 					}
 				} else {
 					conn := db.Conn
 					if conn != nil {
-						_,err := conn.Exec(statement)
-						if logger.CheckError(err) {
-							logger.Info(statement)
-							return 
+						_, err := conn.Exec(statement)
+						if err != nil {
+							temp := to_table_name+"_temp"
+							err := autoMigrate[T](db,temp)
+							if logger.CheckError(err) {return}
+							cls := strings.Join(fields,",")
+							_, err =conn.Exec("INSERT INTO "+temp+" SELECT "+cls+" FROM "+to_table_name)
+							if logger.CheckError(err) {return}
+							_,err = Table(to_table_name).Database(db.Name).Drop()
+							if logger.CheckError(err) {return}
+							_, err =conn.Exec("ALTER TABLE "+temp+" RENAME TO "+to_table_name)
+							if logger.CheckError(err) {return}	
 						}
-						logger.Printfs("grDone, '%s' removed from '%s'",d,to_table_name)
+						logger.Printfs("grDone, '%s' removed from '%s'", d, to_table_name)
 						os.Exit(0)
 					}
 				}
 			} else {
-				fmt.Printf(logger.Green,"Nothing changed.")
+				fmt.Printf(logger.Green, "Nothing changed.")
 			}
 		}
 	} else if len(cols) < len(fields) { // missing column db
-		for _,d := range diff {
+		for _, d := range diff {
 			fmt.Println(" ")
-			logger.Printfs("[WARNING] column '%s' is missing from the database table '%s'",d,to_table_name)
-			choice,err := input.String(input.Yellow,"> do you want to add '"+d+"' to the database ? (Y/n):")
+			logger.Printfs("[WARNING] column '%s' is missing from the database table '%s'", d, to_table_name)
+			choice, err := input.String(input.Yellow, "> do you want to add '"+d+"' to the database ? (Y/n):")
 			logger.CheckError(err)
-			statement := "ALTER TABLE "+to_table_name+" ADD "+d+" "
-			if ty,ok := ftypes[d];ok {
+			statement := "ALTER TABLE " + to_table_name + " ADD " + d + " "
+			if ty, ok := ftypes[d]; ok {
 				ty = strings.ToLower(ty)
-				switch  {
-				case strings.Contains(ty,"str"):
+				switch {
+				case strings.Contains(ty, "str"):
 					res := map[string]string{}
 					fkeys := []string{}
-					handleMigrationString(db.Dialect,d,ty,&ftags,&fkeys,&res)
+					handleMigrationString(db.Dialect, d, ty, &ftags, &fkeys, &res)
 					var s string
 					var fkey string
-					if v,ok := res[d];ok {
-						s=v
+					if v, ok := res[d]; ok {
+						s = v
 					} else {
-						s="VARCHAR(255)"
+						s = "VARCHAR(255)"
 					}
-					for _,fk := range fkeys {
-						sp := strings.Split(fk," ")
-						fkey = strings.Join(sp[2:]," ") 
-					}				
-					if fkey != "" {
-						s += " "+fkey
-						fkkeys = append(fkkeys, d)
-					}
-					statement += s
-				case strings.Contains(ty,"bool"):
-					res := map[string]string{}
-					fkeys := []string{}
-					handleMigrationBool(db.Dialect,d,ty,&ftags,&fkeys,&res)
-					var s string
-					var fkey string
-					if v,ok := res[d];ok {
-						s=v
-					} else {
-						s="INTEGER NOT NULL CHECK (" + d + " IN (0, 1)) DEFAULT 0"
-					}
-					for _,fk := range fkeys {
-						sp := strings.Split(fk," ")
-						fkey = strings.Join(sp[3:]," ") 
+					for _, fk := range fkeys {
+						r := strings.Index(fk,"REFERENCE")
+						fkey = fk[r:]
 					}
 					if fkey != "" {
-						s += " "+fkey
-						fkkeys = append(fkkeys, d)
+						s += " " + fkey
 					}
 					statement += s
-				case strings.Contains(ty,"int"):
+				case strings.Contains(ty, "bool"):
 					res := map[string]string{}
 					fkeys := []string{}
-					handleMigrationInt(db.Dialect,d,ty,&ftags,&fkeys,&res)
+					handleMigrationBool(db.Dialect, d, ty, &ftags, &fkeys, &res)
 					var s string
 					var fkey string
-					if v,ok := res[d];ok {
-						s=v
+					if v, ok := res[d]; ok {
+						s = v
 					} else {
-						s="INTEGER"
+						s = "INTEGER NOT NULL CHECK (" + d + " IN (0, 1)) DEFAULT 0"
 					}
-					for _,fk := range fkeys {
-						sp := strings.Split(fk," ")
-						fkey = strings.Join(sp[3:]," ") 
+					for _, fk := range fkeys {
+						r := strings.Index(fk,"REFERENCE")
+						fkey = fk[r:]
 					}
 					if fkey != "" {
-						s += " "+fkey
-						fkkeys = append(fkkeys, d)
+						s += " " + fkey
 					}
 					statement += s
-				case strings.Contains(ty,"floa"):
+				case strings.Contains(ty, "int"):
 					res := map[string]string{}
 					fkeys := []string{}
-					handleMigrationFloat(db.Dialect,d,ty,&ftags,&fkeys,&res)
+					handleMigrationInt(db.Dialect, d, ty, &ftags, &fkeys, &res)
 					var s string
 					var fkey string
-					if v,ok := res[d];ok {
-						s=v
+					if v, ok := res[d]; ok {
+						s = v
 					} else {
-						s="DECIMAL(5,2)"
+						s = "INTEGER"
 					}
-					for _,fk := range fkeys {
-						sp := strings.Split(fk," ")
-						fkey = strings.Join(sp[3:]," ") 
+					for _, fk := range fkeys {
+						r := strings.Index(fk,"REFERENCE")
+						fkey = fk[r:]
 					}
 					if fkey != "" {
-						s += " "+fkey
-						fkkeys = append(fkkeys, d)
+						s += " " + fkey
 					}
 					statement += s
-				case strings.Contains(ty,"time"):
+				case strings.Contains(ty, "floa"):
 					res := map[string]string{}
 					fkeys := []string{}
-					handleMigrationTime(db.Dialect,d,ty,&ftags,&fkeys,&res)
+					handleMigrationFloat(db.Dialect, d, ty, &ftags, &fkeys, &res)
 					var s string
 					var fkey string
-					if v,ok := res[d];ok {
-						s=v
+					if v, ok := res[d]; ok {
+						s = v
 					} else {
-						if strings.Contains(db.Dialect,"sqlite") {
-							s="TEXT"
-						}  else {
-							s="TIMESTAMP"
+						s = "DECIMAL(5,2)"
+					}
+					for _, fk := range fkeys {
+						r := strings.Index(fk,"REFERENCE")
+						fkey = fk[r:]
+					}
+					if fkey != "" {
+						s += " " + fkey
+					}
+					statement += s
+				case strings.Contains(ty, "time"):
+					res := map[string]string{}
+					fkeys := []string{}
+					handleMigrationTime(db.Dialect, d, ty, &ftags, &fkeys, &res)
+					var s string
+					var fkey string
+					if v, ok := res[d]; ok {
+						s = v
+					} else {
+						if strings.Contains(db.Dialect, "sqlite") {
+							s = "TEXT"
+						} else {
+							s = "TIMESTAMP"
 						}
 					}
 					s = strings.ToLower(s)
-					if strings.Contains(s,"default") {
-						sp := strings.Split(s," ")
-						s = strings.Join(sp[:len(sp)-2]," ")
+					if strings.Contains(s, "default") {
+						sp := strings.Split(s, " ")
+						s = strings.Join(sp[:len(sp)-2], " ")
 					}
-					if strings.Contains(s,"not null") {
-						s = strings.ReplaceAll(s,"not null","")
+					if strings.Contains(s, "not null") {
+						s = strings.ReplaceAll(s, "not null", "")
 					}
-					for _,fk := range fkeys {
-						sp := strings.Split(fk," ")
-						fkey = strings.Join(sp[3:]," ") 
+					for _, fk := range fkeys {
+						r := strings.Index(fk,"REFERENCE")
+						fkey = fk[r:]
 					}
 					if fkey != "" {
-						s += " "+fkey
-						fkkeys = append(fkkeys, d)
+						s += " " + fkey
+					}
+					if fkey != "" {
+						s += " " + fkey
 					}
 					statement += s
 				default:
-					logger.Info("case not handled:",ty)
+					logger.Info("case not handled:", ty)
 					return
 				}
 
-				if utils.SliceContains([]string{"yes","Y","y"},choice) {
+				if utils.SliceContains([]string{"yes", "Y", "y"}, choice) {
 					if len(databases) > 1 && db.Name == "" {
-						ddb := input.Input(input.Blue,"> There are more than one database connected, database name:")
+						ddb := input.Input(input.Blue, "> There are more than one database connected, database name:")
 						conn := GetConnection(ddb)
 						if conn != nil {
-							_,err := conn.Exec(statement)
+							_, err := conn.Exec(statement)
 							if logger.CheckError(err) {
 								logger.Info(statement)
-								return 
+								return
 							}
-							logger.Printfs("grDone, '%s' added to '%s', you may want to restart your server",d,to_table_name)
+							logger.Printfs("grDone, '%s' added to '%s', you may want to restart your server", d, to_table_name)
 						}
 					} else {
 						conn := GetConnection(db.Name)
 						if conn != nil {
-							_,err := conn.Exec(statement)
+							_, err := conn.Exec(statement)
 							if logger.CheckError(err) {
 								logger.Info(statement)
-								return 
+								return
 							}
-							logger.Printfs("grDone, '%s' added to '%s', you may want to restart your server",d,to_table_name)
+							logger.Printfs("grDone, '%s' added to '%s', you may want to restart your server", d, to_table_name)
 						}
 					}
 				} else {
 					logger.Info("Nothing changed")
 				}
 			} else {
-				logger.Info("case not handled:",ty,ftypes[d])
+				logger.Info("case not handled:", ty, ftypes[d])
 			}
 		}
-	} 
+	}
 }
 
 // handleRename handle sync with db when renaming fields struct
-func handleRename(to_table_name string,fields,cols,diff []string, db *DatabaseEntity) {
+func handleRename(to_table_name string, fields, cols, diff []string, db *DatabaseEntity) {
 	// rename field
 	old := []string{}
 	new := []string{}
-	if len(fields) == len(cols) && len(diff) % 2 == 0 && len(diff) > 0 {
-		for _,d := range diff {
-			if !utils.SliceContains(cols,d) { // d is new
-				 new = append(new, d)
+	if len(fields) == len(cols) && len(diff)%2 == 0 && len(diff) > 0 {
+		for _, d := range diff {
+			if !utils.SliceContains(cols, d) { // d is new
+				new = append(new, d)
 			} else { // d is old
 				old = append(old, d)
 			}
 		}
-	}	
-	if len(new) > 0 && len(new) == len(old){
+	}
+	if len(new) > 0 && len(new) == len(old) {
 		if len(new) == 1 {
-			choice := input.Input(input.Yellow,"> you renamed '"+old[0]+"' to '"+new[0]+"', execute these changes to db ? (Y/n):")
-			if utils.SliceContains([]string{"yes","Y","y"},choice) {
-				statement := "ALTER TABLE "+to_table_name+" RENAME COLUMN "+old[0]+" TO " + new[0]
+			choice := input.Input(input.Yellow, "> you renamed '"+old[0]+"' to '"+new[0]+"', execute these changes to db ? (Y/n):")
+			if utils.SliceContains([]string{"yes", "Y", "y"}, choice) {
+				statement := "ALTER TABLE " + to_table_name + " RENAME COLUMN " + old[0] + " TO " + new[0]
 				if len(databases) > 1 && db.Name == "" {
-					ddb := input.Input(input.Blue,"> There are more than one database connected, database name:")
+					ddb := input.Input(input.Blue, "> There are more than one database connected, database name:")
 					conn := GetConnection(ddb)
 					if conn != nil {
-						_,err := conn.Exec(statement)
+						_, err := conn.Exec(statement)
 						if logger.CheckError(err) {
-							return 
+							return
 						}
-						logger.Printfs("grDone, '%s' has been changed to %s",old[0],new[0])
+						logger.Printfs("grDone, '%s' has been changed to %s", old[0], new[0])
 					}
 				} else {
 					conn := db.Conn
 					if conn != nil {
-						_,err := conn.Exec(statement)
+						_, err := conn.Exec(statement)
 						if logger.CheckError(err) {
-							return 
+							return
 						}
-						logger.Printfs("grDone, '%s' has been changed to %s",old[0],new[0])
+						logger.Printfs("grDone, '%s' has been changed to %s", old[0], new[0])
 					}
 				}
 			} else {
 				logger.Printfs("grNothing changed")
-			}	
+			}
 		} else {
-			for _,n := range new {
-				for _,o := range old {
-					if strings.HasPrefix(n,o) || strings.HasPrefix(o,n) {
-						choice := input.Input(input.Yellow,"> you renamed '"+o+"' to '"+n+"', execute these changes to db ? (Y/n):")
-						if utils.SliceContains([]string{"yes","Y","y"},choice) {
-							statement := "ALTER TABLE "+to_table_name+" RENAME COLUMN "+o+" TO " + n
+			for _, n := range new {
+				for _, o := range old {
+					if strings.HasPrefix(n, o) || strings.HasPrefix(o, n) {
+						choice := input.Input(input.Yellow, "> you renamed '"+o+"' to '"+n+"', execute these changes to db ? (Y/n):")
+						if utils.SliceContains([]string{"yes", "Y", "y"}, choice) {
+							statement := "ALTER TABLE " + to_table_name + " RENAME COLUMN " + o + " TO " + n
 							if len(databases) > 1 && db.Name == "" {
-								ddb := input.Input(input.Blue,"> There are more than one database connected, database name:")
+								ddb := input.Input(input.Blue, "> There are more than one database connected, database name:")
 								conn := GetConnection(ddb)
 								if conn != nil {
-									_,err := conn.Exec(statement)
+									_, err := conn.Exec(statement)
 									if logger.CheckError(err) {
-										return 
+										return
 									}
 								}
 							} else {
 								conn := GetConnection(db.Name)
 								if conn != nil {
-									_,err := conn.Exec(statement)
+									_, err := conn.Exec(statement)
 									if logger.CheckError(err) {
-										return 
+										return
 									}
 								}
 							}
-							logger.Printfs("grDone, '%s' has been changed to %s",o,n)
-						} 
+							logger.Printfs("grDone, '%s' has been changed to %s", o, n)
+						}
 					}
 				}
 			}
@@ -348,100 +367,99 @@ func handleRename(to_table_name string,fields,cols,diff []string, db *DatabaseEn
 	}
 }
 
-
-func GetConstraints(db *DatabaseEntity,tableName string) map[string][]string {
+func GetConstraints(db *DatabaseEntity, tableName string) map[string][]string {
 	res := map[string][]string{}
 	switch db.Dialect {
 	case "sqlite":
-		st := "select sql from sqlite_master where type='table' and name='"+tableName+"';"
-		d,err := Query(*db,st)
-		if logger.CheckError(err){
+		st := "select sql from sqlite_master where type='table' and name='" + tableName + "';"
+		d, err := Query(*db, st)
+		if logger.CheckError(err) {
 			return nil
 		}
 		sqlStat := d[0]["sql"]
-		if _,after,found := strings.Cut(sqlStat.(string),"(");found {
-			lines := strings.Split(after[:len(after)-1],",") 
-			for _,l := range lines {
-				sp := strings.Split(l," ")
-				if len(sp) > 1 && sp[1] != ""{
+		if _, after, found := strings.Cut(sqlStat.(string), "("); found {
+			lines := strings.Split(after[:len(after)-1], ",")
+			for _, l := range lines {
+				sp := strings.Split(l, " ")
+				if len(sp) > 1 && sp[1] != "" {
 					col := sp[0]
 					tags := sp[1:]
 					if col != "" && len(tags) > 1 {
-						for _,t := range tags {
+						for _, t := range tags {
 							switch t {
-							case "PRIMARY","PRIMARY KEY":
-								res[col]=append(res[col], "pkey")
-							case "NOT NULL","NULL":
-								res[col]=append(res[col], "notnull")
-							case "FOREIGN","FOREIGN KEY":
-								res[col]=append(res[col], "fkey")
+							case "PRIMARY", "PRIMARY KEY":
+								res[col] = append(res[col], "pkey")
+							case "NOT NULL", "NULL":
+								res[col] = append(res[col], "notnull")
+							case "FOREIGN", "FOREIGN KEY":
+								res[col] = append(res[col], "fkey")
 							case "CHECK":
-								res[col]=append(res[col], "chk")
+								res[col] = append(res[col], "chk")
 							case "UNIQUE":
-								res[col]=append(res[col], "key")
+								res[col] = append(res[col], "key")
 							default:
 								if t == "KEY" && col == "FOREIGN" {
-									col := tags[1][1:len(tags[1])-1]
-									res[col]=append(res[col], "fkey")
-								} 
+									col := tags[1][1 : len(tags[1])-1]
+									res[col] = append(res[col], "fkey")
+								}
 							}
 						}
 					}
 				}
 			}
 		}
-	case "postgres","mysql":
-		st :="select table_name,constraint_type,constraint_name from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where table_name='"+tableName+"';"
-		d,err := Query(*db,st)
+	case "postgres", "mysql":
+		st := "select table_name,constraint_type,constraint_name from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where table_name='" + tableName + "';"
+		d, err := Query(*db, st)
 		if !logger.CheckError(err) {
-			for _,dd := range d {
+			for _, dd := range d {
 				logger.Success(dd)
 				switch {
-				case strings.HasPrefix(dd["constraint_name"].(string),"chk_"):
-					ln := len("chk_")+len(tableName)+1
+				case strings.HasPrefix(dd["constraint_name"].(string), "chk_"):
+					ln := len("chk_") + len(tableName) + 1
 					col := dd["constraint_name"].(string)[ln:]
-					res[col]=append(res[col], "chk")
-				case strings.HasSuffix(dd["constraint_name"].(string),"_pkey"):
-					sp := strings.Split(dd["constraint_name"].(string),"_")
+					res[col] = append(res[col], "chk")
+				case strings.HasSuffix(dd["constraint_name"].(string), "_pkey"):
+					sp := strings.Split(dd["constraint_name"].(string), "_")
 					sp = sp[:len(sp)-1]
-					col := strings.Join(sp,"_")
-					res[col]=append(res[col], "pkey")
-				case strings.HasSuffix(dd["constraint_name"].(string),"_fkey"):
-					if constraintName,ok := dd["constraint_name"].(string);ok {
-						sp := strings.Split(constraintName,"_")
+					col := strings.Join(sp, "_")
+					res[col] = append(res[col], "pkey")
+				case strings.HasSuffix(dd["constraint_name"].(string), "_fkey"):
+					if constraintName, ok := dd["constraint_name"].(string); ok {
+						sp := strings.Split(constraintName, "_")
 						table := sp[0]
 						if table != tableName {
-							for i := 2;true;i++ {
-								table = strings.Join(sp[0:i],"_")
+							for i := 2; true; i++ {
+								table = strings.Join(sp[0:i], "_")
 								if table == tableName {
 									break
 								}
 							}
-							
+
 						}
-						ln := len(table)+2
-						col := constraintName[ln:(len(constraintName)-len("_fkey"))]
-						res[col]=append(res[col], "fkey")
-							
+						ln := len(table) + 2
+						col := constraintName[ln:(len(constraintName) - len("_fkey"))]
+						res[col] = append(res[col], "fkey")
+
 					}
-				case strings.HasSuffix(dd["constraint_name"].(string),"_key"):
-					if constraintName,ok := dd["constraint_name"].(string);ok {
+				case strings.HasSuffix(dd["constraint_name"].(string), "_key"):
+					if constraintName, ok := dd["constraint_name"].(string); ok {
 						// users_email_key
-						sp := strings.Split(constraintName,"_")
+						sp := strings.Split(constraintName, "_")
 						table := sp[0]
 						if table != tableName {
-							for i := 2;true;i++ {
-								table = strings.Join(sp[0:i],"_")
+							for i := 2; true; i++ {
+								table = strings.Join(sp[0:i], "_")
 								if table == tableName {
 									break
 								}
 							}
-							
+
 						}
-						ln := len(table)+2
-						col := constraintName[ln:len(constraintName)-len("_key")]
-						res[col]=append(res[col], "key")
-							
+						ln := len(table) + 2
+						col := constraintName[ln : len(constraintName)-len("_key")]
+						res[col] = append(res[col], "key")
+
 					}
 				default:
 				}
@@ -503,8 +521,9 @@ func SnakeCaseToTitle(inputUnderScoreStr string) (camelCase string) {
 func getTableName[T comparable]() string {
 	if v, ok := mModelTablename[*new(T)]; ok {
 		return v
+	} else {
+		return ""
 	}
-	return ""
 }
 
 func fillStruct[T comparable](struct_to_fill *T, values_to_fill ...any) {
@@ -520,7 +539,7 @@ func fillStruct[T comparable](struct_to_fill *T, values_to_fill ...any) {
 	for i := 0; i < rs.NumField(); i++ {
 		field := rs.Field(i)
 		valueToSet := reflect.ValueOf(values_to_fill[i])
-		//logger.Info(tt.FieldByIndex([]int{i}).Name,"fieldType=", field.Kind(),",valueType=",reflect.ValueOf(values_to_fill[i]).Kind())
+		//logger.Info(tt.FieldByIndex([]int{i}).Name, "fieldType=", field.Kind(), ",valueType=", reflect.ValueOf(values_to_fill[i]).Kind())
 		switch field.Kind() {
 		case reflect.ValueOf(values_to_fill[i]).Kind():
 			field.Set(valueToSet)
@@ -548,9 +567,6 @@ func fillStruct[T comparable](struct_to_fill *T, values_to_fill ...any) {
 				}
 			case int:
 				field.SetInt(int64(v))
-			default:
-				logger.Error("not handled:", v)
-				field.Set(reflect.ValueOf(valueToSet.Interface()))
 			}
 		case reflect.Int64:
 			switch v := valueToSet.Interface().(type) {
@@ -566,9 +582,6 @@ func fillStruct[T comparable](struct_to_fill *T, values_to_fill ...any) {
 				}
 			case int:
 				field.SetInt(int64(v))
-			default:
-				field.Set(reflect.ValueOf(valueToSet.Interface()))
-				logger.Error(v, "not handled")
 			}
 		case reflect.Bool:
 			//logger.Info("Bool", tt.Field(i).Name, ":", valueToSet.Interface(), fmt.Sprintf("%T", valueToSet.Interface()))
@@ -589,8 +602,6 @@ func fillStruct[T comparable](struct_to_fill *T, values_to_fill ...any) {
 				if values_to_fill[i] == "1" {
 					field.SetBool(true)
 				}
-			default:
-				logger.Error("not handled BOOL")
 			}
 		case reflect.Uint:
 			switch v := valueToSet.Interface().(type) {
@@ -602,9 +613,6 @@ func fillStruct[T comparable](struct_to_fill *T, values_to_fill ...any) {
 				field.SetUint(uint64(v))
 			case int:
 				field.SetUint(uint64(v))
-			default:
-				logger.Error("type of valueToSet:")
-				fmt.Printf("%T\n", valueToSet.Interface())
 			}
 		case reflect.Uint64:
 			switch v := valueToSet.Interface().(type) {
@@ -616,9 +624,6 @@ func fillStruct[T comparable](struct_to_fill *T, values_to_fill ...any) {
 				field.SetUint(uint64(v))
 			case int:
 				field.SetUint(uint64(v))
-			default:
-				logger.Error("type of valueToSet:")
-				fmt.Printf("%T\n", valueToSet.Interface())
 			}
 		case reflect.Float64:
 			if v, ok := valueToSet.Interface().(float64); ok {
@@ -630,7 +635,7 @@ func fillStruct[T comparable](struct_to_fill *T, values_to_fill ...any) {
 			if valueToSet.IsValid() {
 				switch v := valueToSet.Interface().(type) {
 				case string:
-					if utils.StringContains(v,":","-") {
+					if utils.StringContains(v, ":", "-") {
 						l := len("2006-01-02T15:04")
 						if strings.Contains(v[:l], "T") {
 							if len(v) >= l {
@@ -647,14 +652,12 @@ func fillStruct[T comparable](struct_to_fill *T, values_to_fill ...any) {
 						} else {
 							logger.Info("doesn't match any case", v)
 						}
-					}			
+					}
 				case time.Time:
 					logger.Info(v)
 					field.Set(reflect.ValueOf(v))
-				default:
-					logger.Error("field struct with value", v, "not handled")
 				}
-			} 
+			}
 		default:
 			field.Set(reflect.ValueOf(valueToSet.Interface()))
 			logger.Error("type not handled for fieldType", field.Kind(), "value=", valueToSet.Interface())

@@ -290,7 +290,6 @@ func FillStructOld[T comparable](struct_to_fill *T, values_to_fill ...any) {
 			case int:
 				field.SetUint(uint64(v))
 			default:
-				logger.Error("type of valueToSet:")
 				fmt.Printf("%T\n", valueToSet.Interface())
 			}
 		case reflect.Uint64:
@@ -304,7 +303,6 @@ func FillStructOld[T comparable](struct_to_fill *T, values_to_fill ...any) {
 			case int:
 				field.SetUint(uint64(v))
 			default:
-				logger.Error("type of valueToSet:")
 				fmt.Printf("%T\n", valueToSet.Interface())
 			}
 		case reflect.Float64:

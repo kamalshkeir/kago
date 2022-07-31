@@ -118,11 +118,9 @@ func New(envFiles ...string) *Router {
 			logger.Error(err)
 		}
 	} 
-	if len(orm.GetAllTables()) == 0 {
-		// migrate initial models
-		err := orm.Migrate()
-		logger.CheckError(err)
-	}
+	// migrate initial models
+	err = orm.Migrate()
+	logger.CheckError(err)
 	// init orm shell
 	if shell.InitShell() {os.Exit(0)}
 	utils.PrintServerStart()

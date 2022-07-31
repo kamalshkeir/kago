@@ -206,12 +206,11 @@ func (router *Router) cloneTemplatesAndStatic()  {
 			found=true
 		}
 	}
+	err := orm.Migrate()
+	logger.CheckError(err)
 	if !found {
-		fmt.Printf(logger.Blue,"initial models migrated")
-		err := orm.Migrate()
-		if !logger.CheckError(err) {
-			fmt.Printf(logger.Blue,"you can run 'go run main.go shell' to createsuperuser")
-		}
+		fmt.Printf(logger.Blue,"initial models migrated")	
+		fmt.Printf(logger.Blue,"you can run 'go run main.go shell' to createsuperuser")	
 		os.Exit(0)
 	} 
 	
