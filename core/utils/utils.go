@@ -278,8 +278,8 @@ func StringContains(s string,subs ...string) bool {
 
 // Send Email
 func SendEmail(to_email string,subject string,textToSend string) {
-	from := settings.GlobalConfig.SmtpEmail
-	pass := settings.GlobalConfig.SmtpPass
+	from := settings.Config.Smtp.Email
+	pass := settings.Config.Smtp.Pass
 	if pass == "" {
 		logger.Error("CANNOT READ FROM ENV FILE")
 	}
@@ -288,8 +288,8 @@ func SendEmail(to_email string,subject string,textToSend string) {
 		to_email,
 	}
 
-	smtpHost := settings.GlobalConfig.SmtpHost
-  	smtpPort := settings.GlobalConfig.SmtpPort
+	smtpHost := settings.Config.Smtp.Host
+  	smtpPort := settings.Config.Smtp.Port
 
 	auth := smtp.PlainAuth("", from, pass, smtpHost)
 	t, _ := template.ParseFiles("templates/email.html")
@@ -541,13 +541,13 @@ func GetIpCountry(ip string) string {
 }
 
 func PrintServerStart() {
-	host := settings.GlobalConfig.Host
+	host := settings.Config.Host
 	if host == "" {
 		host = "127.0.0.1"
 	}
-	port := settings.GlobalConfig.Port
+	port := settings.Config.Port
 	if port == "" {
-		settings.GlobalConfig.Port="9313"
+		settings.Config.Port="9313"
 		port = "9313"
 	}
 	fmt.Printf(logger.Yellow, logger.Ascii7)

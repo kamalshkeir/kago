@@ -80,7 +80,7 @@ func (c *Context) Html(template_name string, data map[string]any) {
 	if data == nil { data = make(map[string]any) }
 	
 	data["request"] = c.Request
-	data["logs"] = settings.GlobalConfig.Logs
+	data["logs"] = settings.Config.Logs
 	user,ok := c.Request.Context().Value(key).(map[string]any)
 	if ok {		
 		data["is_authenticated"] = true

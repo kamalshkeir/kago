@@ -55,48 +55,47 @@ type DatabaseEntity struct {
 func InitDB() (error) {
 	var err error
 	var dsn string
-	if settings.GlobalConfig.DbDSN == "" {
+	if settings.Config.Db.DSN == "" {
 		if os.Getenv("DB_TYPE") != "" {
-			settings.GlobalConfig.DbType=os.Getenv("DB_TYPE")
+			settings.Config.Db.Type=os.Getenv("DB_TYPE")
 		} else {
-			settings.GlobalConfig.DbType="sqlite"
+			settings.Config.Db.Type="sqlite"
 		}
 	}
 
-	if settings.GlobalConfig.DbName == "" {
+	if settings.Config.Db.Name == "" {
 		if os.Getenv("DB_NAME") != "" {
-			settings.GlobalConfig.DbName=os.Getenv("DB_NAME")
+			settings.Config.Db.Name=os.Getenv("DB_NAME")
 		}
-		if settings.GlobalConfig.DbType == "sqlite" {
-			if settings.GlobalConfig.DbName == "" {
-				settings.GlobalConfig.DbName="db"
+		if settings.Config.Db.Type == "sqlite" {
+			if settings.Config.Db.Name == "" {
+				settings.Config.Db.Name="db"
 			}
 		}
 	}
-	switch settings.GlobalConfig.DbType {
+	switch settings.Config.Db.Type {
 	case "postgres":
-		dsn = fmt.Sprintf("postgres://%s/%s?sslmode=disable",settings.GlobalConfig.DbDSN,settings.GlobalConfig.DbName)
+		dsn = fmt.Sprintf("postgres://%s/%s?sslmode=disable",settings.Config.Db.DSN,settings.Config.Db.Name)
 	case "mysql":
-		if strings.Contains(settings.GlobalConfig.DbDSN,"tcp(") {
-			dsn = settings.GlobalConfig.DbDSN + "/"+ settings.GlobalConfig.DbName
+		if strings.Contains(settings.Config.Db.DSN,"tcp(") {
+			dsn = settings.Config.Db.DSN + "/"+ settings.Config.Db.Name
 		} else {
-			split := strings.Split(settings.GlobalConfig.DbDSN,"@")
+			split := strings.Split(settings.Config.Db.DSN,"@")
 			if len(split) > 2 {
 				return errors.New("there is 2 or more @ symbol in dsn")
 			}
-			dsn = split[0]+"@"+"tcp("+split[1]+")/"+ settings.GlobalConfig.DbName
+			dsn = split[0]+"@"+"tcp("+split[1]+")/"+ settings.Config.Db.Name
 		}		
-	case "sqlite","":
-		dsn = settings.GlobalConfig.DbName+".sqlite"
-		if dsn == "" {dsn="db.sqlite"}
+	case "sqlite","sqlite3":
+		dsn = settings.Config.Db.Name+".sqlite?_pragma=foreign_keys(1)"
+		if settings.Config.Db.Name == "" {dsn="db.sqlite?_pragma=foreign_keys(1)"}
 	default:
-		dsn = settings.GlobalConfig.DbName+".sqlite"
-		if dsn == "" {dsn="db.sqlite"}
+		dsn = settings.Config.Db.Name+".sqlite?_pragma=foreign_keys(1)"
+		if settings.Config.Db.Name == "" {dsn="db.sqlite?_pragma=foreign_keys(1)"}
 	}
-	if settings.GlobalConfig.DbType == "sqlite" {
-		dsn+="?_pragma=foreign_keys(1)"
-	}
-	dbConn, err := sql.Open(settings.GlobalConfig.DbType, dsn)
+
+	
+	dbConn, err := sql.Open(settings.Config.Db.Type, dsn)
 	if logger.CheckError(err) {
 		return err
 	}
@@ -105,27 +104,21 @@ func InitDB() (error) {
 		logger.Info("check if env is loaded", dsn)
 		return err
 	}
-	if settings.GlobalConfig.DbType == "sqlite" {
-		_, err = dbConn.Exec(`PRAGMA foreign_keys = ON`)
-		if logger.CheckError(err) {
-			return err
-		}
-	}
 	
 	// if db exist return
 	for _,db := range databases {
-		if db.Name == settings.GlobalConfig.DbName {
+		if db.Name == settings.Config.Db.Name {
 			return nil
 		}
 	}
 	
 	databases = append(databases, DatabaseEntity{
-		Name: settings.GlobalConfig.DbName,
+		Name: settings.Config.Db.Name,
 		Conn: dbConn,
-		Dialect: settings.GlobalConfig.DbType,
+		Dialect: settings.Config.Db.Type,
 	})
-	mDbNameConnection[settings.GlobalConfig.DbName]=dbConn
-	mDbNameDialect[settings.GlobalConfig.DbName]=settings.GlobalConfig.DbType
+	mDbNameConnection[settings.Config.Db.Name]=dbConn
+	mDbNameDialect[settings.Config.Db.Name]=settings.Config.Db.Type
 	
 	dbConn.SetMaxOpenConns(5)
 	dbConn.SetMaxIdleConns(2)
@@ -248,7 +241,7 @@ func GetConnection(dbName ...string) *sql.DB {
 			}
 		}
 	} else {
-		if v,ok := mDbNameConnection[settings.GlobalConfig.DbName];ok {
+		if v,ok := mDbNameConnection[settings.Config.Db.Name];ok {
 			return v
 		}
 	}
@@ -265,8 +258,8 @@ func UseForAdmin(dbName string) {
 					"database": "",
 				})
 			}
-			settings.GlobalConfig.DbName=dbName
-			settings.GlobalConfig.DbType=dialect
+			settings.Config.Db.Name=dbName
+			settings.Config.Db.Type=dialect
 		} else {
 			logger.Error("dialect not found for",dbName)
 		}
@@ -305,7 +298,7 @@ func GetDatabaseTableFromMemory(dbName,tableName string) (*TableEntity,error) {
 func GetAllTables(dbName ...string) []string {
 	var name string
 	if len(dbName) == 0 {
-		name=settings.GlobalConfig.DbName
+		name=settings.Config.Db.Name
 	} else {
 		name=dbName[0]
 	}
@@ -318,7 +311,7 @@ func GetAllTables(dbName ...string) []string {
 	conn := GetConnection(name)
 	
 	tables := []string{}
-	switch settings.GlobalConfig.DbType {
+	switch settings.Config.Db.Type {
 	case "postgres":
 		rows,err := conn.Query(`SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname != 'pg_catalog' AND schemaname != 'information_schema';`)
 		if logger.CheckError(err) {
@@ -373,7 +366,7 @@ func GetAllTables(dbName ...string) []string {
 }
 
 func GetAllColumns(table string, dbName ...string) map[string]string {
-	dName := settings.GlobalConfig.DbName
+	dName := settings.Config.Db.Name
 	if len(dbName) > 0 {
 		dName=dbName[0]
 	}
@@ -383,7 +376,7 @@ func GetAllColumns(table string, dbName ...string) map[string]string {
 		}
 	}
 
-	dbType := settings.GlobalConfig.DbType
+	dbType := settings.Config.Db.Type
 	conn := GetConnection(dName)
 	for _,d := range databases {
 		if d.Name == dName {
@@ -398,7 +391,7 @@ func GetAllColumns(table string, dbName ...string) map[string]string {
 	case "postgres":
 		statement = "SELECT column_name,data_type FROM information_schema.columns WHERE table_name = '"+table+"'"
 	case "mysql":
-		statement = "SELECT column_name,data_type FROM information_schema.columns WHERE table_name = '"+table+"' AND TABLE_SCHEMA = '"+settings.GlobalConfig.DbName+"'"
+		statement = "SELECT column_name,data_type FROM information_schema.columns WHERE table_name = '"+table+"' AND TABLE_SCHEMA = '"+settings.Config.Db.Name+"'"
 	default:
 		statement = "PRAGMA table_info("+table+");"
 		row,err := conn.Query(statement)
@@ -459,7 +452,7 @@ func CreateUser(email,password string,isAdmin int, dbName ...string) error {
 	if logger.CheckError(err) {
 		return err
 	}
-	name := settings.GlobalConfig.DbName
+	name := settings.Config.Db.Name
 	if len(dbName) > 0 {
 		name=dbName[0]
 	}

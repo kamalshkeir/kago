@@ -28,7 +28,7 @@ func UrlPatterns(r *kamux.Router) {
 	r.GET("/admin/get/model:str/id:int", middlewares.Admin(SingleModelGet))
 	r.GET("/admin/export/table:str", middlewares.Admin(ExportView))
 	r.POST("/admin/import", middlewares.Admin(ImportView))
-	if settings.GlobalConfig.Logs {	
+	if settings.Config.Logs {	
 		once.Do(func() {
 			r.UseMiddlewares(middlewares.LOGS)
 		})

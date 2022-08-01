@@ -90,7 +90,7 @@ func CheckError(err error) bool {
 		pc, _, line, _ := runtime.Caller(1)
 		caller := runtime.FuncForPC(pc).Name()
 		fmt.Printf("\033[1;31m [ERROR] %s [line:%d] : %v \033[0m \n", caller, line, err)
-		if settings.GlobalConfig.Logs {
+		if settings.Config.Logs {
 			StreamLogs = append(StreamLogs, fmt.Sprintf("[ERROR] %s [line:%d] : %v \n", caller, line, err))
 			eventbus.Publish("internal-logs",map[string]string{})
 		}
@@ -106,7 +106,7 @@ func Error(anything ...interface{}) {
 	placeholder := strings.Repeat("%v,",len(anything))
 	ph := strings.Replace(placeholder[:len(placeholder)-1],",","  ",-1) 
 	new := fmt.Sprintf("\033[1;31m [ERROR] %s [line:%d] : %s \033[0m \n", caller, line, ph)
-	if settings.GlobalConfig.Logs {
+	if settings.Config.Logs {
 		StreamLogs = append(StreamLogs, fmt.Sprintf("[ERROR] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph,anything...)))
 		eventbus.Publish("internal-logs",map[string]string{})
 	}
@@ -120,7 +120,7 @@ func Info(anything ...interface{}) {
 	placeholder := strings.Repeat("%v,",len(anything))
 	ph := strings.Replace(placeholder[:len(placeholder)-1],",","  ",-1) 
 	new := fmt.Sprintf("\033[1;34m [INFO] %s [line:%d] : %s \033[0m \n", caller, line, ph)
-	if settings.GlobalConfig.Logs {
+	if settings.Config.Logs {
 		StreamLogs = append(StreamLogs, fmt.Sprintf("[INFO] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph,anything...)))
 		eventbus.Publish("internal-logs",map[string]string{})
 	}
@@ -134,7 +134,7 @@ func Debug(anything ...interface{}) {
 	placeholder := strings.Repeat("%v,",len(anything))
 	ph := strings.Replace(placeholder[:len(placeholder)-1],",","  ",-1) 
 	new := fmt.Sprintf("\033[1;34m [DEBUG] %s [line:%d] : %s \033[0m \n", caller, line, ph)
-	if settings.GlobalConfig.Logs {
+	if settings.Config.Logs {
 		StreamLogs = append(StreamLogs, fmt.Sprintf("[DEBUG] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph,anything...)))
 		eventbus.Publish("internal-logs",map[string]string{})
 	}
@@ -148,7 +148,7 @@ func Success(anything ...interface{}) {
 	placeholder := strings.Repeat("%v,",len(anything))
 	ph := strings.Replace(placeholder[:len(placeholder)-1],",","  ",-1) 
 	new := fmt.Sprintf("\033[1;32m [SUCCESS] %s [line:%d] : %s \033[0m \n", caller, line, ph)
-	if settings.GlobalConfig.Logs {
+	if settings.Config.Logs {
 		StreamLogs = append(StreamLogs, fmt.Sprintf("[SUCCESS] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph,anything...)))
 		eventbus.Publish("internal-logs",map[string]string{})
 	}
@@ -162,7 +162,7 @@ func Warn(anything ...interface{}) {
 	placeholder := strings.Repeat("%v,",len(anything))
 	ph := strings.Replace(placeholder[:len(placeholder)-1],",","  ",-1)
 	new := fmt.Sprintf("\033[1;35m [WARN] %s [line:%d] : %s \033[0m \n",caller, line, ph)
-	if settings.GlobalConfig.Logs {
+	if settings.Config.Logs {
 		StreamLogs = append(StreamLogs, fmt.Sprintf("[WARN] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph,anything...)))
 		eventbus.Publish("internal-logs",map[string]string{})
 	}

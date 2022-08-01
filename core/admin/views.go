@@ -112,9 +112,9 @@ var AllModelsGet = func(c *kamux.Context) {
 		}
 	}
 	columns := orm.GetAllColumns(model)
-	if settings.GlobalConfig.DbType != "" {
+	if settings.Config.Db.Type != "" {
 		c.Html("admin/admin_all_models.html", map[string]any{
-			"dbType":settings.GlobalConfig.DbType,
+			"dbType":settings.Config.Db.Type,
 			"model_name":model,
 			"rows":rows,
 			"columns":columns,
@@ -483,7 +483,7 @@ var ImportView= func(c *kamux.Context) {
 }
 
 var ManifestView= func (c *kamux.Context) {
-	if settings.GlobalConfig.EmbedStatic {
+	if settings.Config.Embed.Static {
 		f,err := kamux.Static.ReadFile("assets/static/manifest.json")
 		if err != nil {
 			logger.Error("cannot embed manifest.json from static",err)
@@ -496,7 +496,7 @@ var ManifestView= func (c *kamux.Context) {
 }
 
 var ServiceWorkerView = func(c *kamux.Context) {
-	if settings.GlobalConfig.EmbedStatic  {
+	if settings.Config.Embed.Static  {
 		f,err := kamux.Static.ReadFile("assets/static/sw.js")
 		if err != nil {
 			logger.Error("cannot embed sw.js from static",err)

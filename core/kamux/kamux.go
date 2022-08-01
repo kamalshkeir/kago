@@ -81,23 +81,23 @@ func New(envFiles ...string) *Router {
 	go func() {
 		h := flag.String("h","localhost","overwrite host")
 		p := flag.String("p","9313","overwrite port number")
-		logs := flag.Bool("logs",false,"overwrite settings.GlobalConfig.Logs for router /logs")
-		monitoring := flag.Bool("monitoring",false,"set settings.GlobalConfig.Monitoring for prometheus and grafana /metrics")
-		docs := flag.Bool("docs",false,"set settings.GlobalConfig.Docs for prometheus and grafana /docs")
-		profiler := flag.Bool("profiler",false,"set settings.GlobalConfig.Profiler for pprof  /debug/pprof")
+		logs := flag.Bool("logs",false,"overwrite settings.Config.Logs for router /logs")
+		monitoring := flag.Bool("monitoring",false,"set settings.Config.Monitoring for prometheus and grafana /metrics")
+		docs := flag.Bool("docs",false,"set settings.Config.Docs for prometheus and grafana /docs")
+		profiler := flag.Bool("profiler",false,"set settings.Config.Profiler for pprof  /debug/pprof")
 		flag.Parse()
 		
-		settings.GlobalConfig.Logs=*logs
-		settings.GlobalConfig.Monitoring=*monitoring
-		settings.GlobalConfig.Docs=*docs
-		settings.GlobalConfig.Profiler=*profiler
+		settings.Config.Logs=*logs
+		settings.Config.Monitoring=*monitoring
+		settings.Config.Docs=*docs
+		settings.Config.Profiler=*profiler
 		if *p != "9313" {
-			settings.GlobalConfig.Port=*p
+			settings.Config.Port=*p
 		}
 		if *h != "localhost" && *h != "127.0.0.1" && *h != "" {
-			settings.GlobalConfig.Host=*h
+			settings.Config.Host=*h
 		} else {
-			settings.GlobalConfig.Host="localhost"
+			settings.Config.Host="localhost"
 		}
 		wg.Done()
 	}()
@@ -112,7 +112,7 @@ func New(envFiles ...string) *Router {
 
 	err := orm.InitDB()
 	if err != nil {
-		if settings.GlobalConfig.DbName == "" && settings.GlobalConfig.DbDSN == "" {
+		if settings.Config.Db.Name == "" && settings.Config.Db.DSN == "" {
 			logger.Warn("Environment variables not loaded, you can copy it from generated assets folder and rename it to .env, or set them manualy")
 		} else {
 			logger.Error(err)

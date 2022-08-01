@@ -274,7 +274,7 @@ func (b *BuilderM) Insert(fields_comma_separated string, fields_values []any) (i
 		return 0, errors.New("unable to find table, try db.Table before")
 	}
 	if b.database == ""  {
-		b.database=settings.GlobalConfig.DbName
+		b.database=settings.Config.Db.Name
 	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
@@ -335,7 +335,7 @@ func (b *BuilderM) Set(query string, args ...any) (int, error) {
 		return 0, errors.New("unable to find model, try db.Table before")
 	}
 	if b.database == ""  {
-		b.database=settings.GlobalConfig.DbName
+		b.database=settings.Config.Db.Name
 	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
@@ -381,7 +381,7 @@ func (b *BuilderM) Delete() (int, error) {
 		return 0, errors.New("unable to find model, try orm.AutoMigrate before")
 	}
 	if b.database == ""  {
-		b.database=settings.GlobalConfig.DbName
+		b.database=settings.Config.Db.Name
 	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
@@ -428,7 +428,7 @@ func (b *BuilderM) Drop() (int, error) {
 		return 0, errors.New("unable to find model, try orm.LinkModel before Update")
 	}
 	if b.database == ""  {
-		b.database=settings.GlobalConfig.DbName
+		b.database=settings.Config.Db.Name
 	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
@@ -460,7 +460,7 @@ func (b *BuilderM) Drop() (int, error) {
 
 func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface{}, error) {
 	if b.database == ""  {
-		b.database=settings.GlobalConfig.DbName
+		b.database=settings.Config.Db.Name
 	} 
 	db,err := GetDatabase(b.database)
 	if logger.CheckError(err) {
@@ -518,7 +518,7 @@ func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface
 
 func Query(dbName string, statement string, args ...any) ([]map[string]interface{}, error) {
 	if dbName == ""  {
-		dbName=settings.GlobalConfig.DbName
+		dbName=settings.Config.Db.Name
 	} 
 	db,err := GetDatabase(dbName)
 	if logger.CheckError(err) {

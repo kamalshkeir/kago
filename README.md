@@ -49,12 +49,11 @@ Kago offer you :
 - Monitoring Prometheus/grafana `/metrics` running with flag `go run main.go --monitoring`
 - Profiler golang official debug pprof `/debug/pprof/(heap|profile\trace)` running with flag `go run main.go --profiler`
 
-If you aim performance and good productivity, you will love KaGo.
 
 Many features will be added in the future, like:
-- the possibility to choose a theme and create your own
-- automatic backups and send by email
-- Mongo DB support (soon)
+- AutoMigration from struct (DONE)
+- the possibility to choose a theme and create your own (DONE)
+- automatic backups
 
 Join our  [discussions here](https://github.com/kamalshkeir/kago/discussions/1)
 
@@ -849,32 +848,32 @@ func (router *Router) LoadEnv(files ...string) {
 			settings.Secret=v
 		case "EMBED_STATIC":
 			if b,err := strconv.ParseBool(v);!logger.CheckError(err) {
-				settings.GlobalConfig.EmbedStatic=b
+				settings.Config.EmbedStatic=b
 			}
 		case "EMBED_TEMPLATES":
 			if b,err := strconv.ParseBool(v);!logger.CheckError(err) {
-				settings.GlobalConfig.EmbedTemplates=b
+				settings.Config.EmbedTemplates=b
 			}
 		case "DB_TYPE":
 			if v == "" {v="sqlite"}
-			settings.GlobalConfig.DbType=v
+			settings.Config.Db.Type=v
 		case "DB_DSN":
 			if v == "" {v="db.sqlite"}
-			settings.GlobalConfig.DbDSN=v
+			settings.Config.DbDSN=v
 		case "DB_NAME":
 			if v == "" {
 				logger.Error("DB_NAME from env file cannot be empty")
 				os.Exit(1)
 			}
-			settings.GlobalConfig.DbName=v
+			settings.Config.DbName=v
 		case "SMTP_EMAIL":
-			settings.GlobalConfig.SmtpEmail=v
+			settings.Config.SmtpEmail=v
 		case "SMTP_PASS":
-			settings.GlobalConfig.SmtpPass=v
+			settings.Config.SmtpPass=v
 		case "SMTP_HOST":
-			settings.GlobalConfig.SmtpHost=v
+			settings.Config.SmtpHost=v
 		case "SMTP_PORT":
-			settings.GlobalConfig.SmtpPort=v
+			settings.Config.SmtpPort=v
 		}
 	}
 }
@@ -888,22 +887,28 @@ err := envloader.FillStruct(&Config) // fill struct with env vars
 
 ## Struct to fill
 ```go
-type Config struct {
-	Host           string `env:"HOST|localhost"`
-	Port           string `env:"PORT|9313"`
-	Profiler       bool   `env:"PROFILER|false"`
-	Docs           bool   `env:"DOCS|false"`
-	Logs           bool   `env:"LOGS|false"`
-	Monitoring     bool   `env:"MONITORING|false"`
-	EmbedStatic    bool   `env:"EMBED_STATIC|false"`
-	EmbedTemplates bool   `env:"EMBED_TEMPLATES|false"`
-	DbType         string `env:"DB_TYPE|sqlite"`
-	DbDSN          string `env:"DB_DSN"`
-	DbName         string `env:"DB_NAME|db"`
-	SmtpEmail      string `env:"SMTP_EMAIL"`
-	SmtpPass       string `env:"SMTP_PASS"`
-	SmtpHost       string `env:"SMTP_HOST"`
-	SmtpPort       string `env:"SMTP_PORT"`
+type GlobalConfig struct {
+	Host       string `env:"HOST|localhost"` // DEFAULTED: if HOST not found default to localhost
+	Port       string `env:"PORT|9313"`
+	Embed struct {
+		Static    bool `env:"EMBED_STATIC|false"`
+		Templates bool `env:"EMBED_TEMPLATES|false"`
+	}
+	Db struct {
+		Name     string `env:"DB_NAME|db"`
+		Type     string `env:"DB_TYPE"` // REEQUIRED: this env var is required, you will have error if empty
+		DSN      string `env:"DB_DSN|"` // NOT REQUIRED: if DB_DSN not found it's not required, it's ok to stay empty
+	}
+	Smtp struct {
+		Email string `env:"SMTP_EMAIL|"`
+		Pass  string `env:"SMTP_PASS|"`
+		Host  string `env:"SMTP_HOST|"`
+		Port  string `env:"SMTP_PORT|"`
+	}
+	Profiler   bool   `env:"PROFILER|false"`
+	Docs       bool   `env:"DOCS|false"`
+	Logs       bool   `env:"LOGS|false"`
+	Monitoring bool   `env:"MONITORING|false"`
 }
 ```
 ---

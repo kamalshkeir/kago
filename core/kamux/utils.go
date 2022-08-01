@@ -22,7 +22,7 @@ var mCountryLanguage=safemap.New[string,string]()
 // LoadEnv load env vars from multiple files
 func (router *Router) LoadEnv(files ...string) {
 	envloader.Load(files...)
-	err := envloader.FillStruct(settings.GlobalConfig)
+	err := envloader.FillStruct(settings.Config)
 	logger.CheckError(err)
 }
 

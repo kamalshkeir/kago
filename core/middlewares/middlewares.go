@@ -302,7 +302,7 @@ var LOGS = func(h http.Handler) http.Handler {
 		} else {
 			fmt.Printf(logger.Yellow,res)
 		}
-		if settings.GlobalConfig.Logs {
+		if settings.Config.Logs {
 			logger.StreamLogs = append(logger.StreamLogs, res)
 			eventbus.Publish("internal-logs",map[string]string{})
 		}

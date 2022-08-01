@@ -31,11 +31,11 @@ func (router *Router) initServer() {
 	} else {
 		handler = router
 	}
-	host := settings.GlobalConfig.Host
+	host := settings.Config.Host
 	if host == "" {
 		host = "127.0.0.1"
 	}
-	port := settings.GlobalConfig.Port
+	port := settings.Config.Port
 	if port == "" {
 		port = "9313"
 	}
@@ -203,7 +203,7 @@ func checkSameSite(c Context) bool {
 	if origin == "" {
 		return false
 	}
-	host := settings.GlobalConfig.Host
+	host := settings.Config.Host
 	if host == "" || host == "localhost" || host == "127.0.0.1" {
 		if strings.Contains(origin,"localhost") {
 			host="localhost"
@@ -213,7 +213,7 @@ func checkSameSite(c Context) bool {
 			host="127.0.0.1"
 		}
 	}
-	port := settings.GlobalConfig.Port
+	port := settings.Config.Port
 	if port != "" {
 		port=":"+port
 	} 

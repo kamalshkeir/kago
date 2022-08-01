@@ -99,7 +99,7 @@ func TestStructAll(t *testing.T) {
 }
 
 func TestGetConnection(t *testing.T) {
-	conn := orm.GetConnection(settings.GlobalConfig.DbName)
+	conn := orm.GetConnection(settings.Config.Db.Name)
 	if conn == nil {
 		t.Error("no connection found")
 	}

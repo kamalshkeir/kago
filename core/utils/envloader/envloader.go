@@ -67,20 +67,23 @@ func FillStruct(structure interface{}) error {
 
 // fillStructFromEnv sets a reflected struct fields with the equivalent OS environment variables.
 func fillStructFromEnv(s reflect.Value) error {
+	errored := []string{}
 	for i := 0; i < s.NumField(); i++ {
 		if t, exist := s.Type().Field(i).Tag.Lookup("env"); exist {
 			// tag exist
 			tag := t
 			defau := ""
+			required := false
 			if strings.Contains(t,"|") {
 				sp := strings.Split(t,"|")
 				if len(sp) == 2 {
 					tag=sp[0] 
 					defau=sp[1]
-					if defau == "" {defau="|"}
-				}
-			} 
-
+					
+				} 
+			} else {
+				required=true
+			}
 			if osv := os.Getenv(strings.TrimSpace(tag)); osv != "" {
 				v, err := cast.FromTypeReflect(osv, s.Type().Field(i).Type)
 				if err != nil {
@@ -90,7 +93,7 @@ func fillStructFromEnv(s reflect.Value) error {
 				ptr := reflect.NewAt(s.Field(i).Type(), unsafe.Pointer(s.Field(i).UnsafeAddr())).Elem()
 				ptr.Set(reflect.ValueOf(v))
 			} else {
-				if defau != "|" && defau != "" {
+				if !required {
 					defau=strings.TrimSpace(defau)
 					v, err := cast.FromTypeReflect(defau, s.Type().Field(i).Type)
 					if err != nil {
@@ -98,6 +101,8 @@ func fillStructFromEnv(s reflect.Value) error {
 					}
 					ptr := reflect.NewAt(s.Field(i).Type(), unsafe.Pointer(s.Field(i).UnsafeAddr())).Elem()
 					ptr.Set(reflect.ValueOf(v))
+				} else {
+					errored = append(errored, t)
 				}
 			}
 		} else if s.Type().Field(i).Type.Kind() == reflect.Struct {
@@ -111,8 +116,10 @@ func fillStructFromEnv(s reflect.Value) error {
 					return err
 				}
 			}
-		}
+		} 
 	}
-
+	if len(errored) > 0 {
+		return errors.New(strings.Join(errored,",")+" required and has not been found")
+	}
 	return nil
 }

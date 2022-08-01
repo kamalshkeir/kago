@@ -60,7 +60,7 @@ func BuilderS[T comparable]() *Builder[T] {
 func (b *Builder[T]) Database(dbName string) *Builder[T] {
 	b.database = dbName
 	if b.database == "" {
-		b.database =settings.GlobalConfig.DbName
+		b.database =settings.Config.Db.Name
 	}
 	db,err := GetDatabase(b.database)
 	if logger.CheckError(err) {
@@ -79,7 +79,7 @@ func (b *Builder[T]) Insert(model *T) (int, error) {
 		b.tableName=tName
 	}	
 	if b.database == "" {
-		b.database = settings.GlobalConfig.DbName
+		b.database = settings.Config.Db.Name
 	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
@@ -157,7 +157,7 @@ func (b *Builder[T]) Set(query string, args ...any) (int, error) {
 		b.tableName = tName
 	}
 	if b.database == "" {
-		b.database = settings.GlobalConfig.DbName
+		b.database = settings.Config.Db.Name
 	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
@@ -209,7 +209,7 @@ func (b *Builder[T]) Delete() (int, error) {
 		b.tableName = tName
 	}
 	if b.database == "" {
-		b.database = settings.GlobalConfig.DbName
+		b.database = settings.Config.Db.Name
 	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
@@ -260,7 +260,7 @@ func (b *Builder[T]) Drop() (int, error) {
 		b.tableName = tName
 	}
 	if b.database == "" {
-		b.database = settings.GlobalConfig.DbName
+		b.database = settings.Config.Db.Name
 	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
@@ -354,7 +354,7 @@ func (b *Builder[T]) Debug() *Builder[T] {
 
 func (b *Builder[T]) All() ([]T, error) {
 	if b.database == "" {
-		b.database=settings.GlobalConfig.DbName
+		b.database=settings.Config.Db.Name
 	}
 	if b.tableName == "" {
 		return nil, errors.New("error: this model is not linked, execute orm.AutoMigrate before")
@@ -422,7 +422,7 @@ func (b *Builder[T]) All() ([]T, error) {
 
 func (b *Builder[T]) One() (T, error) {
 	if b.database == "" {
-		b.database=settings.GlobalConfig.DbName
+		b.database=settings.Config.Db.Name
 	}
 	if b.tableName == "" {
 		return *new(T), errors.New("error: this model is not linked, execute orm.AutoMigrate first")
@@ -492,7 +492,7 @@ func (b *Builder[T]) One() (T, error) {
 
 func (b *Builder[T]) queryS(query string, args ...any) ([]T, error) {
 	if b.database == "" {
-		b.database=settings.GlobalConfig.DbName
+		b.database=settings.Config.Db.Name
 	}
 	db,err := GetDatabase(b.database)
 	if logger.CheckError(err) {

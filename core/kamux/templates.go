@@ -39,7 +39,7 @@ func initTemplatesAndAssets(router *Router) {
 		wg.Done()
 	}()
 	wg.Wait()
-	if settings.GlobalConfig.EmbedTemplates {
+	if settings.Config.Embed.Templates {
 		router.AddEmbededTemplates(Templates,"assets/templates")
 	} else {
 		//local
@@ -147,28 +147,28 @@ func (router *Router) AddEmbededTemplates(template_embed embed.FS,rootDir string
 
 func (router *Router) initDefaultUrls() {
 	// prometheus metrics
-	if settings.GlobalConfig.Monitoring {
+	if settings.Config.Monitoring {
 		router.GET("/metrics", func(c *Context) {
 			promhttp.Handler().ServeHTTP(c.ResponseWriter,c.Request)
 		})
 	}
     // PROFILER
-	if settings.GlobalConfig.Profiler {
+	if settings.Config.Profiler {
 		router.GET("/debug/pprof/?heap*", func(c *Context) { pprof.Index(c.ResponseWriter, c.Request) })
 		router.GET("/debug/pprof/profile*", func(c *Context) { pprof.Profile(c.ResponseWriter, c.Request) })
 		router.GET("/debug/pprof/trace*", func(c *Context) { pprof.Trace(c.ResponseWriter, c.Request) })
 	}
 	// STATIC
-	if settings.GlobalConfig.EmbedStatic {
+	if settings.Config.Embed.Static {
 		//EMBED STATIC
 		router.ServeEmbededDir("assets/static",Static,"static")
-		if settings.GlobalConfig.Docs {
+		if settings.Config.Docs {
 			router.ServeEmbededDir("assets/static/docs",Static,"docs")
 		}
 	} else {
 		// LOCAL STATIC
 		router.ServeLocalDir("assets/static","static")
-		if settings.GlobalConfig.Docs {
+		if settings.Config.Docs {
 			router.ServeLocalDir("assets/static/docs","docs")
 		}
 	}
@@ -183,7 +183,7 @@ func (router *Router) cloneTemplatesAndStatic()  {
     var generated bool
     
     new_name := "assets"
-    if _,err := os.Stat(new_name);err != nil && !settings.GlobalConfig.EmbedStatic && !settings.GlobalConfig.EmbedTemplates {
+    if _,err := os.Stat(new_name);err != nil && !settings.Config.Embed.Static && !settings.Config.Embed.Templates {
         // if not generated
         cmd := exec.Command("git", "clone", "https://github.com/"+settings.REPO_USER+"/"+settings.REPO_NAME)
         err := cmd.Run()

@@ -14,7 +14,7 @@ import (
 )
 
 func Migrate() error {
-	err := AutoMigrate[models.User]("users",settings.GlobalConfig.DbName)
+	err := AutoMigrate[models.User]("users",settings.Config.Db.Name)
 	if logger.CheckError(err) {
 		return err
 	}
@@ -113,7 +113,7 @@ func AutoMigrate[T comparable](tableName string, dbName ...string) error {
 			return errors.New("database not found")
 		}
 	} else {
-		dbname = settings.GlobalConfig.DbName
+		dbname = settings.Config.Db.Name
 		db,err = GetDatabase(dbname)
 		if err != nil || db == nil {
 			return errors.New("database not found")

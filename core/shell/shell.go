@@ -141,10 +141,10 @@ func InitShell() bool {
 				orm.UseForAdmin(db)
 				fmt.Printf(logger.Green,"you are using database "+db)
 			case "tables":
-				fmt.Printf(logger.Green,orm.GetAllTables(settings.GlobalConfig.DbName)) 
+				fmt.Printf(logger.Green,orm.GetAllTables(settings.Config.Db.Name)) 
 			case "columns":
 				tb := input.Input(input.Blue,"Table name: ")
-				mcols := orm.GetAllColumns(tb,settings.GlobalConfig.DbName)
+				mcols := orm.GetAllColumns(tb,settings.Config.Db.Name)
 				cols := []string{}
 				for k := range mcols {
 					cols = append(cols, k)
@@ -181,7 +181,7 @@ func InitShell() bool {
 func getAll() {
 	tableName,err := input.String(input.Blue,"Enter a table name: ")
 	if err == nil {
-		data,err := orm.Table(tableName).Database(settings.GlobalConfig.DbName).All()
+		data,err := orm.Table(tableName).Database(settings.Config.Db.Name).All()
 		if err == nil {
 			d,_ := json.MarshalIndent(data,"","    ")
 			fmt.Printf(logger.Green,string(d))
@@ -200,7 +200,7 @@ func getRow() {
 	if tableName != "" && whereField != "" && equalTo != ""{
 		var data map[string]interface{}
 		var err error
-		data,err = orm.Table(tableName).Database(settings.GlobalConfig.DbName).Where(whereField+" = ?",equalTo).One()
+		data,err = orm.Table(tableName).Database(settings.Config.Db.Name).Where(whereField+" = ?",equalTo).One()
 		if err == nil {
 			d,_ := json.MarshalIndent(data,"","    ")
 			fmt.Printf(logger.Green,string(d))
@@ -239,7 +239,7 @@ func createsuperuser() {
 }
 
 func migratefromfile(path string) error {
-	if !utils.SliceContains([]string{"postgres","sqlite","mysql"},settings.GlobalConfig.DbType) {
+	if !utils.SliceContains([]string{"postgres","sqlite","mysql"},settings.Config.Db.Type) {
 		logger.Error("database is neither postgres, sqlite or mysql ")
 		return errors.New("database is neither postgres, sqlite or mysql ")
 	}
@@ -268,7 +268,7 @@ func migratefromfile(path string) error {
 func dropTable() {
 	tableName := input.Input(input.Blue,"Table to drop : ") 
 	if tableName != "" {
-		_,err := orm.Table(tableName).Database(settings.GlobalConfig.DbName).Drop()
+		_,err := orm.Table(tableName).Database(settings.Config.Db.Name).Drop()
 		if err != nil {
 			fmt.Printf(logger.Red,"error dropping table :"+err.Error())
 		} else {
@@ -286,7 +286,7 @@ func deleteRow() {
 	if tableName != "" && whereField != "" && equalTo != "" {
 		equal,err := strconv.Atoi(equalTo)
 		if err != nil {
-			_,err := orm.Table(tableName).Database(settings.GlobalConfig.DbName).Where(whereField + " = ?",equalTo).Delete()
+			_,err := orm.Table(tableName).Database(settings.Config.Db.Name).Where(whereField + " = ?",equalTo).Delete()
 			if err == nil {
 				fmt.Printf(logger.Green,tableName+"with"+whereField+"="+equalTo+"deleted.")
 			} else {
