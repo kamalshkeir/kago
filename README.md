@@ -666,22 +666,23 @@ CREATE TABLE IF NOT EXISTS bookmarks (
 # Queries and Sql Builder
 #### to query, insert, update and delete using structs:
 ```go
-orm.Model[T comparable]() *Builder[T]
-orm.Database(dbName string) *Builder[T]
-orm.Insert(model *T) (int, error)
-orm.Set(query string, args ...any) (int, error)
-orm.Delete() (int, error) // finisher
-orm.Drop() (int, error) // finisher
-orm.Select(columns ...string) *Builder[T]
-orm.Where(query string, args ...any) *Builder[T]
-orm.Query(query string, args ...any) *Builder[T]
-orm.Limit(limit int) *Builder[T]
-orm.Context(ctx context.Context) *Builder[T]
-orm.Page(pageNumber int) *Builder[T]
-orm.OrderBy(fields ...string) *Builder[T]
-orm.Debug() *Builder[T] // print the query statement
-orm.All() ([]T, error) // finisher
-orm.One() (T, error) // finisher
+orm.Model[T comparable]() *Builder[T] // starter
+orm.BuilderS[T comparable]() *Builder[T] // starter
+(b *Builder[T]).Database(dbName string) *Builder[T]
+(b *Builder[T]).Insert(model *T) (int, error)
+(b *Builder[T]).Set(query string, args ...any) (int, error)
+(b *Builder[T]).Delete() (int, error) // finisher
+(b *Builder[T]).Drop() (int, error) // finisher
+(b *Builder[T]).Select(columns ...string) *Builder[T]
+(b *Builder[T]).Where(query string, args ...any) *Builder[T]
+(b *Builder[T]).Query(query string, args ...any) *Builder[T]
+(b *Builder[T]).Limit(limit int) *Builder[T]
+(b *Builder[T]).Context(ctx context.Context) *Builder[T]
+(b *Builder[T]).Page(pageNumber int) *Builder[T]
+(b *Builder[T]).OrderBy(fields ...string) *Builder[T]
+(b *Builder[T]).Debug() *Builder[T] // print the query statement
+(b *Builder[T]).All() ([]T, error) // finisher
+(b *Builder[T]).One() (T, error) // finisher
 ```
 # Examples
 ```go
@@ -721,22 +722,25 @@ orm.Model[models.User]().Where("id = ?",1).Set("email = ?","new@example.com")
 ```
 #### to query, insert, update and delete using map[string]any:
 ```go
-orm.Table(tableName string) *BuilderM
-orm.Database(dbName string) *BuilderM
-orm.Select(columns ...string) *BuilderM
-orm.Where(query string, args ...any) *BuilderM
-orm.Query(query string, args ...any) *BuilderM
-orm.Limit(limit int) *BuilderM
-orm.Page(pageNumber int) *BuilderM
-orm.OrderBy(fields ...string) *BuilderM
-orm.Context(ctx context.Context) *BuilderM
-orm.Debug() *BuilderM
-orm.All() ([]map[string]any, error)
-orm.One() (map[string]any, error)
-orm.Insert(fields_comma_separated string, fields_values []any) (int, error)
-orm.Set(query string, args ...any) (int, error)
-orm.Delete() (int, error)
-orm.Drop() (int, error)
+orm.Exec(dbName,query string, args ...any) error
+orm.Query(dbName,query string, args...)  ([]map[string]any,error)
+orm.Table(tableName string) *BuilderM // starter
+orm.BuilderMap(tableName string) *BuilderM // starter
+(b *BuilderM).Database(dbName string) *BuilderM
+(b *BuilderM).Select(columns ...string) *BuilderM
+(b *BuilderM).Where(query string, args ...any) *BuilderM
+(b *BuilderM).Query(query string, args ...any) *BuilderM
+(b *BuilderM).Limit(limit int) *BuilderM
+(b *BuilderM).Page(pageNumber int) *BuilderM
+(b *BuilderM).OrderBy(fields ...string) *BuilderM
+(b *BuilderM).Context(ctx context.Context) *BuilderM
+(b *BuilderM).Debug() *BuilderM
+(b *BuilderM).All() ([]map[string]any, error)
+(b *BuilderM).One() (map[string]any, error)
+(b *BuilderM).Insert(fields_comma_separated string, fields_values []any) (int, error)
+(b *BuilderM).Set(query string, args ...any) (int, error)
+(b *BuilderM).Delete() (int, error)
+(b *BuilderM).Drop() (int, error)
 ```
 # Examples
 ```go

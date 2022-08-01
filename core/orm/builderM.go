@@ -17,7 +17,6 @@ type BuilderM struct {
 	debug      bool
 	limit      int
 	page       int
-	conn       *sql.DB
 	tableName  string
 	selected   string
 	orderBys   string
@@ -25,7 +24,6 @@ type BuilderM struct {
 	query      string
 	offset     string
 	statement  string
-	dialect    string
 	database   string
 	args       []any
 	order      []string
@@ -33,6 +31,12 @@ type BuilderM struct {
 }
 
 func Table(tableName string) *BuilderM {
+	return &BuilderM{
+		tableName: tableName,
+	}
+}
+
+func BuilderMap(tableName string) *BuilderM {
 	return &BuilderM{
 		tableName: tableName,
 	}
@@ -272,23 +276,6 @@ func (b *BuilderM) Insert(fields_comma_separated string, fields_values []any) (i
 	if b.database == ""  {
 		b.database=settings.GlobalConfig.DbName
 	}
-	if b.conn == nil {
-		if con, ok := mDbNameConnection[b.database]; ok {
-			b.conn = con
-		} else {
-			b.conn = databases[0].Conn
-		}
-	}	
-	if b.dialect == "" {
-		if dial, ok := mDbNameDialect[b.database]; ok {
-			b.dialect = dial
-		} else {
-			b.dialect = databases[0].Dialect
-		}
-	}
-	
-	
-
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
 			"type":     "create",
@@ -296,13 +283,19 @@ func (b *BuilderM) Insert(fields_comma_separated string, fields_values []any) (i
 			"database": b.database,
 		})
 	}
+	db,err := GetDatabase(b.database)
+	if logger.CheckError(err) {
+		return 0,err
+	}
+
+	
 	split := strings.Split(fields_comma_separated, ",")
 	if len(split) != len(fields_values) {
 		return 0, errors.New("fields and fields_values doesn't have the same length")
 	}
 	placeholdersSlice := []string{}
 	for i := range split {
-		switch settings.GlobalConfig.DbType {
+		switch db.Dialect {
 		case "postgres", "sqlite":
 			placeholdersSlice = append(placeholdersSlice, "$"+strconv.Itoa(i+1))
 		case "mysql":
@@ -322,11 +315,10 @@ func (b *BuilderM) Insert(fields_comma_separated string, fields_values []any) (i
 	stat.WriteString(")")
 	statement := stat.String()
 	var res sql.Result
-	var err error
 	if b.ctx != nil {
-		res, err = b.conn.ExecContext(b.ctx, statement, fields_values...)
+		res, err = db.Conn.ExecContext(b.ctx, statement, fields_values...)
 	} else {
-		res, err = b.conn.Exec(statement, fields_values...)
+		res, err = db.Conn.Exec(statement, fields_values...)
 	}
 	if err != nil {
 		return affectedRows, err
@@ -345,21 +337,6 @@ func (b *BuilderM) Set(query string, args ...any) (int, error) {
 	if b.database == ""  {
 		b.database=settings.GlobalConfig.DbName
 	}
-	if b.conn == nil {
-		if con, ok := mDbNameConnection[b.database]; ok {
-			b.conn = con
-		} else {
-			
-			b.conn = databases[0].Conn
-		}
-	}	
-	if b.dialect == "" {
-		if dial, ok := mDbNameDialect[b.database]; ok {
-			b.dialect = dial
-		} else {
-			b.dialect = databases[0].Dialect
-		}
-	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
 			"type":     "update",
@@ -367,12 +344,16 @@ func (b *BuilderM) Set(query string, args ...any) (int, error) {
 			"database": b.database,
 		})
 	}
+	db,err := GetDatabase(b.database)
+	if logger.CheckError(err) {
+		return 0,err
+	}
 	if b.whereQuery == "" {
 		return 0, errors.New("you should use Where before Update")
 	}
 
 	b.statement = "UPDATE " + b.tableName + " SET " + query + " WHERE " + b.whereQuery
-	adaptPlaceholdersToDialect(&b.statement, b.dialect)
+	adaptPlaceholdersToDialect(&b.statement, db.Dialect)
 	args = append(args, b.args...)
 	if b.debug {
 		logger.Debug("statement:", b.statement)
@@ -380,11 +361,10 @@ func (b *BuilderM) Set(query string, args ...any) (int, error) {
 	}
 
 	var res sql.Result
-	var err error
 	if b.ctx != nil {
-		res, err = b.conn.ExecContext(b.ctx, b.statement, args...)
+		res, err = db.Conn.ExecContext(b.ctx, b.statement, args...)
 	} else {
-		res, err = b.conn.Exec(b.statement, args...)
+		res, err = db.Conn.Exec(b.statement, args...)
 	}
 	if err != nil {
 		return 0, err
@@ -403,27 +383,16 @@ func (b *BuilderM) Delete() (int, error) {
 	if b.database == ""  {
 		b.database=settings.GlobalConfig.DbName
 	}
-	if b.conn == nil {
-		if con, ok := mDbNameConnection[b.database]; ok {
-			b.conn = con
-		} else {
-			
-			b.conn = databases[0].Conn
-		}
-	}	
-	if b.dialect == "" {
-		if dial, ok := mDbNameDialect[b.database]; ok {
-			b.dialect = dial
-		} else {
-			b.dialect = databases[0].Dialect
-		}
-	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
 			"type":     "delete",
 			"table":    b.tableName,
 			"database": b.database,
 		})
+	}
+	db,err := GetDatabase(b.database)
+	if logger.CheckError(err) {
+		return 0,err
 	}
 
 	b.statement = "DELETE FROM " + b.tableName
@@ -432,18 +401,17 @@ func (b *BuilderM) Delete() (int, error) {
 	} else {
 		return 0, errors.New("no Where was given for this query:" + b.whereQuery)
 	}
-	adaptPlaceholdersToDialect(&b.statement, b.dialect)
+	adaptPlaceholdersToDialect(&b.statement, db.Dialect)
 	if b.debug {
 		logger.Debug("statement:", b.statement)
 		logger.Debug("args:", b.args)
 	}
 
 	var res sql.Result
-	var err error
 	if b.ctx != nil {
-		res, err = b.conn.ExecContext(b.ctx, b.statement, b.args...)
+		res, err = db.Conn.ExecContext(b.ctx, b.statement, b.args...)
 	} else {
-		res, err = b.conn.Exec(b.statement, b.args...)
+		res, err = db.Conn.Exec(b.statement, b.args...)
 	}
 	if err != nil {
 		return 0, err
@@ -462,22 +430,6 @@ func (b *BuilderM) Drop() (int, error) {
 	if b.database == ""  {
 		b.database=settings.GlobalConfig.DbName
 	}
-	if b.conn == nil {
-		if con, ok := mDbNameConnection[b.database]; ok {
-			b.conn = con
-		} else {
-			
-			b.conn = databases[0].Conn
-		}
-	}	
-	if b.dialect == "" {
-		if dial, ok := mDbNameDialect[b.database]; ok {
-			b.dialect = dial
-		} else {
-			b.dialect = databases[0].Dialect
-		}
-	}
-
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
 			"type":     "drop",
@@ -485,13 +437,16 @@ func (b *BuilderM) Drop() (int, error) {
 			"database": b.database,
 		})
 	}
+	db,err := GetDatabase(b.database)
+	if logger.CheckError(err) {
+		return 0,err
+	}
 	b.statement = "DROP TABLE " + b.tableName
 	var res sql.Result
-	var err error
 	if b.ctx != nil {
-		res, err = b.conn.ExecContext(b.ctx, b.statement)
+		res, err = db.Conn.ExecContext(b.ctx, b.statement)
 	} else {
-		res, err = b.conn.Exec(b.statement)
+		res, err = db.Conn.Exec(b.statement)
 	}
 	if err != nil {
 		return 0, err
@@ -507,30 +462,17 @@ func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface
 	if b.database == ""  {
 		b.database=settings.GlobalConfig.DbName
 	} 
-	if b.dialect == "" {
-		if dial, ok := mDbNameDialect[b.database]; ok {
-			b.dialect = dial
-		} else {
-			b.dialect = databases[0].Dialect
-		}
+	db,err := GetDatabase(b.database)
+	if logger.CheckError(err) {
+		return nil,err
 	}
-	adaptPlaceholdersToDialect(&statement, b.dialect)
-		
-	if b.conn == nil {
-		if con, ok := mDbNameConnection[b.database]; ok {
-			b.conn = con
-		} else {
-			
-			b.conn = databases[0].Conn
-		}
-	}	
+	adaptPlaceholdersToDialect(&statement, db.Dialect)	
 	
 	var rows *sql.Rows
-	var err error
 	if b.ctx != nil {
-		rows, err = b.conn.QueryContext(b.ctx, statement, args...)
+		rows, err = db.Conn.QueryContext(b.ctx, statement, args...)
 	} else {
-		rows, err = b.conn.Query(statement, args...)
+		rows, err = db.Conn.Query(statement, args...)
 	}
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("queryM: no data found")
@@ -574,32 +516,18 @@ func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface
 }
 
 
-func Query(db DatabaseEntity,statement string, args ...any) ([]map[string]interface{}, error) {
-	var conn *sql.DB
-	if db.Name == ""  {
-		db.Name=settings.GlobalConfig.DbName
+func Query(dbName string, statement string, args ...any) ([]map[string]interface{}, error) {
+	if dbName == ""  {
+		dbName=settings.GlobalConfig.DbName
 	} 
-	if db.Dialect == "" {
-		if dial, ok := mDbNameDialect[db.Name]; ok {
-			db.Dialect = dial
-		} else {
-			db.Dialect = databases[0].Dialect
-		}
+	db,err := GetDatabase(dbName)
+	if logger.CheckError(err) {
+		return nil,err
 	}
 	adaptPlaceholdersToDialect(&statement, db.Dialect)
-		
-	if conn == nil {
-		if con, ok := mDbNameConnection[db.Name]; ok {
-			conn = con
-		} else {
-			
-			conn = databases[0].Conn
-		}
-	}	
 	
 	var rows *sql.Rows
-	var err error
-	rows, err = conn.Query(statement, args...)
+	rows, err = db.Conn.Query(statement, args...)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("queryM: no data found")
 	} else if err != nil {
@@ -639,4 +567,12 @@ func Query(db DatabaseEntity,statement string, args ...any) ([]map[string]interf
 		return nil, errors.New("no data found")
 	}
 	return listMap, nil
+}
+
+func Exec(dbName,query string, args ...any) error {
+	_,err := GetConnection(dbName).Exec(query,args...)
+	if logger.CheckError(err) {
+		return err
+	}
+	return nil
 }

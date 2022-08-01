@@ -20,7 +20,6 @@ var cachesAllS = safemap.New[dbCache, any]()
 
 type Builder[T comparable] struct {
 	debug      bool
-	conn       *sql.DB
 	limit      int
 	page       int
 	tableName  string
@@ -30,7 +29,6 @@ type Builder[T comparable] struct {
 	query      string
 	offset     string
 	statement  string
-	dialect    string
 	database   string
 	args       []any
 	order      []string
@@ -48,45 +46,51 @@ func Model[T comparable]() *Builder[T] {
 	}
 }
 
-func (b *Builder[T]) Database(dbName string) *Builder[T] {
-	if b.tableName == "" {
-		logger.Error("you should specify the model before database")
+func BuilderS[T comparable]() *Builder[T] {
+	tName := getTableName[T]()
+	if tName == "" {
+		logger.Error("unable to find tableName from model, restart the app if you just migrated")
 		return nil
 	}
+	return &Builder[T]{
+		tableName: tName,
+	}
+}
+
+func (b *Builder[T]) Database(dbName string) *Builder[T] {
 	b.database = dbName
+	if b.database == "" {
+		b.database =settings.GlobalConfig.DbName
+	}
+	db,err := GetDatabase(b.database)
+	if logger.CheckError(err) {
+		return nil
+	}
+	b.database = db.Name
 	return b
 }
 
 func (b *Builder[T]) Insert(model *T) (int, error) {
-	tName := getTableName[T]()
-	if tName == "" {
-		return 0, errors.New("unable to find tableName from model, restart the app if you just migrated")
-	}
+	if b.tableName == "" {
+		tName := getTableName[T]()
+		if tName == "" {
+			return 0, errors.New("unable to find tableName from model, restart the app if you just migrated")
+		}
+		b.tableName=tName
+	}	
 	if b.database == "" {
 		b.database = settings.GlobalConfig.DbName
 	}
-	if b.conn == nil {
-		if con, ok := mDbNameConnection[b.database]; ok {
-			b.conn = con
-		} else {
-
-			b.conn = databases[0].Conn
-		}
-	}
-	if b.dialect == "" {
-		if dial, ok := mDbNameDialect[b.database]; ok {
-			b.dialect = dial
-		} else {
-			b.dialect = databases[0].Dialect
-		}
-	}
-
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
 			"type":     "create",
 			"table":    b.tableName,
 			"database": b.database,
 		})
+	}
+	db,err := GetDatabase(b.database)
+	if logger.CheckError(err) {
+		return 0,err
 	}
 
 	names, mvalues, _, mtags := getStructInfos(model)
@@ -125,13 +129,12 @@ func (b *Builder[T]) Insert(model *T) (int, error) {
 	stat.WriteString(placeholders)
 	stat.WriteString(")")
 	b.statement = stat.String()
-	adaptPlaceholdersToDialect(&b.statement, b.dialect)
+	adaptPlaceholdersToDialect(&b.statement, db.Dialect)
 	var res sql.Result
-	var err error
 	if b.ctx != nil {
-		res, err = b.conn.ExecContext(b.ctx, b.statement, values...)
+		res, err = db.Conn.ExecContext(b.ctx, b.statement, values...)
 	} else {
-		res, err = b.conn.Exec(b.statement, values...)
+		res, err = db.Conn.Exec(b.statement, values...)
 	}
 	if err != nil {
 		logger.Info(b.statement, values)
@@ -156,21 +159,6 @@ func (b *Builder[T]) Set(query string, args ...any) (int, error) {
 	if b.database == "" {
 		b.database = settings.GlobalConfig.DbName
 	}
-	if b.conn == nil {
-		if con, ok := mDbNameConnection[b.database]; ok {
-			b.conn = con
-		} else {
-
-			b.conn = databases[0].Conn
-		}
-	}
-	if b.dialect == "" {
-		if dial, ok := mDbNameDialect[b.database]; ok {
-			b.dialect = dial
-		} else {
-			b.dialect = databases[0].Dialect
-		}
-	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
 			"type":     "update",
@@ -178,12 +166,17 @@ func (b *Builder[T]) Set(query string, args ...any) (int, error) {
 			"database": b.database,
 		})
 	}
+	db,err := GetDatabase(b.database)
+	if logger.CheckError(err) {
+		return 0,err
+	}
+	
 	if b.whereQuery == "" {
 		return 0, errors.New("you should use Where before Update")
 	}
 
 	b.statement = "UPDATE " + b.tableName + " SET " + query + " WHERE " + b.whereQuery
-	adaptPlaceholdersToDialect(&b.statement, b.dialect)
+	adaptPlaceholdersToDialect(&b.statement, db.Dialect)
 	args = append(args, b.args...)
 	if b.debug {
 		logger.Debug("statement:", b.statement)
@@ -191,11 +184,10 @@ func (b *Builder[T]) Set(query string, args ...any) (int, error) {
 	}
 
 	var res sql.Result
-	var err error
 	if b.ctx != nil {
-		res, err = b.conn.ExecContext(b.ctx, b.statement, args...)
+		res, err = db.Conn.ExecContext(b.ctx, b.statement, args...)
 	} else {
-		res, err = b.conn.Exec(b.statement, args...)
+		res, err = db.Conn.Exec(b.statement, args...)
 	}
 	if err != nil {
 		return 0, err
@@ -219,21 +211,6 @@ func (b *Builder[T]) Delete() (int, error) {
 	if b.database == "" {
 		b.database = settings.GlobalConfig.DbName
 	}
-	if b.conn == nil {
-		if con, ok := mDbNameConnection[b.database]; ok {
-			b.conn = con
-		} else {
-
-			b.conn = databases[0].Conn
-		}
-	}
-	if b.dialect == "" {
-		if dial, ok := mDbNameDialect[b.database]; ok {
-			b.dialect = dial
-		} else {
-			b.dialect = databases[0].Dialect
-		}
-	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
 			"type":     "delete",
@@ -241,26 +218,28 @@ func (b *Builder[T]) Delete() (int, error) {
 			"database": b.database,
 		})
 	}
-
+	db,err := GetDatabase(b.database)
+	if logger.CheckError(err) {
+		return 0,err
+	}
 	b.statement = "DELETE FROM " + b.tableName
 	if b.whereQuery != "" {
 		b.statement += " WHERE " + b.whereQuery
 	} else {
 		return 0, errors.New("no Where was given for this query:" + b.whereQuery)
 	}
-	adaptPlaceholdersToDialect(&b.statement, b.dialect)
+	adaptPlaceholdersToDialect(&b.statement, db.Dialect)
 	if b.debug {
 		logger.Debug("statement:", b.statement)
 		logger.Debug("args:", b.args)
 	}
 
 	var res sql.Result
-	var err error
 
 	if b.ctx != nil {
-		res, err = b.conn.ExecContext(b.ctx, b.statement, b.args...)
+		res, err = db.Conn.ExecContext(b.ctx, b.statement, b.args...)
 	} else {
-		res, err = b.conn.Exec(b.statement, b.args...)
+		res, err = db.Conn.Exec(b.statement, b.args...)
 	}
 	if err != nil {
 		return 0, err
@@ -283,21 +262,6 @@ func (b *Builder[T]) Drop() (int, error) {
 	if b.database == "" {
 		b.database = settings.GlobalConfig.DbName
 	}
-	if b.conn == nil {
-		if con, ok := mDbNameConnection[b.database]; ok {
-			b.conn = con
-		} else {
-
-			b.conn = databases[0].Conn
-		}
-	}
-	if b.dialect == "" {
-		if dial, ok := mDbNameDialect[b.database]; ok {
-			b.dialect = dial
-		} else {
-			b.dialect = databases[0].Dialect
-		}
-	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
 			"type":     "drop",
@@ -305,13 +269,17 @@ func (b *Builder[T]) Drop() (int, error) {
 			"database": b.database,
 		})
 	}
+	db,err := GetDatabase(b.database)
+	if logger.CheckError(err) {
+		return 0,err
+	}
+
 	b.statement = "DROP TABLE " + b.tableName
 	var res sql.Result
-	var err error
 	if b.ctx != nil {
-		res, err = b.conn.ExecContext(b.ctx, b.statement)
+		res, err = db.Conn.ExecContext(b.ctx, b.statement)
 	} else {
-		res, err = b.conn.Exec(b.statement)
+		res, err = db.Conn.Exec(b.statement)
 	}
 	if err != nil {
 		return 0, err
@@ -324,14 +292,6 @@ func (b *Builder[T]) Drop() (int, error) {
 }
 
 func (b *Builder[T]) Select(columns ...string) *Builder[T] {
-	if b.tableName == "" {
-		tName := getTableName[T]()
-		if tName == "" {
-			logger.Error("unable to find tableName from model")
-			return nil
-		}
-		b.tableName = tName
-	}
 	s := []string{}
 	s = append(s, columns...)
 	b.selected = strings.Join(s, ",")
@@ -340,14 +300,6 @@ func (b *Builder[T]) Select(columns ...string) *Builder[T] {
 }
 
 func (b *Builder[T]) Where(query string, args ...any) *Builder[T] {
-	if b.tableName == "" {
-		tName := getTableName[T]()
-		if tName == "" {
-			logger.Error("unable to find tableName from model")
-			return nil
-		}
-		b.tableName = tName
-	}
 	b.whereQuery = query
 	b.args = append(b.args, args...)
 	b.order = append(b.order, "where")
@@ -355,14 +307,6 @@ func (b *Builder[T]) Where(query string, args ...any) *Builder[T] {
 }
 
 func (b *Builder[T]) Query(query string, args ...any) *Builder[T] {
-	if b.tableName == "" {
-		tName := getTableName[T]()
-		if tName == "" {
-			logger.Error("unable to find tableName from model")
-			return nil
-		}
-		b.tableName = tName
-	}
 	b.query = query
 	b.args = append(b.args, args...)
 	b.order = append(b.order, "query")
@@ -370,55 +314,23 @@ func (b *Builder[T]) Query(query string, args ...any) *Builder[T] {
 }
 
 func (b *Builder[T]) Limit(limit int) *Builder[T] {
-	if b.tableName == "" {
-		tName := getTableName[T]()
-		if tName == "" {
-			logger.Error("unable to find tableName from model")
-			return nil
-		}
-		b.tableName = tName
-	}
 	b.limit = limit
 	b.order = append(b.order, "limit")
 	return b
 }
 
 func (b *Builder[T]) Context(ctx context.Context) *Builder[T] {
-	if b.tableName == "" {
-		tName := getTableName[T]()
-		if tName == "" {
-			logger.Error("unable to find tableName from model")
-			return nil
-		}
-		b.tableName = tName
-	}
 	b.ctx = ctx
 	return b
 }
 
 func (b *Builder[T]) Page(pageNumber int) *Builder[T] {
-	if b.tableName == "" {
-		tName := getTableName[T]()
-		if tName == "" {
-			logger.Error("unable to find tableName from model")
-			return nil
-		}
-		b.tableName = tName
-	}
 	b.page = pageNumber
 	b.order = append(b.order, "page")
 	return b
 }
 
 func (b *Builder[T]) OrderBy(fields ...string) *Builder[T] {
-	if b.tableName == "" {
-		tName := getTableName[T]()
-		if tName == "" {
-			logger.Error("unable to find tableName from model")
-			return nil
-		}
-		b.tableName = tName
-	}
 	b.orderBys = "ORDER BY "
 	orders := []string{}
 	for _, f := range fields {
@@ -465,11 +377,6 @@ func (b *Builder[T]) All() ([]T, error) {
 			return v.([]T), nil
 		}
 	}
-
-	if b.tableName == "" {
-		return nil, errors.New("unable to find model, try orm.LinkModel before")
-	}
-
 	if b.selected != "" && b.selected != "*" {
 		b.statement = "select " + b.selected + " from " + b.tableName
 	} else {
@@ -631,7 +538,7 @@ func (b *Builder[T]) queryS(query string, args ...any) ([]T, error) {
 			return nil, err
 		}
 
-		if b.dialect == "mysql" {
+		if db.Dialect == "mysql" {
 			for i := range values {
 				if v, ok := values[i].([]byte); ok {
 					values[i] = string(v)

@@ -62,7 +62,7 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 		handleRename(to_table_name, fields, cols, diff, db)
 		wg.Done()
 	}()
-
+	wg.Wait()
 	tFound := false
 	for _, t := range db.Tables {
 		if t.Name == to_table_name {
@@ -372,7 +372,7 @@ func GetConstraints(db *DatabaseEntity, tableName string) map[string][]string {
 	switch db.Dialect {
 	case "sqlite":
 		st := "select sql from sqlite_master where type='table' and name='" + tableName + "';"
-		d, err := Query(*db, st)
+		d, err := Query(db.Name, st)
 		if logger.CheckError(err) {
 			return nil
 		}
@@ -410,7 +410,7 @@ func GetConstraints(db *DatabaseEntity, tableName string) map[string][]string {
 		}
 	case "postgres", "mysql":
 		st := "select table_name,constraint_type,constraint_name from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where table_name='" + tableName + "';"
-		d, err := Query(*db, st)
+		d, err := Query(db.Name, st)
 		if !logger.CheckError(err) {
 			for _, dd := range d {
 				logger.Success(dd)
