@@ -85,7 +85,7 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 	if len(cols) > len(fields) { // extra column db
 		for _, d := range diff {
 			fmt.Println(" ")
-			logger.Printfs("[WARNING] found extra column '%s' in the database table '%s'", d, to_table_name)
+			logger.Printfs("⚠️ found extra column '%s' in the database table '%s'", d, to_table_name)
 			statement := "ALTER TABLE " + to_table_name + " DROP COLUMN " + d
 			choice := input.Input(input.Yellow, "> do you want to remove '"+d+"' from database ? (Y/n): ")
 			if utils.SliceContains([]string{"yes", "Y", "y"}, choice) {
@@ -136,7 +136,7 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 	} else if len(cols) < len(fields) { // missing column db
 		for _, d := range diff {
 			fmt.Println(" ")
-			logger.Printfs("[WARNING] column '%s' is missing from the database table '%s'", d, to_table_name)
+			logger.Printfs("⚠️ column '%s' is missing from the database table '%s'", d, to_table_name)
 			choice, err := input.String(input.Yellow, "> do you want to add '"+d+"' to the database ? (Y/n):")
 			logger.CheckError(err)
 			statement := "ALTER TABLE " + to_table_name + " ADD " + d + " "
@@ -307,7 +307,7 @@ func handleRename(to_table_name string, fields, cols, diff []string, db *Databas
 	}
 	if len(new) > 0 && len(new) == len(old) {
 		if len(new) == 1 {
-			choice := input.Input(input.Yellow, "> you renamed '"+old[0]+"' to '"+new[0]+"', execute these changes to db ? (Y/n):")
+			choice := input.Input(input.Yellow, "⚠️ you renamed '"+old[0]+"' to '"+new[0]+"', execute these changes to db ? (Y/n):")
 			if utils.SliceContains([]string{"yes", "Y", "y"}, choice) {
 				statement := "ALTER TABLE " + to_table_name + " RENAME COLUMN " + old[0] + " TO " + new[0]
 				if len(databases) > 1 && db.Name == "" {
@@ -337,7 +337,7 @@ func handleRename(to_table_name string, fields, cols, diff []string, db *Databas
 			for _, n := range new {
 				for _, o := range old {
 					if strings.HasPrefix(n, o) || strings.HasPrefix(o, n) {
-						choice := input.Input(input.Yellow, "> you renamed '"+o+"' to '"+n+"', execute these changes to db ? (Y/n):")
+						choice := input.Input(input.Yellow, "⚠️ you renamed '"+o+"' to '"+n+"', execute these changes to db ? (Y/n):")
 						if utils.SliceContains([]string{"yes", "Y", "y"}, choice) {
 							statement := "ALTER TABLE " + to_table_name + " RENAME COLUMN " + o + " TO " + n
 							if len(databases) > 1 && db.Name == "" {

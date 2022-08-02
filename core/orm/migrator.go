@@ -96,6 +96,7 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string, debug ...bo
 	if err != nil {
 		return err
 	}
+	logger.Printfs("gr%s migrated successfully, restart the server",tableName)
 	return nil
 }
 

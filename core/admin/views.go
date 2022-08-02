@@ -524,6 +524,18 @@ var LogsSSEView = func(c *kamux.Context) {
 		if err != nil{
 			logger.Error(err)
 		}
+		if lenStream > 2 {
+			err := c.StreamResponse(logger.StreamLogs[lenStream-2])
+			if err != nil{
+				logger.Error(err)
+			}
+		} else if lenStream > 50 {
+			err := c.StreamResponse(logger.StreamLogs[lenStream-2])
+			if err != nil{
+				logger.Error(err)
+			}
+			logger.StreamLogs=[]string{}
+		}
 	}
 }
 

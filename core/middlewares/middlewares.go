@@ -14,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kamalshkeir/kago/core/admin/models"
 	"github.com/kamalshkeir/kago/core/kamux"
 	"github.com/kamalshkeir/kago/core/middlewares/csrf"
 	"github.com/kamalshkeir/kago/core/middlewares/gzip"
@@ -49,7 +50,7 @@ var Auth = func (handler kamux.Handler) kamux.Handler {
 			}
 		}
 		// Check session
-		user,err := orm.Table("users").Where("uuid = ?",session).One()
+		user,err := orm.Model[models.User]().Where("uuid = ?",session).One()
 		if err != nil {
 			// session fail
 			handler(c)
@@ -84,7 +85,7 @@ var Admin = func (handler kamux.Handler) kamux.Handler {
 				return
 			}
 		}
-		user,err := orm.Table("users").Where("uuid = ?",session).One()
+		user,err := orm.Model[models.User]().Where("uuid = ?",session).One()
 		
 		if err != nil {
 			// AUTHENTICATED BUT NOT FOUND IN DB
@@ -93,7 +94,7 @@ var Admin = func (handler kamux.Handler) kamux.Handler {
 		}
 
 		// Not admin
-		if user["is_admin"] == int64(0) || user["is_admin"] == 0 || user["is_admin"] == false {
+		if !user.IsAdmin {
 			c.Status(403).Text("Middleware : Not allowed to access this page")
 			return
 		} 

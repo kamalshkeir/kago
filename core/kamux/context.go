@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/kamalshkeir/kago/core/admin/models"
 	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/logger"
@@ -74,20 +75,35 @@ func (c *Context) Text(body string) {
 	c.ResponseWriter.Write([]byte(body))
 }
 
+func (c *Context) IsAuthenticated() bool {
+	const key utils.ContextKey = "user"
+	if _,ok := c.Request.Context().Value(key).(map[string]any);ok {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (c *Context) User() map[string]any {
+	const key utils.ContextKey = "user"
+	return c.Request.Context().Value(key).(map[string]any)
+}
+
+
 // Html return template_name with data to the client
 func (c *Context) Html(template_name string, data map[string]any) {
 	const key utils.ContextKey = "user"
 	if data == nil { data = make(map[string]any) }
 	
-	data["request"] = c.Request
-	data["logs"] = settings.Config.Logs
-	user,ok := c.Request.Context().Value(key).(map[string]any)
+	data["Request"] = c.Request
+	data["Logs"] = settings.Config.Logs
+	user,ok := c.Request.Context().Value(key).(models.User)
 	if ok {		
-		data["is_authenticated"] = true
-		data["user"] = user
+		data["IsAuthenticated"] = true
+		data["User"] = user
 	} else {
 		data["is_authenticated"] = false
-		data["user"] = nil
+		data["User"] = nil
 	}
 	c.SetHeader("Content-Type","text/html; charset=utf-8")
 	if c.status == 0 {c.status=200}
