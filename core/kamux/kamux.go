@@ -56,6 +56,7 @@ type Route struct {
 
 // New Create New Router from env file default: '.env'
 func New(envFiles ...string) *Router {
+	utils.PrintServerStart()
 	var wg sync.WaitGroup
 	app := &Router{
 		Routes: map[int][]Route{},
@@ -123,7 +124,6 @@ func New(envFiles ...string) *Router {
 	logger.CheckError(err)
 	// init orm shell
 	if shell.InitShell() {os.Exit(0)}
-	utils.PrintServerStart()
 	return app
 }
 

@@ -111,13 +111,14 @@ var AllModelsGet = func(c *kamux.Context) {
 			}
 		}
 	}
-	columns := orm.GetAllColumns(model)
-	if settings.Config.Db.Type != "" {
+	t,err := orm.GetDatabaseTableFromMemory(orm.DefaultDB,model)
+	logger.CheckError(err)
+	if settings.Config.Db.Type != "" && err == nil {
 		c.Html("admin/admin_all_models.html", map[string]any{
 			"dbType":settings.Config.Db.Type,
 			"model_name":model,
 			"rows":rows,
-			"columns":columns,
+			"columns":t.ModelTypes,
 		})
 	} else {
 		c.Status(http.StatusBadRequest).Json(map[string]any{
@@ -280,12 +281,13 @@ var SingleModelGet = func(c *kamux.Context) {
 		})
 		return
 	}
-	columns := orm.GetAllColumns(model)
+	t,err := orm.GetDatabaseTableFromMemory(orm.DefaultDB,model)
+	logger.CheckError(err)
 	c.Html("admin/admin_single_model.html", map[string]any{
 		"model":modelRow,
 		"model_name":model,
 		"id":id,
-		"columns":columns,
+		"columns":t.ModelTypes,
 	})
 }
 

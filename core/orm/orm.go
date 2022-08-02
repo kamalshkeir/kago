@@ -21,6 +21,7 @@ import (
 )
 
 var (
+	Debug              = false
 	UseCache           = true
 	databases          = []DatabaseEntity{}
 	mDbNameConnection  = map[string]*sql.DB{}
@@ -64,7 +65,7 @@ func InitDB() error {
 	if settings.Config.Db.DSN == "" {
 		settings.Config.Db.Type = SQLITE
 		if settings.Config.Db.Name == "" {
-			settings.Config.Db.Name="db"
+			settings.Config.Db.Name = "db"
 		}
 	}
 

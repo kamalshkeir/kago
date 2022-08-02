@@ -34,7 +34,7 @@ KaGo is a high-level web framework, that encourages clean and rapid development.
 You can literally get up and running using two lines of code, easier than Django and with a compiled language performance.
 
 Kago offer you :
-- NEW: <strong>orm.AutoMigrate</strong> will handle all your migrations from a struct model, if you remove a field from the migrated struct, you will be prompted to do the migration, by far this is the most advanced migrations tool for golang sql 
+- NEW: <strong>orm.AutoMigrate</strong> will handle all your migrations from a struct model, if you remove a field from the migrated struct, you will be prompted to do the migration, it can handle foreign_keys, checks, indexes,...
 - Fully editable CRUD Admin Dashboard (assets folder)
 - Ready to use Progressive Web App Support (pure js, without workbox)
 - Realtime Logs at `/logs` running with flag `go run main.go --logs`
