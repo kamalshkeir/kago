@@ -41,6 +41,12 @@ func (c *Context) SetHeader(key,value string) {
 	c.ResponseWriter.Header().Set(key, value)
 }
 
+// SetHeader Set the header value to the new value, old removed
+func (c *Context) SetStatus(statusCode int) {
+	c.status=statusCode
+	c.WriteHeader(statusCode)
+}
+
 // QueryParam get query param
 func (c *Context) QueryParam(name string) string {
 	return c.Request.URL.Query().Get(name)
@@ -57,7 +63,7 @@ func (c *Context) Json(body any) {
 }
 
 // JsonIndent return json indented to the client
-func (c *Context) JsonIndent(code int, body any) {
+func (c *Context) JsonIndent(body any) {
 	c.SetHeader("Content-Type","application/json")
 	if c.status == 0 {c.status=200}
 	c.WriteHeader(c.status)
@@ -84,9 +90,9 @@ func (c *Context) IsAuthenticated() bool {
 	}
 }
 
-func (c *Context) User() map[string]any {
+func (c *Context) User() models.User {
 	const key utils.ContextKey = "user"
-	return c.Request.Context().Value(key).(map[string]any)
+	return c.Request.Context().Value(key).(models.User)
 }
 
 

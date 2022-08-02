@@ -208,9 +208,8 @@ var IndexHandler = func(c *kamux.Context) {
             "param1":param1,
         }) // send json
     } else {
-		// P.S: 
-        c.Status(404).Text("Not Found") // Status will not write status to header,only when chained with Json or Text will be executed
-		c.WriteHeader(404) // will set the status header
+		// P.S:
+		c.SetStatus(404) // will set the status header
     }
 }
 ```
@@ -348,7 +347,7 @@ func main() {
 ```
 
 
-## Router Http Context
+# Context Http
 ###### There is also WsContext seen above
 
 ```go
@@ -364,7 +363,7 @@ func main() {
 				"page":page,
 			})
 		} else {
-			c.writeHeader(404)
+			c.SetStatus(404)
 		}
 	})
 
@@ -383,7 +382,12 @@ func main() {
 	// and many more
 	c.AddHeader(key,value string) // append a header if key exist
 	c.SetHeader(key,value string) // replace a header if key exist
-	c.Status(200).JsonIndent(code int, body any)
+	c.writeHeader(statusCode int) // set status code like c.writeHeader(statusCode int)
+	c.SetStatus(statusCode int) // set status code like c.writeHeader(statusCode int)
+	c.IsAuthenticated() bool // return true if valid user authenticated
+	c.User() models.User // get User from request if middlewares.Auth or middlewares.Admin used
+	c.Status(200).Json(body any)
+	c.Status(200).JsonIndent(body any)
 	c.Status(200).Html(template_name string, data map[string]any)
 	c.Status(301).Redirect(path string) // redirect to path
 	c.BodyJson() map[string]any // get request body as map
@@ -597,9 +601,10 @@ orm.UseCache=false
 ```go
 orm.NewDatabaseFromDSN(dbType,dbName string,dbDSN ...string) (error)
 orm.NewDatabaseFromConnection(dbType,dbName string,conn *sql.DB) (error)
-orm.GetConnection(dbName ...string) *sql.DB // get connection from dbName
-orm.UseForAdmin(dbName string) // use specific database in admin panel if many
-orm.GetDatabases() []DatabaseEntity // get list of databases available to your app
+orm.GetConnection(dbName ...string) // GetConnection return default connection for orm.DefaultDatabase (if dbName not given or "" or "default") else it return the specified one
+orm.UseForAdmin(dbName string) // UseForAdmin use specific database in admin panel if many
+orm.GetDatabases() []DatabaseEntity // GetDatabases get list of databases available to your app
+orm.GetDatabase() *DatabaseEntity // GetDatabase return the first connected database orm.DefaultDatabase if dbName "" or "default" else the matched db
 ```
 
 #### Utility database queries:

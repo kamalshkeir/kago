@@ -538,7 +538,7 @@ func (b *Builder[T]) queryS(query string, args ...any) ([]T, error) {
 			return nil, err
 		}
 
-		if db.Dialect == "mysql" {
+		if db.Dialect == MYSQL {
 			for i := range values {
 				if v, ok := values[i].([]byte); ok {
 					values[i] = string(v)

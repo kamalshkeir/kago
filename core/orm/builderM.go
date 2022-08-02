@@ -296,9 +296,9 @@ func (b *BuilderM) Insert(fields_comma_separated string, fields_values []any) (i
 	placeholdersSlice := []string{}
 	for i := range split {
 		switch db.Dialect {
-		case "postgres", "sqlite":
+		case POSTGRES, SQLITE:
 			placeholdersSlice = append(placeholdersSlice, "$"+strconv.Itoa(i+1))
-		case "mysql":
+		case MYSQL:
 			placeholdersSlice = append(placeholdersSlice, "?")
 		default:
 			return 0, errors.New("database is neither sqlite, postgres or mysql")

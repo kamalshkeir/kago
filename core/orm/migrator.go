@@ -175,11 +175,11 @@ func handleMigrationInt(dialect, fName, ty string, mFieldName_Tags *map[string][
 			primary = " PRIMARY KEY"
 		case "autoinc":
 			switch dialect {
-			case "sqlite", "":
+			case SQLITE, "":
 				autoinc = "INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT"
-			case "postgres":
+			case POSTGRES:
 				autoinc = "SERIAL NOT NULL PRIMARY KEY"
-			case "mysql":
+			case MYSQL:
 				autoinc = "INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT"
 			default:
 				logger.Error("dialect can be sqlite, postgres or mysql only, not ", dialect)
@@ -210,9 +210,9 @@ func handleMigrationInt(dialect, fName, ty string, mFieldName_Tags *map[string][
 				case "check":
 					if strings.Contains(strings.ToLower(sp[1]), "len") {
 						switch dialect {
-						case "sqlite", "":
+						case SQLITE, "":
 							sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", 1)
-						case "postgres", "mysql":
+						case POSTGRES, MYSQL:
 							sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", 1)
 						default:
 							logger.Error("check not handled for dialect:", dialect)
@@ -333,9 +333,9 @@ func handleMigrationString(dialect, fName, ty string, mFieldName_Tags *map[strin
 				case "check":
 					if strings.Contains(strings.ToLower(sp[1]), "len") {
 						switch dialect {
-						case "sqlite", "":
+						case SQLITE, "":
 							sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", 1)
-						case "postgres", "mysql":
+						case POSTGRES, MYSQL:
 							sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", 1)
 						default:
 							logger.Error("check not handled for dialect:", dialect)
@@ -415,9 +415,9 @@ func handleMigrationFloat(dialect, fName, _ string, mFieldName_Tags *map[string]
 				case "check":
 					if strings.Contains(strings.ToLower(sp[1]), "len") {
 						switch dialect {
-						case "sqlite", "":
+						case SQLITE, "":
 							sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", 1)
-						case "postgres", "mysql":
+						case POSTGRES, MYSQL:
 							sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", 1)
 						default:
 							logger.Error("check not handled for dialect:", dialect)
@@ -461,11 +461,11 @@ func handleMigrationTime(dialect, fName, ty string, mFieldName_Tags *map[string]
 		switch tag {
 		case "now":
 			switch dialect {
-			case "sqlite", "":
+			case SQLITE, "":
 				defaultt = "TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
-			case "postgres":
+			case POSTGRES:
 				defaultt = "TIMESTAMP NOT NULL DEFAULT (now())"
-			case "mysql":
+			case MYSQL:
 				defaultt = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
 			default:
 				logger.Error("not handled Time for ", fName, ty)
@@ -496,9 +496,9 @@ func handleMigrationTime(dialect, fName, ty string, mFieldName_Tags *map[string]
 				case "check":
 					if strings.Contains(strings.ToLower(sp[1]), "len") {
 						switch dialect {
-						case "sqlite", "":
+						case SQLITE, "":
 							sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", 1)
-						case "postgres", "mysql":
+						case POSTGRES, MYSQL:
 							sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", 1)
 						default:
 							logger.Error("check not handled for dialect:", dialect)
@@ -508,11 +508,11 @@ func handleMigrationTime(dialect, fName, ty string, mFieldName_Tags *map[string]
 				case "default":
 					if sp[1] != "" {
 						switch dialect {
-						case "sqlite", "":
+						case SQLITE, "":
 							defaultt = "TEXT NOT NULL DEFAULT " + sp[1]
-						case "postgres":
+						case POSTGRES:
 							defaultt = "TIMESTAMP with time zone NOT NULL DEFAULT " + sp[1]
-						case "mysql":
+						case MYSQL:
 							defaultt = "TIMESTAMP with time zone NOT NULL DEFAULT " + sp[1]
 						default:
 							logger.Error("default for field", fName, "not handled")
@@ -527,7 +527,7 @@ func handleMigrationTime(dialect, fName, ty string, mFieldName_Tags *map[string]
 	if defaultt != "" {
 		(*res)[fName] = defaultt
 	} else {
-		if dialect == "" || dialect == "sqlite" {
+		if dialect == "" || dialect == SQLITE {
 			(*res)[fName] = "TEXT"
 		} else {
 			(*res)[fName] = "TIMESTAMP with time zone"

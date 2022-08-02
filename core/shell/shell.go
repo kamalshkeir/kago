@@ -239,7 +239,7 @@ func createsuperuser() {
 }
 
 func migratefromfile(path string) error {
-	if !utils.SliceContains([]string{"postgres","sqlite","mysql"},settings.Config.Db.Type) {
+	if !utils.SliceContains([]string{orm.POSTGRES,orm.SQLITE,orm.MYSQL},settings.Config.Db.Type) {
 		logger.Error("database is neither postgres, sqlite or mysql ")
 		return errors.New("database is neither postgres, sqlite or mysql ")
 	}

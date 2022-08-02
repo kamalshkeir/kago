@@ -28,7 +28,7 @@ func init() {
 		return
 	}
 	// init another db named 'db2'
-	err = orm.NewDatabaseFromDSN("sqlite", otherDB, "")
+	err = orm.NewDatabaseFromDSN(orm.SQLITE, otherDB, "")
 	if logger.CheckError(err) {
 		return
 	}

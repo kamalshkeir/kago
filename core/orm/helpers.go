@@ -231,7 +231,7 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 					if v, ok := res[d]; ok {
 						s = v
 					} else {
-						if strings.Contains(db.Dialect, "sqlite") {
+						if strings.Contains(db.Dialect, SQLITE) {
 							s = "TEXT"
 						} else {
 							s = "TIMESTAMP"
@@ -370,7 +370,7 @@ func handleRename(to_table_name string, fields, cols, diff []string, db *Databas
 func GetConstraints(db *DatabaseEntity, tableName string) map[string][]string {
 	res := map[string][]string{}
 	switch db.Dialect {
-	case "sqlite":
+	case SQLITE:
 		st := "select sql from sqlite_master where type='table' and name='" + tableName + "';"
 		d, err := Query(db.Name, st)
 		if logger.CheckError(err) {
@@ -408,7 +408,7 @@ func GetConstraints(db *DatabaseEntity, tableName string) map[string][]string {
 				}
 			}
 		}
-	case "postgres", "mysql":
+	case POSTGRES, MYSQL:
 		st := "select table_name,constraint_type,constraint_name from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where table_name='" + tableName + "';"
 		d, err := Query(db.Name, st)
 		if !logger.CheckError(err) {
@@ -862,7 +862,7 @@ func getStructInfos[T comparable](strct *T) (fields []string, fValues map[string
 }
 
 func adaptPlaceholdersToDialect(query *string, dialect string) *string {
-	if strings.Contains(*query, "?") && (dialect == "postgres" || dialect == "sqlite") {
+	if strings.Contains(*query, "?") && (dialect == POSTGRES || dialect == SQLITE) {
 		split := strings.Split(*query, "?")
 		counter := 0
 		for i := range split {
