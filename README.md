@@ -1023,13 +1023,39 @@ will enable:
 
 ---
 
-# Prometheus monitoring
+# Grafana with Prometheus monitoring
+### Enable /metrics for prometheus
 ```sh
 go run main.go --monitoring
-
-will enable:
-	- /metrics
 ```
+
+### Create file 'prometheus.yml' anywhere
+```yml
+scrape_configs:
+- job_name: api-server
+  scrape_interval: 5s
+  static_configs:
+  - targets: ['host.docker.internal:9313'] #replace host.docker.internal per localhost if you run it localy
+```
+
+### Prometheus
+```sh
+docker run -d --name prometheus -v {path_to_prometheus.yml}:/etc/prometheus/prometheus.yml -p 9090:9090 prom/prometheus
+```
+### Grafana
+```sh
+docker run -d --name grafana -p 3000:3000 grafana/grafana-enterprise
+```
+```sh
+docker exec -it grafana grafana-cli admin reset-admin-password newpass
+```
+##### Visit   http://localhost:3000 username: admin
+### Add data source http://host.docker.internal:9090
+## That's it, you can import your favorite dashboard:
+ - 10826 
+ - 240
+
+
 
 ---
 
