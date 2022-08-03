@@ -277,9 +277,7 @@ func handleMigrationInt(mi *migrationInput) {
 		switch tag {
 		case "unique":
 			unique = " UNIQUE"
-		case "pk":
-			primary = " PRIMARY KEY"
-		case "autoinc":
+		case "autoinc","pk":
 			switch mi.dialect {
 			case SQLITE, "":
 				autoinc = "INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT"
@@ -509,8 +507,6 @@ func handleMigrationString(mi *migrationInput) {
 			text = " TEXT"
 		case "notnull":
 			notnull = " NOT NULL"
-		case "pk":
-			pk = " PRIMARY KEY"
 		case "index":
 			*mi.indexes=append(*mi.indexes,mi.fName)
 		default:
@@ -649,8 +645,6 @@ func handleMigrationFloat(mi *migrationInput) {
 			mtags["notnull"] = " NOT NULL"
 		case "unique":
 			mtags["unique"] = " UNIQUE"
-		case "pk":
-			mtags["pk"] = " PRIMARY KEY"
 		case "index":
 			*mi.indexes=append(*mi.indexes,mi.fName)
 		default:
