@@ -63,10 +63,19 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 		wg.Done()
 	}()
 	wg.Wait()
+	pk := ""
 	tFound := false
 	for _, t := range db.Tables {
 		if t.Name == to_table_name {
 			tFound = true
+		}
+	}
+	for col,tags := range ftags {
+		for _,tag := range tags {
+			if tag == "autoinc" || tag == "pk" {
+				pk=col
+				break
+			}
 		}
 	}
 	if !tFound {
@@ -76,6 +85,7 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 			ModelTypes: ftypes,
 			Types:      colsNameType,
 			Tags:       ftags,
+			Pk: pk,
 		})
 	}
 }

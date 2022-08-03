@@ -81,6 +81,7 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 	}
 	statement := prepareCreateStatement(tableName, res, fkeys, cols,db,mFieldName_Tags)
 	tbFound := false
+	pk := ""
 	for _,t := range db.Tables {
 		if t.Name == tableName {
 			tbFound=true
@@ -89,12 +90,21 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 			if len(t.ModelTypes) == 0 {t.Types=mFieldName_Type}
 		}
 	}
+	for col,tags := range mFieldName_Tags {
+		for _,tag := range tags {
+			if tag == "autoinc" || tag == "pk" {
+				pk=col
+				break
+			}
+		}
+	}
 	if !tbFound {
 		db.Tables = append(db.Tables, TableEntity{
 			Name: tableName,
 			Columns: cols,
 			Tags:mFieldName_Tags,
 			ModelTypes: mFieldName_Type,
+			Pk: pk,
 		})
 	}
 	if Debug {

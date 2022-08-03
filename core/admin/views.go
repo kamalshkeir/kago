@@ -119,6 +119,7 @@ var AllModelsGet = func(c *kamux.Context) {
 			"model_name":model,
 			"rows":rows,
 			"columns":t.ModelTypes,
+			"pk":t.Pk,
 		})
 	} else {
 		c.Status(http.StatusBadRequest).Json(map[string]any{
@@ -288,6 +289,7 @@ var SingleModelGet = func(c *kamux.Context) {
 		"model_name":model,
 		"id":id,
 		"columns":t.ModelTypes,
+		"pk":t.Pk,
 	})
 }
 
