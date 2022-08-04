@@ -622,7 +622,7 @@ orm.CreateUser(email,password string,isAdmin int, dbName ...string) error // pas
 ##### using the shell, you can migrate a .sql file 'go run main.go shell'
 ##### OR
 ##### you can migrate from a struct
-##### on compilation time all models registered using AutoMigrate will be synchronized with the database so if you add a field to you struct or add a column to your table, you will have a prompt proposing solutions
+##### when running the main, all models registered using AutoMigrate will be synchronized with the database so if you add a field to you struct or add a column to your table, you will have a prompt proposing solutions
 ##### execute AutoMigrate and don't think about it, it will handle all synchronisations between your project structs types like 'Bookmark' below
 
 ## BONUS: notice that if you add a struct field with tags, tags are handled too, so you can add foreign keys, remove foreign keys, all from your struct, by removing a field, run the app, then put it again and run, results should be mirrored in the database after your confirmation
@@ -803,7 +803,7 @@ orm.AutoMigrate[T comparable](tableName string, dbName ...string) error
 //Example:
 type Bookmark struct {
 	Id      uint   `orm:"pk"`
-	UserId  int    `orm:"fk:users.id:cascade"` // options on delete: cascade, donothing, noaction
+	UserId  int    `orm:"fk:users.id:cascade:setnull"` // options cascade,(donothing,noaction),(setnull,null),(setdefault,default)
 	IsDone	bool   
 	ToCheck string `orm:"size:50; notnull; check: len(to_check) > 10; check: is_used=true"`  // column type will be VARCHAR(50)
 	Content string `orm:"text"` // column type will be TEXT, and will have Rich Text Editor in admin panel
