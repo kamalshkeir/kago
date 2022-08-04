@@ -267,35 +267,41 @@ type migrationInput struct {
 }
 
 func handleMigrationInt(mi *migrationInput) {
-	primary,index, autoinc, notnull, defaultt, check,unique := "", "", "", "", "", "",""
+	primary,index, autoinc, notnull, defaultt, checks,unique := "", "", "", "", "", []string{},""
 	tags := (*mi.fTags)[mi.fName]
 	if len(tags) == 1 && tags[0] == "-" {
 		(*mi.res)[mi.fName]=""
 		return
 	}
 	for _, tag := range tags {
-		switch tag {
-		case "unique":
-			unique = " UNIQUE"
-		case "autoinc","pk":
-			switch mi.dialect {
-			case SQLITE, "":
-				autoinc = "INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT"
-			case POSTGRES:
-				autoinc = "SERIAL NOT NULL PRIMARY KEY"
-			case MYSQL:
-				autoinc = "INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT"
-			default:
-				logger.Error("dialect can be sqlite, postgres or mysql only, not ", mi.dialect)
+		if !strings.Contains(tag,":") {
+			switch tag {
+				case "autoinc","pk":
+					switch mi.dialect {
+					case SQLITE, "":
+						autoinc = "INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT"
+					case POSTGRES:
+						autoinc = "SERIAL NOT NULL PRIMARY KEY"
+					case MYSQL:
+						autoinc = "INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT"
+					default:
+						logger.Error("dialect can be sqlite, postgres or mysql only, not ", mi.dialect)
+					}
+				case "notnull":
+					notnull = "NOT NULL"
+				case "index":
+					*mi.indexes=append(*mi.indexes,mi.fName)
+				case "unique":
+					(*mi.uindexes)[mi.fName] = mi.fName
+				case "default":
+					defaultt=" DEFAULT 0"
+				default:
+					logger.Error(tag,"not handled for migration int")
 			}
-		case "notnull":
-			notnull = "NOT NULL"
-		case "index":
-			*mi.indexes=append(*mi.indexes,mi.fName)
-		default:
-			if strings.Contains(tag, ":") {
-				sp := strings.Split(tag, ":")
-				switch sp[0] {
+		} else {
+			sp := strings.Split(tag,":") 
+			tg := sp[0]
+			switch tg {
 				case "default":
 					defaultt = " DEFAULT " + sp[1]
 				case "fk":
@@ -345,7 +351,7 @@ func handleMigrationInt(mi *migrationInput) {
 							logger.Error("check not handled for dialect:", mi.dialect)
 						}
 					}
-					check = " CHECK (" + sp[1] + ")"
+					checks = append(checks, strings.TrimSpace(sp[1]))
 				case "mindex":
 					if v,ok := (*mi.mindexes)[mi.fName];ok {
 						if v == "" {
@@ -359,23 +365,19 @@ func handleMigrationInt(mi *migrationInput) {
 						(*mi.mindexes)[mi.fName]=sp[1]
 					}
 				case "uindex":
-					if v,ok := (*mi.uindexes)[mi.fName];ok {
-						if v == "" {
-							(*mi.uindexes)[mi.fName] = sp[1]
-						} else if strings.Contains(sp[1],",") {
-							(*mi.uindexes)[mi.fName] += ","+sp[1]
-						} else {
-							logger.Error("mindex not working for",mi.fName,sp[1])
-						}
+				if v,ok := (*mi.uindexes)[mi.fName];ok {
+					if v == "" {
+						(*mi.uindexes)[mi.fName] = sp[1]
+					} else if strings.Contains(sp[1],",") {
+						(*mi.uindexes)[mi.fName] += ","+sp[1]
 					} else {
-						(*mi.uindexes)[mi.fName]=sp[1]
+						logger.Error("mindex not working for",mi.fName,sp[1])
 					}
-				default:
-					logger.Error("not handled", sp[0], "for", tag, ",field:", mi.fName)
+				} else {
+					(*mi.uindexes)[mi.fName]=sp[1]
 				}
-
-			} else {
-				logger.Error("tag", tag, "not handled for", mi.fName, "of type", mi.fType)
+				default:
+					logger.Error("not handled", sp[0], "for", tag, ",field:", mi.fName,"for migration int")
 			}
 		}
 	}
@@ -402,8 +404,9 @@ func handleMigrationInt(mi *migrationInput) {
 		if defaultt != "" {
 			(*mi.res)[mi.fName] += defaultt
 		}
-		if check != "" {
-			(*mi.res)[mi.fName] += check
+		if len(checks) > 0 {
+			joined := strings.TrimSpace(strings.Join(checks," AND")) 
+			(*mi.res)[mi.fName] += " CHECK(" +joined+")"
 		}
 	}
 }
@@ -420,6 +423,12 @@ func handleMigrationBool(mi *migrationInput) {
 		if strings.Contains(tag, ":") {
 			sp := strings.Split(tag, ":")
 			switch sp[0] {
+			case "default":
+				if sp[1] != "" {
+					defaultt = " DEFAULT " + sp[1]
+				} else {
+					defaultt = " DEFAULT false"
+				}
 			case "mindex":
 				if v,ok := (*mi.mindexes)[mi.fName];ok {
 					if v == "" {
@@ -431,18 +440,6 @@ func handleMigrationBool(mi *migrationInput) {
 					}
 				} else {
 					(*mi.mindexes)[mi.fName]=sp[1]
-				}
-			case "uindex":
-				if v,ok := (*mi.uindexes)[mi.fName];ok {
-					if v == "" {
-						(*mi.uindexes)[mi.fName] = sp[1]
-					} else if strings.Contains(sp[1],",") {
-						(*mi.uindexes)[mi.fName] += ","+sp[1]
-					} else {
-						logger.Error("mindex not working for",mi.fName,sp[1])
-					}
-				} else {
-					(*mi.uindexes)[mi.fName]=sp[1]
 				}
 			case "fk":
 				ref := strings.Split(sp[1], ".")
@@ -480,45 +477,53 @@ func handleMigrationBool(mi *migrationInput) {
 				} else {
 					logger.Error("wtf ?, it should be fk:users.id:cascade/donothing")
 				}
+			default:
+				logger.Error(sp[0],"not handled for",mi.fName,"migration bool")
 			}
-		} else if tag == "index" {
-			*mi.indexes=append(*mi.indexes,mi.fName)
 		} else {
-			logger.Error("tag", tag, "not handled for", mi.fName, "of type", mi.fType)		
-		}
-		if defaultt != "" {
-			(*mi.res)[mi.fName] += defaultt
-		}
+			switch tag {
+			case "index":
+				*mi.indexes=append(*mi.indexes,mi.fName)
+			case "default":
+				defaultt=" DEFAULT 0"
+			default:
+				logger.Error(tag,"not handled in Migration Bool")
+			}
+		} 
+	}
+	if defaultt != "" {
+		(*mi.res)[mi.fName] += defaultt
 	}
 }
 
 func handleMigrationString(mi *migrationInput) {
-	unique, notnull, text, defaultt, size, pk, check := "", "", "", "", "", "", ""
+	unique, notnull, text, defaultt, size, pk, checks := "", "", "", "", "", "", []string{}
 	tags := (*mi.fTags)[mi.fName]
 	if len(tags) == 1 && tags[0] == "-" {
 		(*mi.res)[mi.fName]=""
 		return
 	}
 	for _, tag := range tags {
-		switch tag {
-		case "unique":
-			unique = " UNIQUE"
-		case "text":
-			text = " TEXT"
-		case "notnull":
-			notnull = " NOT NULL"
-		case "index":
-			*mi.indexes=append(*mi.indexes,mi.fName)
-		default:
-			if strings.Contains(tag, ":") {
-				sp := strings.Split(tag, ":")
-				switch sp[0] {
+		if !strings.Contains(tag,":") {
+			switch tag {
+			case "text":
+				text = "TEXT"
+			case "notnull":
+				notnull = " NOT NULL"
+			case "index":
+				*mi.indexes=append(*mi.indexes,mi.fName)
+			case "unique":
+				(*mi.uindexes)[mi.fName] = mi.fName
+			case "default":
+				defaultt=" DEFAULT ''"
+			default:
+				logger.Error(tag,"not handled for migration string")
+			}
+		} else {
+			sp := strings.Split(tag, ":")
+			switch sp[0] {
 				case "default":
-					if sp[1] != "" {
-						defaultt = " DEFAULT " + sp[1]
-					} else {
-						defaultt = " DEFAULT ''" 
-					}
+					defaultt = " DEFAULT " + sp[1]
 				case "mindex":
 					if v,ok := (*mi.mindexes)[mi.fName];ok {
 						if v == "" {
@@ -595,12 +600,9 @@ func handleMigrationString(mi *migrationInput) {
 							logger.Error("check not handled for dialect:", mi.dialect)
 						}
 					}
-					check = " CHECK (" + sp[1] + ")"
+					checks = append(checks, strings.TrimSpace(sp[1]))
 				default:
-					logger.Error("not handled", sp[0], "for", tag, ",field:", mi.fName)
-				}
-			} else {
-				logger.Error("tag", tag, "not handled for", mi.fName, "of type", mi.fType)
+					logger.Error("not handled", sp[0], "for", tag, ",field:", mi.fName,"migration string")
 			}
 		}
 	}
@@ -627,8 +629,9 @@ func handleMigrationString(mi *migrationInput) {
 	if defaultt != "" {
 		(*mi.res)[mi.fName] += defaultt
 	}
-	if check != "" {
-		(*mi.res)[mi.fName] += check
+	if len(checks) > 0 {
+		joined := strings.TrimSpace(strings.Join(checks," AND")) 
+		(*mi.res)[mi.fName] += " CHECK(" +joined+")"
 	}
 }
 
@@ -640,100 +643,106 @@ func handleMigrationFloat(mi *migrationInput) {
 		return
 	}
 	for _, tag := range tags {
-		switch tag {
-		case "notnull":
-			mtags["notnull"] = " NOT NULL"
-		case "unique":
-			mtags["unique"] = " UNIQUE"
-		case "index":
-			*mi.indexes=append(*mi.indexes,mi.fName)
-		default:
-			if strings.Contains(tag, ":") {
-				sp := strings.Split(tag, ":")
-				switch sp[0] {
-				case "default":
-					if sp[1] != "" {
-						mtags["default"] = " DEFAULT " + sp[1]
-					}
-				case "fk":
-					ref := strings.Split(sp[1], ".")
-					if len(ref) == 2 {
-						fkey := "FOREIGN KEY(" + mi.fName + ") REFERENCES " + ref[0] + "(" + ref[1] + ")"
-						if len(sp) > 2 {
-							switch sp[2] {
-							case "cascade":
-								fkey += " ON DELETE CASCADE"
-							case "donothing","noaction":
-								fkey += " ON DELETE NO ACTION"
-							case "setnull","null":
-								fkey += " ON DELETE SET NULL"
-							case "setdefault","default":
-								fkey += " ON DELETE SET DEFAULT"
-							default:
-								logger.Printf("rdfk %s not handled",sp[2])
-							}
-							if len(sp) > 3 {
-								switch sp[3] {
-								case "cascade":
-									fkey += " ON UPDATE CASCADE"
-								case "donothing","noaction":
-									fkey += " ON UPDATE NO ACTION"
-								case "setnull","null":
-									fkey += " ON UPDATE SET NULL"
-								case "setdefault","default":
-									fkey += " ON UPDATE SET DEFAULT"
-								default:
-									logger.Printf("rdfk %s not handled",sp[3])
-								}
-							}
-						}
-						*mi.fKeys = append(*mi.fKeys, fkey)
-					} else {
-						logger.Error("foreign key should be like fk:table.column:[cascade/donothing]")
-					}
-				case "mindex":
-					if v,ok := (*mi.mindexes)[mi.fName];ok {
-						if v == "" {
-							(*mi.mindexes)[mi.fName] = sp[1]
-						} else if strings.Contains(sp[1],",") {
-							(*mi.mindexes)[mi.fName] += ","+sp[1]
-						} else {
-							logger.Error("mindex not working for",mi.fName,sp[1])
-						}
-					} else {
-						(*mi.mindexes)[mi.fName]=sp[1]
-					}
-				case "uindex":
-					if v,ok := (*mi.uindexes)[mi.fName];ok {
-						if v == "" {
-							(*mi.uindexes)[mi.fName] = sp[1]
-						} else if strings.Contains(sp[1],",") {
-							(*mi.uindexes)[mi.fName] += ","+sp[1]
-						} else {
-							logger.Error("mindex not working for",mi.fName,sp[1])
-						}
-					} else {
-						(*mi.uindexes)[mi.fName]=sp[1]
-					}
-				case "check":
-					if strings.Contains(strings.ToLower(sp[1]), "len") {
-						switch mi.dialect {
-						case SQLITE, "":
-							sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", 1)
-						case POSTGRES, MYSQL:
-							sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", 1)
-						default:
-							logger.Error("check not handled for dialect:", mi.dialect)
-						}
-					}
-					mtags["check"] = " CHECK (" + sp[1] + ")"
-				default:
-					logger.Error("not handled", sp[0], "for", tag, ",field:", mi.fName)
+		if !strings.Contains(tag,":") {
+			switch tag {
+			case "notnull":
+				mtags["notnull"] = " NOT NULL"
+			case "index":
+				*mi.indexes=append(*mi.indexes,mi.fName)
+			case "default":
+				mtags["default"]=" DEFAULT 0.00"
+			default:
+				logger.Error(tag,"not handled for migration float")
+			}
+		} else {
+			sp := strings.Split(tag, ":")
+			switch sp[0] {
+			case "default":
+				if sp[1] != "" {
+					mtags["default"] = " DEFAULT " + sp[1]
 				}
+			case "fk":
+				ref := strings.Split(sp[1], ".")
+				if len(ref) == 2 {
+					fkey := "FOREIGN KEY(" + mi.fName + ") REFERENCES " + ref[0] + "(" + ref[1] + ")"
+					if len(sp) > 2 {
+						switch sp[2] {
+						case "cascade":
+							fkey += " ON DELETE CASCADE"
+						case "donothing","noaction":
+							fkey += " ON DELETE NO ACTION"
+						case "setnull","null":
+							fkey += " ON DELETE SET NULL"
+						case "setdefault","default":
+							fkey += " ON DELETE SET DEFAULT"
+						default:
+							logger.Printf("rdfk %s not handled",sp[2])
+						}
+						if len(sp) > 3 {
+							switch sp[3] {
+							case "cascade":
+								fkey += " ON UPDATE CASCADE"
+							case "donothing","noaction":
+								fkey += " ON UPDATE NO ACTION"
+							case "setnull","null":
+								fkey += " ON UPDATE SET NULL"
+							case "setdefault","default":
+								fkey += " ON UPDATE SET DEFAULT"
+							default:
+								logger.Printf("rdfk %s not handled",sp[3])
+							}
+						}
+					}
+					*mi.fKeys = append(*mi.fKeys, fkey)
+				} else {
+					logger.Error("foreign key should be like fk:table.column:[cascade/donothing]")
+				}
+			case "mindex":
+				if v,ok := (*mi.mindexes)[mi.fName];ok {
+					if v == "" {
+						(*mi.mindexes)[mi.fName] = sp[1]
+					} else if strings.Contains(sp[1],",") {
+						(*mi.mindexes)[mi.fName] += ","+sp[1]
+					} else {
+						logger.Error("mindex not working for",mi.fName,sp[1])
+					}
+				} else {
+					(*mi.mindexes)[mi.fName]=sp[1]
+				}
+			case "uindex":
+				if v,ok := (*mi.uindexes)[mi.fName];ok {
+					if v == "" {
+						(*mi.uindexes)[mi.fName] = sp[1]
+					} else if strings.Contains(sp[1],",") {
+						(*mi.uindexes)[mi.fName] += ","+sp[1]
+					} else {
+						logger.Error("mindex not working for",mi.fName,sp[1])
+					}
+				} else {
+					(*mi.uindexes)[mi.fName]=sp[1]
+				}
+			case "check":
+				if strings.Contains(strings.ToLower(sp[1]), "len") {
+					switch mi.dialect {
+					case SQLITE, "":
+						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", 1)
+					case POSTGRES, MYSQL:
+						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", 1)
+					default:
+						logger.Error("check not handled for dialect:", mi.dialect)
+					}
+				}
+				if v,ok := mtags["check"];ok && v != "" {
+					mtags["check"] += " AND "+ strings.TrimSpace(sp[1]) 
+				} else if v == "" {
+					mtags["check"] = strings.TrimSpace(sp[1])
+				}				
+			default:
+				logger.Error("not handled", sp[0], "for", tag, ",field:", mi.fName,"field float")
 			}
 		}
 
-		(*mi.res)[mi.fName] = "DECIMAL(5,2)"
+		(*mi.res)[mi.fName] = "DECIMAL(10,2)"
 		for k, v := range mtags {
 			switch k {
 			case "pk":
@@ -749,7 +758,7 @@ func handleMigrationFloat(mi *migrationInput) {
 			case "default":
 				(*mi.res)[mi.fName] += v
 			case "check":
-				(*mi.res)[mi.fName] += v
+				(*mi.res)[mi.fName] +=" CHECK("+v+")"
 			default:
 				logger.Error("case", k, "not handled")
 			}
@@ -765,116 +774,90 @@ func handleMigrationTime(mi *migrationInput) {
 		return
 	}
 	for _, tag := range tags {
-		switch tag {
-		case "now":
-			switch mi.dialect {
-			case SQLITE, "":
-				defaultt = "TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
-			case POSTGRES:
-				defaultt = "TIMESTAMP NOT NULL DEFAULT (now())"
-			case MYSQL:
-				defaultt = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
-			default:
-				logger.Error("not handled Time for ", mi.fName, mi.fType)
-			}
-		case "notnull":
-			if defaultt != "" {
-				notnull = " NOT NULL"
-			}
-		case "index":
-			*mi.indexes=append(*mi.indexes,mi.fName)
-		default:
-			if strings.Contains(tag, ":") {
-				sp := strings.Split(tag, ":")
-				switch sp[0] {
-				case "mindex":
-					if v,ok := (*mi.mindexes)[mi.fName];ok {
-						if v == "" {
-							(*mi.mindexes)[mi.fName] = sp[1]
-						} else if strings.Contains(sp[1],",") {
-							(*mi.mindexes)[mi.fName] += ","+sp[1]
-						} else {
-							logger.Error("mindex not working for",mi.fName,sp[1])
-						}
-					} else {
-						(*mi.mindexes)[mi.fName]=sp[1]
-					}
-				case "uindex":
-					if v,ok := (*mi.uindexes)[mi.fName];ok {
-						if v == "" {
-							(*mi.uindexes)[mi.fName] = sp[1]
-						} else if strings.Contains(sp[1],",") {
-							(*mi.uindexes)[mi.fName] += ","+sp[1]
-						} else {
-							logger.Error("mindex not working for",mi.fName,sp[1])
-						}
-					} else {
-						(*mi.uindexes)[mi.fName]=sp[1]
-					}
-				case "fk":
-					ref := strings.Split(sp[1], ".")
-					if len(ref) == 2 {
-						fkey := "FOREIGN KEY(" + mi.fName + ") REFERENCES " + ref[0] + "(" + ref[1] + ")"
-						if len(sp) > 2 {
-							switch sp[2] {
-							case "cascade":
-								fkey += " ON DELETE CASCADE"
-							case "donothing","noaction":
-								fkey += " ON DELETE NO ACTION"
-							case "setnull","null":
-								fkey += " ON DELETE SET NULL"
-							case "setdefault","default":
-								fkey += " ON DELETE SET DEFAULT"
-							default:
-								logger.Printf("rdfk %s not handled",sp[2])
-							}
-							if len(sp) > 3 {
-								switch sp[3] {
-								case "cascade":
-									fkey += " ON UPDATE CASCADE"
-								case "donothing","noaction":
-									fkey += " ON UPDATE NO ACTION"
-								case "setnull","null":
-									fkey += " ON UPDATE SET NULL"
-								case "setdefault","default":
-									fkey += " ON UPDATE SET DEFAULT"
-								default:
-									logger.Printf("rdfk %s not handled",sp[3])
-								}
-							}
-						}
-						*mi.fKeys = append(*mi.fKeys, fkey)
-					} else {
-						logger.Error("wtf ?, it should be fk:users.id:cascade/donothing")
-					}
-				case "check":
-					if strings.Contains(strings.ToLower(sp[1]), "len") {
-						switch mi.dialect {
-						case SQLITE, "":
-							sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", 1)
-						case POSTGRES, MYSQL:
-							sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", 1)
-						default:
-							logger.Error("check not handled for dialect:", mi.dialect)
-						}
-					}
-					check = " CHECK (" + sp[1] + ")"
-				case "default":
-					if sp[1] != "" {
-						switch mi.dialect {
-						case SQLITE, "":
-							defaultt = "TEXT NOT NULL DEFAULT " + sp[1]
-						case POSTGRES:
-							defaultt = "TIMESTAMP with time zone NOT NULL DEFAULT " + sp[1]
-						case MYSQL:
-							defaultt = "TIMESTAMP with time zone NOT NULL DEFAULT " + sp[1]
-						default:
-							logger.Error("default for field", mi.fName, "not handled")
-						}
-					}
+		if !strings.Contains(tag,":") {
+			switch tag {
+			case "now":
+				switch mi.dialect {
+				case SQLITE, "":
+					defaultt = "TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
+				case POSTGRES:
+					defaultt = "TIMESTAMP NOT NULL DEFAULT (now())"
+				case MYSQL:
+					defaultt = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
 				default:
-					logger.Error("case", sp[0], "not handled")
+					logger.Error("not handled Time for ", mi.fName, mi.fType)
 				}
+			case "update":
+				switch mi.dialect {
+				case SQLITE, "":
+					defaultt = "TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+				case POSTGRES:
+					defaultt = "TIMESTAMP NOT NULL DEFAULT (now()) ON UPDATE (now())"
+				case MYSQL:
+					defaultt = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+				default:
+					logger.Error("not handled Time for ", mi.fName, mi.fType)
+				}
+			default:
+				logger.Error(tag,"tag not handled for time")
+			}
+		} else {
+			sp := strings.Split(tag, ":")
+			switch sp[0] {
+			case "fk":
+				ref := strings.Split(sp[1], ".")
+				if len(ref) == 2 {
+					fkey := "FOREIGN KEY(" + mi.fName + ") REFERENCES " + ref[0] + "(" + ref[1] + ")"
+					if len(sp) > 2 {
+						switch sp[2] {
+						case "cascade":
+							fkey += " ON DELETE CASCADE"
+						case "donothing","noaction":
+							fkey += " ON DELETE NO ACTION"
+						case "setnull","null":
+							fkey += " ON DELETE SET NULL"
+						case "setdefault","default":
+							fkey += " ON DELETE SET DEFAULT"
+						default:
+							logger.Printf("rdfk %s not handled",sp[2])
+						}
+						if len(sp) > 3 {
+							switch sp[3] {
+							case "cascade":
+								fkey += " ON UPDATE CASCADE"
+							case "donothing","noaction":
+								fkey += " ON UPDATE NO ACTION"
+							case "setnull","null":
+								fkey += " ON UPDATE SET NULL"
+							case "setdefault","default":
+								fkey += " ON UPDATE SET DEFAULT"
+							default:
+								logger.Printf("rdfk %s not handled",sp[3])
+							}
+						}
+					}
+					*mi.fKeys = append(*mi.fKeys, fkey)
+				} else {
+					logger.Error("wtf ?, it should be fk:users.id:cascade/donothing")
+				}
+			case "check":
+				if strings.Contains(strings.ToLower(sp[1]), "len") {
+					switch mi.dialect {
+					case SQLITE, "":
+						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", 1)
+					case POSTGRES, MYSQL:
+						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", 1)
+					default:
+						logger.Error("check not handled for dialect:", mi.dialect)
+					}
+				}
+				if check != "" {
+					check += " AND "+ strings.TrimSpace(sp[1]) 
+				} else {
+					check += sp[1]
+				}
+			default:
+				logger.Error("case", sp[0], "not handled for time")
 			}
 		}
 	}
@@ -884,14 +867,14 @@ func handleMigrationTime(mi *migrationInput) {
 		if mi.dialect == "" || mi.dialect == SQLITE {
 			(*mi.res)[mi.fName] = "TEXT"
 		} else {
-			(*mi.res)[mi.fName] = "TIMESTAMP with time zone"
+			(*mi.res)[mi.fName] = "TIMESTAMP"
 		}
 
 		if notnull != "" {
 			(*mi.res)[mi.fName] += notnull
 		}
 		if check != "" {
-			(*mi.res)[mi.fName] += check
+			(*mi.res)[mi.fName] +=" CHECK("+check+")"
 		}
 	}
 }

@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/kamalshkeir/kago/core/admin/models"
 	"github.com/kamalshkeir/kago/core/kamux"
 	"github.com/kamalshkeir/kago/core/middlewares"
 	"github.com/kamalshkeir/kago/core/orm"
@@ -97,8 +96,13 @@ var AllModelsGet = func(c *kamux.Context) {
 		})
 		return
 	}
+	idString := "id"
+	t, _ := orm.GetDatabaseTableFromMemory(orm.DefaultDB,model)
+	if t.Pk  != "" && t.Pk  != "id" {
+		idString=t.Pk
+	}
 	
-	rows,err :=orm.Table(model).OrderBy("-id").Limit(PAGINATION_PER).Page(1).All()
+	rows,err :=orm.Table(model).OrderBy("-"+idString).Limit(PAGINATION_PER).Page(1).All()
 	if err != nil {
 		rows,err =orm.Table(model).All()
 		if err != nil {
@@ -111,9 +115,7 @@ var AllModelsGet = func(c *kamux.Context) {
 			}
 		}
 	}
-	t,err := orm.GetDatabaseTableFromMemory(orm.DefaultDB,model)
-	logger.CheckError(err)
-	if settings.Config.Db.Type != "" && err == nil {
+	if settings.Config.Db.Type != "" {
 		c.Html("admin/admin_all_models.html", map[string]any{
 			"dbType":settings.Config.Db.Type,
 			"model_name":model,
@@ -122,8 +124,9 @@ var AllModelsGet = func(c *kamux.Context) {
 			"pk":t.Pk,
 		})
 	} else {
+		logger.Error("dbType not known, do you have .env",settings.Config.Db.Type,err)
 		c.Status(http.StatusBadRequest).Json(map[string]any{
-			"error":"dbType not known, do you have .env ?",
+			"error":"dbType not found",
 		})
 	}
 }
@@ -147,7 +150,12 @@ var AllModelsPost = func(c *kamux.Context) {
 			} else {
 				pagenum,err := strconv.Atoi(page)
 				if err == nil {
-					rows,err :=orm.Table(model).OrderBy("-id").Limit(PAGINATION_PER).Page(pagenum).All()
+					idString := "id"
+					t, _ := orm.GetDatabaseTableFromMemory(orm.DefaultDB,model)
+					if t.Pk  != "" && t.Pk  != "id" {
+						idString=t.Pk
+					}
+					rows,err :=orm.Table(model).OrderBy("-"+idString).Limit(PAGINATION_PER).Page(pagenum).All()
 					if err == nil {
 						c.Json(map[string]any{
 							"rows":rows,
@@ -168,8 +176,12 @@ var DeleteRowPost = func(c *kamux.Context) {
 	if data["mission"] == "delete_row" {
 		if model,ok := data["model_name"];ok {
 			if mm,ok := model.(string);ok {
-				orm.Model[models.User]().Delete()
-				modelDB,err := orm.Table(mm).Where("id = ?",data["id"]).One() 
+				idString := "id"
+				t, _ := orm.GetDatabaseTableFromMemory(orm.DefaultDB,mm)
+				if t.Pk  != "" && t.Pk  != "id" {
+					idString=t.Pk
+				}
+				modelDB,err := orm.Table(mm).Where(idString+" = ?",data["id"]).One() 
 				if logger.CheckError(err) {
 					logger.Info("data received DeleteRowPost:", data)
 					c.Status(http.StatusBadRequest).Json(map[string]any{
@@ -184,7 +196,7 @@ var DeleteRowPost = func(c *kamux.Context) {
 				} 
 
 				if idS,ok := data["id"].(string);ok {
-					_,err = orm.Table(mm).Where("id = ?",idS).Delete()
+					_,err = orm.Table(mm).Where(idString+" = ?",idS).Delete()
 
 					if err != nil {
 						c.Status(http.StatusBadRequest).Json(map[string]any{
@@ -198,7 +210,6 @@ var DeleteRowPost = func(c *kamux.Context) {
 						return
 					}
 				}
-				
 			} else {
 				c.Status(http.StatusBadRequest).Json(map[string]any{
 					"error":"expecting model_name to be string",
@@ -275,15 +286,18 @@ var SingleModelGet = func(c *kamux.Context) {
 		})
 		return
 	}
-	modelRow,err := orm.Table(model).Where("id = ?",id).One()
+	idString := "id"
+	t, _ := orm.GetDatabaseTableFromMemory(orm.DefaultDB,model)
+	if t.Pk  != "" && t.Pk  != "id" {
+		idString=t.Pk
+	}
+	modelRow,err := orm.Table(model).Where(idString+" = ?",id).One()
 	if logger.CheckError(err) {
 		c.Status(http.StatusBadRequest).Json(map[string]any{
 			"error":err.Error(),
 		})
 		return
 	}
-	t,err := orm.GetDatabaseTableFromMemory(orm.DefaultDB,model)
-	logger.CheckError(err)
 	c.Html("admin/admin_single_model.html", map[string]any{
 		"model":modelRow,
 		"model_name":model,
@@ -299,7 +313,13 @@ var UpdateRowPost = func(c *kamux.Context) {
 	// id from string to int
 	id := data["row_id"][0]
 	//handle file upload
-	err := handleFilesUpload(files,data["table"][0],id,c)
+	//get model from database
+	idString := "id"
+	t, _ := orm.GetDatabaseTableFromMemory(orm.DefaultDB,data["table"][0])
+	if t.Pk  != "" && t.Pk  != "id" {
+		idString=t.Pk
+	}
+	err := handleFilesUpload(files,data["table"][0],id,c,idString)
 	if err != nil {
 		c.Status(http.StatusBadRequest).Json(map[string]any{
 			"error":err.Error(),
@@ -307,8 +327,8 @@ var UpdateRowPost = func(c *kamux.Context) {
 		return
 	}
 
-	//get model from database
-	modelDB,err := orm.Table(data["table"][0]).Where("id = ?",id).One()
+	
+	modelDB,err := orm.Table(data["table"][0]).Where(idString+" = ?",id).One()
 	
 	if err != nil {
 		c.Status(http.StatusBadRequest).Json(map[string]any{
@@ -326,7 +346,7 @@ var UpdateRowPost = func(c *kamux.Context) {
 			if isAdminString == val[0] {
 				continue
 			} else {
-				_,err := orm.Table(data["table"][0]).Where("id = ?",id).Set(key+" = ?",val[0])
+				_,err := orm.Table(data["table"][0]).Where(idString+" = ?",id).Set(key+" = ?",val[0])
 				
 				if err != nil {
 					c.Status(http.StatusBadRequest).Json(map[string]any{
@@ -341,7 +361,7 @@ var UpdateRowPost = func(c *kamux.Context) {
 			}
 		default:
 			if modelDB[key] != val[0] {
-				_,err := orm.Table(data["table"][0]).Where("id = ?",id).Set(key+" = ?",val[0])
+				_,err := orm.Table(data["table"][0]).Where(idString+" = ?",id).Set(key+" = ?",val[0])
 				if err != nil {
 					c.Json(map[string]any{
 						"error":err.Error(),
@@ -365,7 +385,7 @@ var UpdateRowPost = func(c *kamux.Context) {
 	
 }
 
-func handleFilesUpload(files map[string][]*multipart.FileHeader,model string,id string,c *kamux.Context) error {
+func handleFilesUpload(files map[string][]*multipart.FileHeader,model string,id string,c *kamux.Context,idString string) error {
 	if len(files) > 0 {
 		for key,val := range files {
 			file,_ := val[0].Open()
@@ -374,7 +394,7 @@ func handleFilesUpload(files map[string][]*multipart.FileHeader,model string,id 
 			if err != nil {
 				return err
 			}
-			row,err := orm.Table(model).Where("id = ?",id).One()
+			row,err := orm.Table(model).Where(idString+" = ?",id).One()
 			if err != nil {
 				return err
 			}
@@ -387,12 +407,12 @@ func handleFilesUpload(files map[string][]*multipart.FileHeader,model string,id 
 					err := c.DeleteFile(v)
 					if err != nil {
 						//le fichier existe pas
-						_,err := orm.Table(model).Where("id = ?",id).Set(key+" = ?",uploadedImage)
+						_,err := orm.Table(model).Where(idString+" = ?",id).Set(key+" = ?",uploadedImage)
 						logger.CheckError(err)
 						continue
 					} else {
 						//le fichier existe et donc supprimer
-						_,err := orm.Table(model).Where("id = ?",id).Set(key+" = ?",uploadedImage)
+						_,err := orm.Table(model).Where(idString+" = ?",id).Set(key+" = ?",uploadedImage)
 						logger.CheckError(err)
 						continue
 					}

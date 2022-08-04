@@ -47,6 +47,11 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 	for k := range colsNameType {
 		cols = append(cols, k)
 	}
+	for _,list := range ftags {
+		for i := range list {
+			list[i]=strings.TrimSpace(list[i]) 
+		}
+	}
 
 	diff := utils.Difference(fields, cols)
 	var wg sync.WaitGroup
@@ -104,12 +109,18 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 
 			choice := input.Input(input.Yellow, "> do you want to remove '"+d+"' from database ? (Y/n): ")
 			if utils.SliceContains([]string{"yes", "Y", "y"}, choice) {
+				sst := "DROP INDEX IF EXISTS idx_"+to_table_name+"_"+d
 				if len(databases) > 1 && db.Name == "" {
 					ddb := input.Input(input.Blue, "> There are more than one database connected, enter database name: ")
 					conn := GetConnection(ddb)
-					if conn != nil {
-						_, err := conn.Exec("DROP INDEX IF EXISTS idx_"+to_table_name+"_"+d)
+					if conn != nil {						
+						if Debug {
+							logger.Info(sst)
+							logger.Info(statement)
+						}
+						_, err := conn.Exec(sst)
 						if logger.CheckError(err) {
+							logger.Info(sst)
 							return
 						}
 						_, err = conn.Exec(statement)
@@ -131,9 +142,14 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 				} else {
 					conn := db.Conn
 					if conn != nil {
-						_, err := conn.Exec("DROP INDEX IF EXISTS idx_"+to_table_name+"_"+d)
+						_, err := conn.Exec(sst)
 						if logger.CheckError(err) {
+							logger.Info(sst)
 							return
+						}
+						if Debug {
+							logger.Info(sst)
+							logger.Info(statement)
 						}
 						_, err = conn.Exec(statement)
 						if err != nil {
@@ -454,8 +470,12 @@ func handleRename(to_table_name string, fields, cols, diff []string, db *Databas
 					ddb := input.Input(input.Blue, "> There are more than one database connected, database name:")
 					conn := GetConnection(ddb)
 					if conn != nil {
+						if Debug {
+							logger.Info("statement:",statement)
+						}
 						_, err := conn.Exec(statement)
 						if logger.CheckError(err) {
+							logger.Info("statement:",statement)
 							return
 						}
 						logger.Printfs("grDone, '%s' has been changed to %s", old[0], new[0])
@@ -463,8 +483,12 @@ func handleRename(to_table_name string, fields, cols, diff []string, db *Databas
 				} else {
 					conn := db.Conn
 					if conn != nil {
+						if Debug {
+							logger.Info("statement:",statement)
+						}
 						_, err := conn.Exec(statement)
 						if logger.CheckError(err) {
+							logger.Info("statement:",statement)
 							return
 						}
 						logger.Printfs("grDone, '%s' has been changed to %s", old[0], new[0])
@@ -484,16 +508,24 @@ func handleRename(to_table_name string, fields, cols, diff []string, db *Databas
 								ddb := input.Input(input.Blue, "> There are more than one database connected, database name:")
 								conn := GetConnection(ddb)
 								if conn != nil {
+									if Debug {
+										logger.Info("statement:",statement)
+									}
 									_, err := conn.Exec(statement)
 									if logger.CheckError(err) {
+										logger.Info("statement:",statement)
 										return
 									}
 								}
 							} else {
+								if Debug {
+									logger.Info("statement:",statement)
+								}
 								conn := GetConnection(db.Name)
 								if conn != nil {
 									_, err := conn.Exec(statement)
 									if logger.CheckError(err) {
+										logger.Info("statement:",statement)
 										return
 									}
 								}

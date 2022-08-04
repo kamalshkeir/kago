@@ -614,26 +614,198 @@ orm.GetAllColumns(table string, dbName ...string) map[string]string // clear i t
 orm.CreateUser(email,password string,isAdmin int, dbName ...string) error // password will be hashed using argon2
 ```
 
-#### Migrations
+---
+---
+---
+
+# Migrations
 ##### using the shell, you can migrate a .sql file 'go run main.go shell'
 ##### OR
 ##### you can migrate from a struct
 ##### on compilation time all models registered using AutoMigrate will be synchronized with the database so if you add a field to you struct or add a column to your table, you will have a prompt proposing solutions
 ##### execute AutoMigrate and don't think about it, it will handle all synchronisations between your project structs types like 'Bookmark' below
 
-## BONUS: notice that if you add a struct field with tags, tags are handled too, so you can add foreign keys, remove foreign keys, all from your struct, the result will be mirrored in the database after your confirmation
-###### if you need to change a tag, remove the field, restart, put new one with the new tag, that's it ;) 
+## BONUS: notice that if you add a struct field with tags, tags are handled too, so you can add foreign keys, remove foreign keys, all from your struct, by removing a field, run the app, then put it again and run, results should be mirrored in the database after your confirmation
+## if you need to change a tag, remove the field, restart, put the new one with the new tag, restart again, that's it 
+
+---
+### Available Tags by struct field type (tags are separated by ';'):
+---
+
+# Int, Uint, Int64, Uint64 :
+<table>
+<tr>
+<th>Without parameter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
+</tr>
+<tr>
+<td>
+ 
+```
+*   -  			 (To Ignore a field)
+*   autoinc, pk  (PRIMARY KEY)
+*   notnull      (NOT NULL)
+*   index        (CREATE INDEX ON COLUMN)
+*   unique 		 (CREATE UNIQUE INDEX ON COLUMN)
+*   default		 (DEFAULT 0)
+```
+</td>
+</tr>
+
+<tr><th>With parameter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th></tr>
+<tr>
+<td>
+
+```
+Foreign Keys 'on_delete' and 'on_update' options: cascade,(donothing,noaction),(setnull,null),(setdefault,default)
+
+*   fk:{table}.{column}:{on_delete}:{on_update} 
+*   check:len(to_check) > 10 ; check: is_used=true (You can chain checks or keep it in the same CHECK separated by AND)
+*   mindex: first_name,last_name (CREATE MULTI INDEX ON COLUMN + first_name + last_name)
+*   uindex: first_name,last_name (CREATE MULTI UNIQUE INDEX ON COLUMN + first_name + last_name)
+*   default:5 (DEFAULT 5)
+```
+
+</td>
+</tr>
+</table>
+
+---
+
+#String :
+<table>
+<tr>
+<th>Without parameter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
+<th>With parameter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
+</tr>
+<tr>
+<td>
+ 
+```
+*  	text (create column as TEXT not VARCHAR)
+*  	notnull
+*  	unique
+*  	index
+*  	default (DEFAULT '')
+```
+</td>
+<td>
+
+```
+* 	default:'any' (DEFAULT 'any')
+*	mindex:...
+* 	uindex:...
+* 	fk:...
+* 	size:50  (VARCHAR(50))
+* 	check:...
+```
+
+</td>
+</tr>
+</table>
+
+
+---
+
+
+# Bool : bool is INTEGER NOT NULL checked if 0 or 1
+<table>
+<tr>
+<th>Without parameter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
+<th>With parameter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
+</tr>
+<tr>
+<td>
+ 
+```
+*   index
+*   default (DEFAULT 0)
+```
+</td>
+<td>
+
+```
+*   default:1 (DEFAULT 1)
+*   mindex:...
+*   fk:...
+```
+
+</td>
+</tr>
+</table>
+
+---
+
+# time.Time :
+<table>
+<tr>
+<th>Without parameter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
+<th>With parameter</th>
+</tr>
+<tr>
+<td>
+ 
+```
+*   now (NOT NULL and defaulted to current timestamp)
+*   update (NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)
+```
+</td>
+<td>
+
+```
+*   fk:...
+*   check:...
+```
+
+</td>
+</tr>
+</table>
+
+---
+
+# Float64 :
+<table>
+<tr>
+<th>Without parameter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
+<th>With parameter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
+</tr>
+<tr>
+<td>
+ 
+```
+*   notnull
+*   index
+*   default
+```
+</td>
+<td>
+
+```
+*   default:...
+*   fk:...
+*   mindex:...
+*   uindex:...
+*   check:...
+```
+
+</td>
+</tr>
+</table>
+
+---
+
+
+# Usage :
 ```go
 
 orm.AutoMigrate[T comparable](tableName string, dbName ...string) error 
 
 //Example:
 type Bookmark struct {
-	Id      uint   `orm:"autoinc"`
+	Id      uint   `orm:"pk"`
 	UserId  int    `orm:"fk:users.id:cascade"` // options on delete: cascade, donothing, noaction
-	IsUsed	bool
-	ToCheck string `orm:"size:50; notnull; check:len(to_check) > 10"`  // column type will be VARCHAR(50)
-	Content string `orm:"text"` // column type will be TEXT
+	IsDone	bool   
+	ToCheck string `orm:"size:50; notnull; check: len(to_check) > 10; check: is_used=true"`  // column type will be VARCHAR(50)
+	Content string `orm:"text"` // column type will be TEXT, and will have Rich Text Editor in admin panel
 	CreatedAt time.Time `orm:"now"` // now is default to current timestamp
 }
 

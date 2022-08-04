@@ -314,6 +314,10 @@ func (b *BuilderM) Insert(fields_comma_separated string, fields_values []any) (i
 	stat.WriteString(placeholders)
 	stat.WriteString(")")
 	statement := stat.String()
+	if b.debug {
+		logger.Debug("statement:", statement)
+		logger.Debug("args:", fields_values)
+	}
 	var res sql.Result
 	if b.ctx != nil {
 		res, err = db.Conn.ExecContext(b.ctx, statement, fields_values...)
