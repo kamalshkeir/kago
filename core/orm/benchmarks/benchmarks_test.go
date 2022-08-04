@@ -9,23 +9,23 @@ import (
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
-
 func init() {
 	r := kamux.Router{}
 	r.LoadEnv("../../../.env")
 	_ = orm.InitDB()
-	orm.UseCache=true
+	orm.UseCache = true
 	//migrate
 	err := orm.Migrate()
-	if logger.CheckError(err) {return}
-	users,_ := orm.Table("users").All()
-	if len(users) ==0 {
-		orm.CreateUser("kamal@gmail.com","olaola",1)
+	if logger.CheckError(err) {
+		return
+	}
+	users, _ := orm.Table("users").All()
+	if len(users) == 0 {
+		orm.CreateUser("kamal@gmail.com", "olaola", 1)
 	}
 }
 
-
-/* 
+/*
 ////////////////////////////////////// postgres without cache
 BenchmarkGetAllS-4                  1472            723428 ns/op            5271 B/op         80 allocs/op
 BenchmarkGetAllM-4                  1502            716418 ns/op            4912 B/op         85 allocs/op
@@ -72,76 +72,68 @@ BenchmarkGetAllTables-4         52592826                20.39 ns/op            0
 BenchmarkGetAllColumns-4        64293176                20.87 ns/op            0 B/op          0 allocs/op
 */
 
-
-func BenchmarkGetAllS(b *testing.B) {	
+func BenchmarkGetAllS(b *testing.B) {
 	b.ReportAllocs()
-    b.ResetTimer()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_,err := orm.Model[models.User]().All()
+		_, err := orm.Model[models.User]().All()
 		if err != nil {
-			b.Error("error BenchmarkGetAllS:",err)
+			b.Error("error BenchmarkGetAllS:", err)
 		}
 	}
 }
 
-func BenchmarkGetAllM(b *testing.B) {	
+func BenchmarkGetAllM(b *testing.B) {
 	b.ReportAllocs()
-    b.ResetTimer()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_,err := orm.Table("users").All()
+		_, err := orm.Table("users").All()
 		if err != nil {
-			b.Error("error BenchmarkGetAllM:",err)
+			b.Error("error BenchmarkGetAllM:", err)
 		}
 	}
 }
 
-
-func BenchmarkGetRowS(b *testing.B) {	
+func BenchmarkGetRowS(b *testing.B) {
 	b.ReportAllocs()
-    b.ResetTimer()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_,err := orm.Model[models.User]().Where("email = ?","kamal@gmail.com").One()
+		_, err := orm.Model[models.User]().Where("email = ?", "kamal@gmail.com").One()
 		if err != nil {
-			b.Error("error BenchmarkGetRowS:",err)
+			b.Error("error BenchmarkGetRowS:", err)
 		}
 	}
 }
 
-func BenchmarkGetRowM(b *testing.B) {	
+func BenchmarkGetRowM(b *testing.B) {
 	b.ReportAllocs()
-    b.ResetTimer()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_,err := orm.Table("users").Where("email = ?","kamal@gmail.com").One()
+		_, err := orm.Table("users").Where("email = ?", "kamal@gmail.com").One()
 		if err != nil {
-			b.Error("error BenchmarkGetRowM:",err)
+			b.Error("error BenchmarkGetRowM:", err)
 		}
 	}
 }
-
-
 
 func BenchmarkGetAllTables(b *testing.B) {
 	b.ReportAllocs()
-    b.ResetTimer()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		t := orm.GetAllTables()
 		if len(t) == 0 {
-			b.Error("error BenchmarkGetAllTables: no data",)
+			b.Error("error BenchmarkGetAllTables: no data")
 		}
 	}
 }
 
 func BenchmarkGetAllColumns(b *testing.B) {
 	b.ReportAllocs()
-    b.ResetTimer()
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		c := orm.GetAllColumns("users")
 		if len(c) == 0 {
-			b.Error("error BenchmarkGetAllColumns: no data",)
+			b.Error("error BenchmarkGetAllColumns: no data")
 		}
 	}
 }
-
-
-
-

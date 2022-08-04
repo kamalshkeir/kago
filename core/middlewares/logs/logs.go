@@ -14,7 +14,6 @@ func (r *StatusRecorder) WriteHeader(status int) {
 	r.ResponseWriter.WriteHeader(status)
 }
 
-
 /* func (r *StatusRecorder) Flush()  {
 	if v,ok := r.ResponseWriter.(http.Flusher);ok {
 		v.Flush()
@@ -27,4 +26,3 @@ func (r *StatusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
 	}
 	return nil, nil, fmt.Errorf("LOGS MIDDLEWARE: http.Hijacker interface is not supported")
 } */
-

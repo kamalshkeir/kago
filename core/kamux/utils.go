@@ -16,8 +16,7 @@ import (
 	"github.com/kamalshkeir/kago/core/utils/safemap"
 )
 
-
-var mCountryLanguage=safemap.New[string,string]()
+var mCountryLanguage = safemap.New[string, string]()
 
 // LoadEnv load env vars from multiple files
 func (router *Router) LoadEnv(files ...string) {
@@ -27,10 +26,10 @@ func (router *Router) LoadEnv(files ...string) {
 }
 
 func LoadTranslations() {
-	if dir,err := os.Stat(settings.TranslationFolder);err == nil && dir.IsDir() {
-		err = filepath.WalkDir(dir.Name(),func(path string, d fs.DirEntry, err error) error {
-			if strings.HasSuffix(d.Name(),".json") {
-				file,err := os.Open(path)
+	if dir, err := os.Stat(settings.TranslationFolder); err == nil && dir.IsDir() {
+		err = filepath.WalkDir(dir.Name(), func(path string, d fs.DirEntry, err error) error {
+			if strings.HasSuffix(d.Name(), ".json") {
+				file, err := os.Open(path)
 				if err != nil {
 					return err
 				}
@@ -42,29 +41,29 @@ func LoadTranslations() {
 					return err
 				}
 				file.Close()
-				withoutSuffix := strings.TrimSuffix(d.Name(),".json")
+				withoutSuffix := strings.TrimSuffix(d.Name(), ".json")
 				settings.Languages = append(settings.Languages, withoutSuffix)
-				settings.Translations.Set(withoutSuffix,v)
+				settings.Translations.Set(withoutSuffix, v)
 			}
 			return nil
 		})
 		if !logger.CheckError(err) {
 			var res *http.Response
-			res,err = http.Get("https://raw.githubusercontent.com/kamalshkeir/countries/main/country_list.csv")
+			res, err = http.Get("https://raw.githubusercontent.com/kamalshkeir/countries/main/country_list.csv")
 			logger.CheckError(err)
 			defer res.Body.Close()
 			reader := csv.NewReader(res.Body)
-			reader.LazyQuotes=true
+			reader.LazyQuotes = true
 			lines, err := reader.ReadAll()
 			logger.CheckError(err)
 
-			for _,l := range lines {
+			for _, l := range lines {
 				country := l[1]
 				lang := l[5]
-				for _,ll := range settings.Languages {
+				for _, ll := range settings.Languages {
 					if lang == ll {
-						mCountryLanguage.Set(country,lang)
-					} 
+						mCountryLanguage.Set(country, lang)
+					}
 				}
 			}
 		}
@@ -73,6 +72,7 @@ func LoadTranslations() {
 
 var Templates embed.FS
 var Static embed.FS
+
 // GetEmbeded get embeded files and make them global
 func (r *Router) Embed(staticDir *embed.FS, templateDir *embed.FS) {
 	Static = *staticDir

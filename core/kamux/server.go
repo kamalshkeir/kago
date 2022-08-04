@@ -15,10 +15,8 @@ import (
 	"golang.org/x/net/websocket"
 )
 
-
 var midwrs []func(http.Handler) http.Handler
 var privateIps = []string{}
-
 
 // InitServer init the server with midws,
 func (router *Router) initServer() {
@@ -32,7 +30,7 @@ func (router *Router) initServer() {
 		handler = router
 	}
 	host := settings.Config.Host
-		
+
 	if host == "" {
 		host = "127.0.0.1"
 	}
@@ -48,14 +46,13 @@ func (router *Router) initServer() {
 		WriteTimeout: 20 * time.Second,
 		IdleTimeout:  20 * time.Second,
 	}
-	router.Server=&server
+	router.Server = &server
 }
 
 // UseMiddlewares chain global middlewares applied on the router
 func (router *Router) UseMiddlewares(midws ...func(http.Handler) http.Handler) {
 	midwrs = append(midwrs, midws...)
 }
-
 
 // Run start the server
 func (router *Router) Run() {
@@ -67,15 +64,14 @@ func (router *Router) Run() {
 	go router.gracefulShutdown()
 
 	if err := router.Server.ListenAndServe(); err != http.ErrServerClosed {
-		logger.Error("Unable to shutdown the server : ",err)
+		logger.Error("Unable to shutdown the server : ", err)
 	} else {
-		fmt.Printf(logger.Green,"Server Off !")
+		fmt.Printf(logger.Green, "Server Off !")
 	}
 }
 
-
 // RunTLS start the server TLS
-func (router *Router) RunTLS(certFile string,keyFile string) {
+func (router *Router) RunTLS(certFile string, keyFile string) {
 	// init templates and assets
 	initTemplatesAndAssets(router)
 	// init server
@@ -83,10 +79,10 @@ func (router *Router) RunTLS(certFile string,keyFile string) {
 	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
 
-	if err := router.Server.ListenAndServeTLS(certFile,keyFile); err != http.ErrServerClosed {
-		logger.Error("Unable to shutdown the server : ",err)
+	if err := router.Server.ListenAndServeTLS(certFile, keyFile); err != http.ErrServerClosed {
+		logger.Error("Unable to shutdown the server : ", err)
 	} else {
-		fmt.Printf(logger.Green,"Server Off !")
+		fmt.Printf(logger.Green, "Server Off !")
 	}
 }
 
@@ -94,20 +90,23 @@ func (router *Router) RunTLS(certFile string,keyFile string) {
 func (router *Router) gracefulShutdown() {
 	err := utils.GracefulShutdown(func() error {
 		// Close databases
-		if err := orm.ShutdownDatabases();err != nil {
-			logger.Error("unable to shutdown databases:",err)
+		if err := orm.ShutdownDatabases(); err != nil {
+			logger.Error("unable to shutdown databases:", err)
 		} else {
-			fmt.Printf(logger.Blue,"Databases Closed")
+			fmt.Printf(logger.Blue, "Databases Closed")
 		}
 		// Shutdown server
 		router.Server.SetKeepAlivesEnabled(false)
 		err := router.Server.Shutdown(context.Background())
-		if logger.CheckError(err) {return err}
+		if logger.CheckError(err) {
+			return err
+		}
 		return nil
 	})
-	if logger.CheckError(err) {os.Exit(1)}
+	if logger.CheckError(err) {
+		os.Exit(1)
+	}
 }
-
 
 // ServeHTTP serveHTTP by handling methods,pattern,and params
 func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -116,9 +115,9 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "GET":
-		if strings.Contains(r.URL.Path,"/ws/") {
+		if strings.Contains(r.URL.Path, "/ws/") {
 			allRoutes = router.Routes[WS]
-		} else if strings.Contains(r.URL.Path,"/sse/") {
+		} else if strings.Contains(r.URL.Path, "/sse/") {
 			allRoutes = router.Routes[SSE]
 		} else {
 			allRoutes = router.Routes[GET]
@@ -142,18 +141,18 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			if matches := rt.Pattern.FindStringSubmatch(c.URL.Path); len(matches) > 0 {
 				// add params
 				paramsValues := matches[1:]
-				if names := rt.Pattern.SubexpNames();len(names) > 0 {
-					for i,name := range rt.Pattern.SubexpNames()[1:] {
-						c.Params[name]=paramsValues[i]
+				if names := rt.Pattern.SubexpNames(); len(names) > 0 {
+					for i, name := range rt.Pattern.SubexpNames()[1:] {
+						c.Params[name] = paramsValues[i]
 					}
 				}
 				if rt.WsHandler != nil {
-					// WS 
-					handleWebsockets(c,rt)
+					// WS
+					handleWebsockets(c, rt)
 					return
 				} else {
 					// HTTP
-					handleHttp(c,rt)
+					handleHttp(c, rt)
 					return
 				}
 			}
@@ -181,21 +180,21 @@ func adaptParams(url string) string {
 				case "int":
 					urlElements[i] = `(?P<` + name + `>\d+)`
 				case "slug":
-					urlElements[i] = `(?P<` + name + `>[a-z0-9]+(?:-[a-z0-9]+)*)` 
+					urlElements[i] = `(?P<` + name + `>[a-z0-9]+(?:-[a-z0-9]+)*)`
 				case "float":
-					urlElements[i] = `(?P<` + name + `>[-+]?([0-9]*\.[0-9]+|[0-9]+))` 
+					urlElements[i] = `(?P<` + name + `>[-+]?([0-9]*\.[0-9]+|[0-9]+))`
 				default:
-					urlElements[i] = `(?P<` + name + `>[a-z0-9]+(?:-[a-z0-9]+)*)` 
+					urlElements[i] = `(?P<` + name + `>[a-z0-9]+(?:-[a-z0-9]+)*)`
 				}
 			}
 		}
-		return "^/"+strings.Join(urlElements, "/")+"(|/)?$"
-	} 
+		return "^/" + strings.Join(urlElements, "/") + "(|/)?$"
+	}
 
 	if url[len(url)-1] == '*' {
 		return url
 	} else {
-		return "^"+url+"(|/)?$"
+		return "^" + url + "(|/)?$"
 	}
 }
 
@@ -206,52 +205,52 @@ func checkSameSite(c Context) bool {
 	}
 	host := settings.Config.Host
 	if host == "" || host == "localhost" || host == "127.0.0.1" {
-		if strings.Contains(origin,"localhost") {
-			host="localhost"
-		} else if strings.Contains(origin,"127.0.0.1") {
-			host="127.0.0.1"
+		if strings.Contains(origin, "localhost") {
+			host = "localhost"
+		} else if strings.Contains(origin, "127.0.0.1") {
+			host = "127.0.0.1"
 		} else {
-			host="127.0.0.1"
+			host = "127.0.0.1"
 		}
 	}
 	port := settings.Config.Port
 	if port != "" {
-		port=":"+port
-	} 
+		port = ":" + port
+	}
 
 	foundInPrivateIps := false
 	if host == "0.0.0.0" {
 		if len(privateIps) == 0 {
-			privateIps = append(privateIps, utils.GetOutboundIP())
+			privateIps = append(privateIps, utils.ResolveHostIp())
 		}
-		for _,pIP := range privateIps {
-			if strings.Contains(origin,pIP+port) {
-				foundInPrivateIps=true
+		for _, pIP := range privateIps {
+			if strings.Contains(origin, pIP+port) {
+				foundInPrivateIps = true
 			}
-		} 
+		}
 	}
-	if strings.Contains(origin,host+port) || foundInPrivateIps {
+	if strings.Contains(origin, host+port) || foundInPrivateIps {
 		return true
 	} else {
 		return false
 	}
 }
 
-func handleWebsockets(c *Context ,rt Route) {
+func handleWebsockets(c *Context, rt Route) {
 	if checkSameSite(*c) {
 		// same site
 		websocket.Handler(func(conn *websocket.Conn) {
 			conn.MaxPayloadBytes = 10 << 20
 			if conn.IsServerConn() {
 				ctx := &WsContext{
-					Ws: conn,
+					Ws:     conn,
 					Params: make(map[string]string),
-					Route: rt,
+					Route:  rt,
 				}
 				rt.WsHandler(ctx)
 				return
 			}
-		}).ServeHTTP(c.ResponseWriter,c.Request)
+		}).ServeHTTP(c.ResponseWriter, c.Request)
 		return
 	} else {
 		// cross
@@ -260,9 +259,9 @@ func handleWebsockets(c *Context ,rt Route) {
 			return
 		} else {
 			allowed := false
-			for _,dom := range rt.AllowedOrigines {
-				if strings.Contains(c.Request.Header.Get("Origin"),dom) {
-					allowed=true
+			for _, dom := range rt.AllowedOrigines {
+				if strings.Contains(c.Request.Header.Get("Origin"), dom) {
+					allowed = true
 				}
 			}
 			if allowed {
@@ -270,14 +269,14 @@ func handleWebsockets(c *Context ,rt Route) {
 					conn.MaxPayloadBytes = 10 << 20
 					if conn.IsServerConn() {
 						ctx := &WsContext{
-							Ws: conn,
+							Ws:     conn,
 							Params: make(map[string]string),
-							Route: rt,
+							Route:  rt,
 						}
 						rt.WsHandler(ctx)
 						return
 					}
-				}).ServeHTTP(c.ResponseWriter,c.Request)
+				}).ServeHTTP(c.ResponseWriter, c.Request)
 				return
 			} else {
 				c.Status(http.StatusBadRequest).Text("you are not allowed to access this route from cross origin")
@@ -287,7 +286,7 @@ func handleWebsockets(c *Context ,rt Route) {
 	}
 }
 
-func handleHttp(c *Context,rt Route) {
+func handleHttp(c *Context, rt Route) {
 	if rt.Method == "GET" {
 		if rt.Method == "SSE" {
 			sseHeaders(c)
@@ -307,14 +306,14 @@ func handleHttp(c *Context,rt Route) {
 	} else {
 		// cross origin
 		if len(rt.AllowedOrigines) == 0 {
-			logger.Warn(c.Request.Header.Get("Origin"),"not allowed csrf") 
+			logger.Warn(c.Request.Header.Get("Origin"), "not allowed csrf")
 			c.Status(http.StatusBadRequest).Text("you are not allowed cross origin for this url,origin")
 			return
 		} else {
 			allowed := false
-			for _,dom := range rt.AllowedOrigines {
-				if strings.Contains(c.Request.Header.Get("Origin"),dom) {
-					allowed=true
+			for _, dom := range rt.AllowedOrigines {
+				if strings.Contains(c.Request.Header.Get("Origin"), dom) {
+					allowed = true
 				}
 			}
 			if allowed {
@@ -330,11 +329,8 @@ func handleHttp(c *Context,rt Route) {
 
 func sseHeaders(c *Context) {
 	c.SetHeader("Access-Control-Allow-Origin", "*")
-    c.SetHeader("Access-Control-Allow-Headers", "Content-Type")
-    c.SetHeader("Content-Type", "text/event-stream")
-    c.SetHeader("Cache-Control", "no-cache")
-    c.SetHeader("Connection", "keep-alive")
+	c.SetHeader("Access-Control-Allow-Headers", "Content-Type")
+	c.SetHeader("Content-Type", "text/event-stream")
+	c.SetHeader("Cache-Control", "no-cache")
+	c.SetHeader("Connection", "keep-alive")
 }
-
-
-

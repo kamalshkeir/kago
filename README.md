@@ -48,6 +48,7 @@ Kago offer you :
 - Internal Eventbus using go routines and channels (very powerful), use cases are endless
 - Monitoring Prometheus/grafana `/metrics` running with flag `go run main.go --monitoring`
 - Profiler golang official debug pprof `/debug/pprof/(heap|profile\trace)` running with flag `go run main.go --profiler`
+- Embed your application static and template files
 
 
 Many features will be added in the future, like:
@@ -60,32 +61,27 @@ Join our  [discussions here](https://github.com/kamalshkeir/kago/discussions/1)
 ---
 # Installation
 
-To install it, you need to Go installed and set your Go workspace first.
-
-1. You first need [Go](https://golang.org/) installed (**version 1.18+ is required**), then you can use the below Go command to install kago.
-
 ```sh
-$ go get github.com/kamalshkeir/kago
+$ go get -u github.com/kamalshkeir/kago
 ```
 
-2. Import it in your code:
+Make sure you have git installed, otherwise you can download assets folder from [Here](https://github.com/kamalshkeir/kago-assets) , put the folder beside your main and rename it to assets
 
-```go
-import "github.com/kamalshkeir/kago"
-```
 ---
 # Quick start
-
-make sure you have git installed
 
 Create main.go:
 ```go
 package main
 
-import "github.com/kamalshkeir/kago"
+import (
+	"github.com/kamalshkeir/kago"
+	"github.com/kamalshkeir/kago/core/middlewares"
+)
 
 func main() {
 	app := kago.New()
+	app.UseMiddlewares(middlewares.GZIP) // optional
 	app.Run()
 }
 ```
@@ -95,9 +91,9 @@ func main() {
 go run main.go
 ```
 
-#### 2- make sure you copy 'assets/.env.example' beside your main at the root folder and rename it to '.env'
+#### 2- make sure you have a folder named assets at the root of your project
 
-#### 3- go to the shell to create admin account
+#### 3- you are ready to create your Admin account
 ```shell
 go run main.go shell    
 
@@ -110,7 +106,7 @@ go run main.go shell
 # default: -h localhost -p 9313
 go run main.go -h 0.0.0.0 -p 3333
 ```
-###### AND YOU ARE DONE, you can visit /admin
+###### YOU ARE DONE, you can visit /admin
 
 ---
 
@@ -156,9 +152,12 @@ r.GET("/logs",middlewares.Admin(LogsGetView))
 r.SSE("/sse/logs",middlewares.Admin(LogsSSEView))
 
 // Example : how to override a handler
+// add it before kago.New()
 admin.LoginView=func(c *kamux.Context) {
 	...		
 }
+...
+
 
 // Example : how to override a middleware
 middlewares.Auth = func(handler kamux.Handler) kamux.Handler { // handlerFunc

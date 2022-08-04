@@ -22,15 +22,17 @@ const (
 	WS
 	SSE
 )
+
 var methods = map[int]string{
-	GET:"GET",
-	POST:"POST",
-	PUT:"PUT",
-	PATCH:"PATCH",
-	DELETE:"DELETE",
-	WS:"WS",
-	SSE:"SSE",
+	GET:    "GET",
+	POST:   "POST",
+	PUT:    "PUT",
+	PATCH:  "PATCH",
+	DELETE: "DELETE",
+	WS:     "WS",
+	SSE:    "SSE",
 }
+
 // Handler
 type Handler func(c *Context)
 type WsHandler func(c *WsContext)
@@ -39,16 +41,16 @@ type WsHandler func(c *WsContext)
 type Router struct {
 	Routes       map[int][]Route
 	DefaultRoute Handler
-	Server *http.Server
+	Server       *http.Server
 }
 
 // Route
 type Route struct {
 	Method  string
 	Pattern *regexp.Regexp
-	Handler 
+	Handler
 	WsHandler
-	Clients map[string]*websocket.Conn
+	Clients         map[string]*websocket.Conn
 	AllowedOrigines []string
 }
 
@@ -67,18 +69,12 @@ func New(envFiles ...string) *Router {
 	// load Envs and Init Settings Config
 	if len(envFiles) > 0 {
 		app.LoadEnv(envFiles...)
-	} else {
-		if _, err := os.Stat(".env"); os.IsNotExist(err) {
-			if os.Getenv("DB_NAME") == "" && os.Getenv("DB_DSN") == "" {
-				logger.Warn("Environment variables not loaded, you can copy it from generated assets folder and rename it to .env, or set them manualy")
-			}
-		} else {
-			app.LoadEnv(".env")
-		}
+	} else if _, err := os.Stat(".env"); !os.IsNotExist(err) {
+		app.LoadEnv(".env")
 	}
+
 	// after load env to override struct values
 	utils.GetTagsAndPrint()
-
 
 	// Init DB
 	err := orm.InitDB()
@@ -88,73 +84,73 @@ func New(envFiles ...string) *Router {
 		} else {
 			logger.Error(err)
 		}
-	} 
+	}
 	// migrate initial models
 	err = orm.Migrate()
 	logger.CheckError(err)
 	// init orm shell
-	if shell.InitShell() {os.Exit(0)}
+	if shell.InitShell() {
+		os.Exit(0)
+	}
 	return app
 }
 
 // handle a route
-func (router *Router) handle(method int,pattern string, handler Handler,wshandler WsHandler,allowed []string) {
+func (router *Router) handle(method int, pattern string, handler Handler, wshandler WsHandler, allowed []string) {
 	re := regexp.MustCompile(adaptParams(pattern))
-	route := Route{Method: methods[method],Pattern: re, Handler: handler, WsHandler: wshandler,Clients: nil,AllowedOrigines: []string{}}
+	route := Route{Method: methods[method], Pattern: re, Handler: handler, WsHandler: wshandler, Clients: nil, AllowedOrigines: []string{}}
 	if len(allowed) > 0 && method != GET {
 		route.AllowedOrigines = append(route.AllowedOrigines, allowed...)
 	}
 	if method == WS {
-		route.Clients=map[string]*websocket.Conn{}
+		route.Clients = map[string]*websocket.Conn{}
 	}
-	if _,ok := router.Routes[method];!ok {
-		router.Routes[method]=[]Route{}
+	if _, ok := router.Routes[method]; !ok {
+		router.Routes[method] = []Route{}
 	}
 	if len(router.Routes[method]) == 0 {
 		router.Routes[method] = append(router.Routes[method], route)
 		return
 	}
-	for i,rt := range router.Routes[method] {
+	for i, rt := range router.Routes[method] {
 		if rt.Pattern.String() == re.String() {
-			router.Routes[method]=append(router.Routes[method][:i],router.Routes[method][i+1:]...)
-		} 
+			router.Routes[method] = append(router.Routes[method][:i], router.Routes[method][i+1:]...)
+		}
 	}
 	router.Routes[method] = append(router.Routes[method], route)
 }
 
 // GET handle GET to a route
 func (router *Router) GET(pattern string, handler Handler) {
-	router.handle(GET,pattern,handler,nil,nil)
+	router.handle(GET, pattern, handler, nil, nil)
 }
 
 // POST handle POST to a route
 func (router *Router) POST(pattern string, handler Handler, allowed_origines ...string) {
-	router.handle(POST,pattern,handler,nil,allowed_origines)
+	router.handle(POST, pattern, handler, nil, allowed_origines)
 }
 
 // PUT handle PUT to a route
 func (router *Router) PUT(pattern string, handler Handler, allowed_origines ...string) {
-	router.handle(PUT,pattern,handler,nil,allowed_origines)
+	router.handle(PUT, pattern, handler, nil, allowed_origines)
 }
 
 // PATCH handle PATCH to a route
 func (router *Router) PATCH(pattern string, handler Handler, allowed_origines ...string) {
-	router.handle(PATCH,pattern,handler,nil,allowed_origines)
+	router.handle(PATCH, pattern, handler, nil, allowed_origines)
 }
 
 // DELETE handle DELETE to a route
 func (router *Router) DELETE(pattern string, handler Handler, allowed_origines ...string) {
-	router.handle(DELETE,pattern,handler,nil,allowed_origines)
+	router.handle(DELETE, pattern, handler, nil, allowed_origines)
 }
 
 // WS handle WS connection on a pattern
 func (router *Router) WS(pattern string, wsHandler WsHandler, allowed_origines ...string) {
-	router.handle(WS,pattern,nil,wsHandler,allowed_origines)
+	router.handle(WS, pattern, nil, wsHandler, allowed_origines)
 }
 
 // SSE handle SSE to a route
 func (router *Router) SSE(pattern string, handler Handler, allowed_origines ...string) {
-	router.handle(SSE,pattern,handler,nil,allowed_origines)
+	router.handle(SSE, pattern, handler, nil, allowed_origines)
 }
-
-

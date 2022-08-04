@@ -4,31 +4,31 @@ import (
 	"sync"
 )
 
-type SafeMap[K comparable,V any] struct {
-	m map[K]V
+type SafeMap[K comparable, V any] struct {
+	m     map[K]V
 	mutex sync.RWMutex
 }
 
-func New[K comparable,V any]() *SafeMap[K,V] {
-	return &SafeMap[K,V]{
+func New[K comparable, V any]() *SafeMap[K, V] {
+	return &SafeMap[K, V]{
 		mutex: sync.RWMutex{},
-		m:make(map[K]V),
+		m:     make(map[K]V),
 	}
 }
 
-func (sm *SafeMap[K, V]) Get(key K) (V,bool) {
+func (sm *SafeMap[K, V]) Get(key K) (V, bool) {
 	sm.mutex.RLock()
-	if v,ok := sm.m[key];ok {
+	if v, ok := sm.m[key]; ok {
 		sm.mutex.RUnlock()
-		return v,true
+		return v, true
 	}
 	sm.mutex.RUnlock()
-	return *new(V),false
+	return *new(V), false
 }
 
 func (sm *SafeMap[K, V]) Set(key K, value V) {
 	sm.mutex.Lock()
-	sm.m[key]=value
+	sm.m[key] = value
 	sm.mutex.Unlock()
 }
 
@@ -38,12 +38,12 @@ func (sm *SafeMap[K, V]) Len() int {
 
 func (sm *SafeMap[K, V]) Delete(key K) {
 	sm.mutex.Lock()
-	delete(sm.m,key)
+	delete(sm.m, key)
 	sm.mutex.Unlock()
 }
 
 func (sm *SafeMap[K, V]) Flush() {
 	sm.mutex.Lock()
-	sm.m=map[K]V{}
+	sm.m = map[K]V{}
 	sm.mutex.Unlock()
 }

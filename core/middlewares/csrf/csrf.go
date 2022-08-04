@@ -9,8 +9,6 @@ import (
 
 const tokenLength = 64
 
-
-
 func VerifyToken(realToken, sentToken string) bool {
 	r, err := base64.StdEncoding.DecodeString(realToken)
 	if err != nil {

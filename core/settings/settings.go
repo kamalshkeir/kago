@@ -11,16 +11,16 @@ var REPO_USER = "kamalshkeir"
 var Languages = []string{}
 
 type GlobalConfig struct {
-	Host       string `env:"HOST|localhost"`
-	Port       string `env:"PORT|9313"`
+	Host  string `env:"HOST|localhost"`
+	Port  string `env:"PORT|9313"`
 	Embed struct {
 		Static    bool `env:"EMBED_STATIC|false"`
 		Templates bool `env:"EMBED_TEMPLATES|false"`
 	}
 	Db struct {
-		Name     string `env:"DB_NAME|db"`
-		Type     string `env:"DB_TYPE|sqlite"`
-		DSN      string `env:"DB_DSN|"`
+		Name string `env:"DB_NAME|db"`
+		Type string `env:"DB_TYPE|sqlite"`
+		DSN  string `env:"DB_DSN|"`
 	}
 	Smtp struct {
 		Email string `env:"SMTP_EMAIL|"`
@@ -28,8 +28,8 @@ type GlobalConfig struct {
 		Host  string `env:"SMTP_HOST|"`
 		Port  string `env:"SMTP_PORT|"`
 	}
-	Profiler   bool   `env:"PROFILER|false"`
-	Docs       bool   `env:"DOCS|false"`
-	Logs       bool   `env:"LOGS|false"`
-	Monitoring bool   `env:"MONITORING|false"`
+	Profiler   bool `env:"PROFILER|false"`
+	Docs       bool `env:"DOCS|false"`
+	Logs       bool `env:"LOGS|false"`
+	Monitoring bool `env:"MONITORING|false"`
 }

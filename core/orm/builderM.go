@@ -273,8 +273,8 @@ func (b *BuilderM) Insert(fields_comma_separated string, fields_values []any) (i
 	if b.tableName == "" {
 		return 0, errors.New("unable to find table, try db.Table before")
 	}
-	if b.database == ""  {
-		b.database=settings.Config.Db.Name
+	if b.database == "" {
+		b.database = settings.Config.Db.Name
 	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
@@ -283,12 +283,11 @@ func (b *BuilderM) Insert(fields_comma_separated string, fields_values []any) (i
 			"database": b.database,
 		})
 	}
-	db,err := GetDatabase(b.database)
+	db, err := GetDatabase(b.database)
 	if logger.CheckError(err) {
-		return 0,err
+		return 0, err
 	}
 
-	
 	split := strings.Split(fields_comma_separated, ",")
 	if len(split) != len(fields_values) {
 		return 0, errors.New("fields and fields_values doesn't have the same length")
@@ -338,8 +337,8 @@ func (b *BuilderM) Set(query string, args ...any) (int, error) {
 	if b.tableName == "" {
 		return 0, errors.New("unable to find model, try db.Table before")
 	}
-	if b.database == ""  {
-		b.database=settings.Config.Db.Name
+	if b.database == "" {
+		b.database = settings.Config.Db.Name
 	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
@@ -348,9 +347,9 @@ func (b *BuilderM) Set(query string, args ...any) (int, error) {
 			"database": b.database,
 		})
 	}
-	db,err := GetDatabase(b.database)
+	db, err := GetDatabase(b.database)
 	if logger.CheckError(err) {
-		return 0,err
+		return 0, err
 	}
 	if b.whereQuery == "" {
 		return 0, errors.New("you should use Where before Update")
@@ -384,8 +383,8 @@ func (b *BuilderM) Delete() (int, error) {
 	if b.tableName == "" {
 		return 0, errors.New("unable to find model, try orm.AutoMigrate before")
 	}
-	if b.database == ""  {
-		b.database=settings.Config.Db.Name
+	if b.database == "" {
+		b.database = settings.Config.Db.Name
 	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
@@ -394,9 +393,9 @@ func (b *BuilderM) Delete() (int, error) {
 			"database": b.database,
 		})
 	}
-	db,err := GetDatabase(b.database)
+	db, err := GetDatabase(b.database)
 	if logger.CheckError(err) {
-		return 0,err
+		return 0, err
 	}
 
 	b.statement = "DELETE FROM " + b.tableName
@@ -431,8 +430,8 @@ func (b *BuilderM) Drop() (int, error) {
 	if b.tableName == "" {
 		return 0, errors.New("unable to find model, try orm.LinkModel before Update")
 	}
-	if b.database == ""  {
-		b.database=settings.Config.Db.Name
+	if b.database == "" {
+		b.database = settings.Config.Db.Name
 	}
 	if UseCache {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
@@ -441,9 +440,9 @@ func (b *BuilderM) Drop() (int, error) {
 			"database": b.database,
 		})
 	}
-	db,err := GetDatabase(b.database)
+	db, err := GetDatabase(b.database)
 	if logger.CheckError(err) {
-		return 0,err
+		return 0, err
 	}
 	b.statement = "DROP TABLE " + b.tableName
 	var res sql.Result
@@ -463,15 +462,15 @@ func (b *BuilderM) Drop() (int, error) {
 }
 
 func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface{}, error) {
-	if b.database == ""  {
-		b.database=settings.Config.Db.Name
-	} 
-	db,err := GetDatabase(b.database)
-	if logger.CheckError(err) {
-		return nil,err
+	if b.database == "" {
+		b.database = settings.Config.Db.Name
 	}
-	adaptPlaceholdersToDialect(&statement, db.Dialect)	
-	
+	db, err := GetDatabase(b.database)
+	if logger.CheckError(err) {
+		return nil, err
+	}
+	adaptPlaceholdersToDialect(&statement, db.Dialect)
+
 	var rows *sql.Rows
 	if b.ctx != nil {
 		rows, err = db.Conn.QueryContext(b.ctx, statement, args...)
@@ -519,17 +518,16 @@ func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface
 	return listMap, nil
 }
 
-
 func Query(dbName string, statement string, args ...any) ([]map[string]interface{}, error) {
-	if dbName == ""  {
-		dbName=settings.Config.Db.Name
-	} 
-	db,err := GetDatabase(dbName)
+	if dbName == "" {
+		dbName = settings.Config.Db.Name
+	}
+	db, err := GetDatabase(dbName)
 	if logger.CheckError(err) {
-		return nil,err
+		return nil, err
 	}
 	adaptPlaceholdersToDialect(&statement, db.Dialect)
-	
+
 	var rows *sql.Rows
 	rows, err = db.Conn.Query(statement, args...)
 	if err == sql.ErrNoRows {
@@ -573,8 +571,8 @@ func Query(dbName string, statement string, args ...any) ([]map[string]interface
 	return listMap, nil
 }
 
-func Exec(dbName,query string, args ...any) error {
-	_,err := GetConnection(dbName).Exec(query,args...)
+func Exec(dbName, query string, args ...any) error {
+	_, err := GetConnection(dbName).Exec(query, args...)
 	if logger.CheckError(err) {
 		return err
 	}

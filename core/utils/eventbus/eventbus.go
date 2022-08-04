@@ -9,22 +9,22 @@ var mTopicBus = map[string]any{}
 
 type Bus[T any] struct {
 	Topic string
-	Subs map[string][]chan T
-	mu sync.RWMutex
+	Subs  map[string][]chan T
+	mu    sync.RWMutex
 }
 
-func Subscribe[T any](topic string,fn func (data T)) {
+func Subscribe[T any](topic string, fn func(data T)) {
 	var b *Bus[T]
-	if topicbus,ok := mTopicBus[topic];ok {
-		if bb,ok := topicbus.(*Bus[T]);ok {
-			b=bb
+	if topicbus, ok := mTopicBus[topic]; ok {
+		if bb, ok := topicbus.(*Bus[T]); ok {
+			b = bb
 		}
 	} else {
 		b = &Bus[T]{
 			Topic: topic,
-			Subs: make(map[string][]chan T),
+			Subs:  make(map[string][]chan T),
 		}
-		mTopicBus[topic]=b
+		mTopicBus[topic] = b
 	}
 	ch := make(chan T)
 	b.mu.Lock()
@@ -44,19 +44,19 @@ func Subscribe[T any](topic string,fn func (data T)) {
 
 func Publish[T any](topic string, data T) {
 	var b *Bus[T]
-	if topicbus,ok := mTopicBus[topic];ok {
-		if bb,ok := topicbus.(*Bus[T]);ok {
-			b=bb
+	if topicbus, ok := mTopicBus[topic]; ok {
+		if bb, ok := topicbus.(*Bus[T]); ok {
+			b = bb
 		} else {
-			fmt.Printf("eventbus SendTo topic doesn't match data type of bus: want %T got %T\n",topicbus,bb)
+			fmt.Printf("eventbus SendTo topic doesn't match data type of bus: want %T got %T\n", topicbus, bb)
 			return
 		}
 	} else {
 		b = &Bus[T]{
 			Topic: topic,
-			Subs: make(map[string][]chan T),
+			Subs:  make(map[string][]chan T),
 		}
-		mTopicBus[topic]=b
+		mTopicBus[topic] = b
 	}
 	b.mu.RLock()
 	if chans, found := b.Subs[topic]; found {
@@ -70,9 +70,3 @@ func Publish[T any](topic string, data T) {
 	}
 	b.mu.RUnlock()
 }
-
-
-
-
-
-

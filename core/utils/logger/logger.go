@@ -21,7 +21,7 @@ const (
 var StreamLogs = []string{}
 
 func init() {
-	eventbus.Subscribe("internal-logs",func(_ map[string]string) {
+	eventbus.Subscribe("internal-logs", func(_ map[string]string) {
 		lenStream := len(StreamLogs)
 		if lenStream > 30 {
 			StreamLogs = StreamLogs[lenStream-20:]
@@ -30,58 +30,58 @@ func init() {
 }
 
 // Printf take pattern(rd,gr,yl,bl,mg), varsString, varsValues
-func Printf(pattern string,anything ...interface{}) {
+func Printf(pattern string, anything ...interface{}) {
 	pc, _, line, _ := runtime.Caller(1)
-	
+
 	var colorCode int
 	var colorUsed = true
 	switch pattern[:2] {
-		case "rd":
-			colorCode=31
-		case "gr":
-			colorCode=32
-		case "yl":
-			colorCode=33
-		case "bl":
-			colorCode=34
-		case "mg":
-			colorCode=35
-		default:
-			colorUsed = false
-			colorCode=34
+	case "rd":
+		colorCode = 31
+	case "gr":
+		colorCode = 32
+	case "yl":
+		colorCode = 33
+	case "bl":
+		colorCode = 34
+	case "mg":
+		colorCode = 35
+	default:
+		colorUsed = false
+		colorCode = 34
 	}
 	if colorUsed {
-		pattern =  fmt.Sprintf("\033[1;%dm%s[line:%d]: %s \033[0m \n",colorCode,runtime.FuncForPC(pc).Name(),line,pattern[2:])
+		pattern = fmt.Sprintf("\033[1;%dm%s[line:%d]: %s \033[0m \n", colorCode, runtime.FuncForPC(pc).Name(), line, pattern[2:])
 	} else {
-		pattern =  fmt.Sprintf("\033[1;%dm%s[line:%d]: %s \033[0m \n",colorCode,runtime.FuncForPC(pc).Name(),line,pattern)
+		pattern = fmt.Sprintf("\033[1;%dm%s[line:%d]: %s \033[0m \n", colorCode, runtime.FuncForPC(pc).Name(), line, pattern)
 	}
-	fmt.Printf(pattern,anything...)
+	fmt.Printf(pattern, anything...)
 }
 
-func Printfs(pattern string,anything ...interface{}) {
+func Printfs(pattern string, anything ...interface{}) {
 	var colorCode int
 	var colorUsed = true
 	switch pattern[:2] {
-		case "rd":
-			colorCode=31
-		case "gr":
-			colorCode=32
-		case "yl":
-			colorCode=33
-		case "bl":
-			colorCode=34
-		case "mg":
-			colorCode=35
-		default:
-			colorUsed = false
-			colorCode=34
+	case "rd":
+		colorCode = 31
+	case "gr":
+		colorCode = 32
+	case "yl":
+		colorCode = 33
+	case "bl":
+		colorCode = 34
+	case "mg":
+		colorCode = 35
+	default:
+		colorUsed = false
+		colorCode = 34
 	}
 	if colorUsed {
-		pattern =  fmt.Sprintf("\033[1;%dm%s \033[0m \n",colorCode,pattern[2:])
+		pattern = fmt.Sprintf("\033[1;%dm%s \033[0m \n", colorCode, pattern[2:])
 	} else {
-		pattern =  fmt.Sprintf("\033[1;%dm%s \033[0m \n",colorCode,pattern)
+		pattern = fmt.Sprintf("\033[1;%dm%s \033[0m \n", colorCode, pattern)
 	}
-	fmt.Printf(pattern,anything...)
+	fmt.Printf(pattern, anything...)
 }
 
 // CheckError check if err not nil print it and return true
@@ -92,88 +92,82 @@ func CheckError(err error) bool {
 		fmt.Printf("\033[1;31m [ERROR] %s [line:%d] : %v \033[0m \n", caller, line, err)
 		if settings.Config.Logs {
 			StreamLogs = append(StreamLogs, fmt.Sprintf("[ERROR] %s [line:%d] : %v \n", caller, line, err))
-			eventbus.Publish("internal-logs",map[string]string{})
+			eventbus.Publish("internal-logs", map[string]string{})
 		}
 		return true
 	}
 	return false
 }
 
-// Error println anything with red color 
+// Error println anything with red color
 func Error(anything ...interface{}) {
 	pc, _, line, _ := runtime.Caller(1)
 	caller := runtime.FuncForPC(pc).Name()
-	placeholder := strings.Repeat("%v,",len(anything))
-	ph := strings.Replace(placeholder[:len(placeholder)-1],",","  ",-1) 
+	placeholder := strings.Repeat("%v,", len(anything))
+	ph := strings.Replace(placeholder[:len(placeholder)-1], ",", "  ", -1)
 	new := fmt.Sprintf("\033[1;31m [ERROR] %s [line:%d] : %s \033[0m \n", caller, line, ph)
 	if settings.Config.Logs {
-		StreamLogs = append(StreamLogs, fmt.Sprintf("[ERROR] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph,anything...)))
-		eventbus.Publish("internal-logs",map[string]string{})
+		StreamLogs = append(StreamLogs, fmt.Sprintf("[ERROR] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph, anything...)))
+		eventbus.Publish("internal-logs", map[string]string{})
 	}
-	fmt.Printf(new,anything...)
+	fmt.Printf(new, anything...)
 }
 
-// Info println anything with blue color 
+// Info println anything with blue color
 func Info(anything ...interface{}) {
 	pc, _, line, _ := runtime.Caller(1)
 	caller := runtime.FuncForPC(pc).Name()
-	placeholder := strings.Repeat("%v,",len(anything))
-	ph := strings.Replace(placeholder[:len(placeholder)-1],",","  ",-1) 
+	placeholder := strings.Repeat("%v,", len(anything))
+	ph := strings.Replace(placeholder[:len(placeholder)-1], ",", "  ", -1)
 	new := fmt.Sprintf("\033[1;34m [INFO] %s [line:%d] : %s \033[0m \n", caller, line, ph)
 	if settings.Config.Logs {
-		StreamLogs = append(StreamLogs, fmt.Sprintf("[INFO] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph,anything...)))
-		eventbus.Publish("internal-logs",map[string]string{})
+		StreamLogs = append(StreamLogs, fmt.Sprintf("[INFO] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph, anything...)))
+		eventbus.Publish("internal-logs", map[string]string{})
 	}
-	fmt.Printf(new,anything...)
+	fmt.Printf(new, anything...)
 }
 
-// Debug println anything with blue color 
+// Debug println anything with blue color
 func Debug(anything ...interface{}) {
 	pc, _, line, _ := runtime.Caller(1)
 	caller := runtime.FuncForPC(pc).Name()
-	placeholder := strings.Repeat("%v,",len(anything))
-	ph := strings.Replace(placeholder[:len(placeholder)-1],",","  ",-1) 
+	placeholder := strings.Repeat("%v,", len(anything))
+	ph := strings.Replace(placeholder[:len(placeholder)-1], ",", "  ", -1)
 	new := fmt.Sprintf("\033[1;34m [DEBUG] %s [line:%d] : %s \033[0m \n", caller, line, ph)
 	if settings.Config.Logs {
-		StreamLogs = append(StreamLogs, fmt.Sprintf("[DEBUG] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph,anything...)))
-		eventbus.Publish("internal-logs",map[string]string{})
+		StreamLogs = append(StreamLogs, fmt.Sprintf("[DEBUG] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph, anything...)))
+		eventbus.Publish("internal-logs", map[string]string{})
 	}
-	fmt.Printf(new,anything...)
+	fmt.Printf(new, anything...)
 }
 
-// Success println anything with green color 
+// Success println anything with green color
 func Success(anything ...interface{}) {
 	pc, _, line, _ := runtime.Caller(1)
 	caller := runtime.FuncForPC(pc).Name()
-	placeholder := strings.Repeat("%v,",len(anything))
-	ph := strings.Replace(placeholder[:len(placeholder)-1],",","  ",-1) 
+	placeholder := strings.Repeat("%v,", len(anything))
+	ph := strings.Replace(placeholder[:len(placeholder)-1], ",", "  ", -1)
 	new := fmt.Sprintf("\033[1;32m [SUCCESS] %s [line:%d] : %s \033[0m \n", caller, line, ph)
 	if settings.Config.Logs {
-		StreamLogs = append(StreamLogs, fmt.Sprintf("[SUCCESS] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph,anything...)))
-		eventbus.Publish("internal-logs",map[string]string{})
+		StreamLogs = append(StreamLogs, fmt.Sprintf("[SUCCESS] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph, anything...)))
+		eventbus.Publish("internal-logs", map[string]string{})
 	}
-	fmt.Printf(new,anything...)
+	fmt.Printf(new, anything...)
 }
 
-// Warning println anything with yellow color 
+// Warning println anything with yellow color
 func Warn(anything ...interface{}) {
 	pc, _, line, _ := runtime.Caller(1)
 	caller := runtime.FuncForPC(pc).Name()
-	placeholder := strings.Repeat("%v,",len(anything))
-	ph := strings.Replace(placeholder[:len(placeholder)-1],",","  ",-1)
-	new := fmt.Sprintf("\033[1;35m [WARN] %s [line:%d] : %s \033[0m \n",caller, line, ph)
+	placeholder := strings.Repeat("%v,", len(anything))
+	ph := strings.Replace(placeholder[:len(placeholder)-1], ",", "  ", -1)
+	new := fmt.Sprintf("\033[1;35m [WARN] %s [line:%d] : %s \033[0m \n", caller, line, ph)
 	if settings.Config.Logs {
-		StreamLogs = append(StreamLogs, fmt.Sprintf("[WARN] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph,anything...)))
-		eventbus.Publish("internal-logs",map[string]string{})
+		StreamLogs = append(StreamLogs, fmt.Sprintf("[WARN] %s [line:%d] : %v \n", caller, line, fmt.Sprintf(ph, anything...)))
+		eventbus.Publish("internal-logs", map[string]string{})
 	}
-	fmt.Printf(new,anything...)
+	fmt.Printf(new, anything...)
 }
-
-
-
-
-
-
 
 var Ascii1 string = `                                                                                                                    
 
@@ -272,10 +266,9 @@ var Ascii10 string = `
         \/      \/         \/           V1.0.0
 `
 
-
 func GetLastestTag() string {
-	cmd := exec.Command("git", "describe", "--tags","--abbrev=0")
-	out,err := cmd.Output()
+	cmd := exec.Command("git", "describe", "--tags", "--abbrev=0")
+	out, err := cmd.Output()
 	if CheckError(err) {
 		return ""
 	}

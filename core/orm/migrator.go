@@ -14,7 +14,7 @@ import (
 )
 
 func Migrate() error {
-	err := AutoMigrate[models.User]("users",settings.Config.Db.Name)
+	err := AutoMigrate[models.User]("users", settings.Config.Db.Name)
 	if logger.CheckError(err) {
 		return err
 	}
@@ -34,14 +34,14 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 		fname := typeOfT.Field(i).Name
 		fname = ToSnakeCase(fname)
 		ftype := f.Type()
-		cols = append(cols,fname)
+		cols = append(cols, fname)
 		mFieldName_Type[fname] = ftype.Name()
 		if ftag, ok := typeOfT.Field(i).Tag.Lookup("orm"); ok {
 			tags := strings.Split(ftag, ";")
 			for i := range tags {
-				tags[i]=strings.TrimSpace(tags[i])
+				tags[i] = strings.TrimSpace(tags[i])
 			}
-			mFieldName_Tags[fname] =  tags
+			mFieldName_Tags[fname] = tags
 		}
 	}
 	res := map[string]string{}
@@ -53,13 +53,13 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 	for _, fName := range cols {
 		if ty, ok := mFieldName_Type[fName]; ok {
 			mi = &migrationInput{
-				dialect: dialect,
-				fName: fName,
-				fType: ty,
-				fTags: &mFieldName_Tags,
-				fKeys: &fkeys,
-				res: &res,
-				indexes: &indexes,
+				dialect:  dialect,
+				fName:    fName,
+				fType:    ty,
+				fTags:    &mFieldName_Tags,
+				fKeys:    &fkeys,
+				res:      &res,
+				indexes:  &indexes,
 				mindexes: &mindexes,
 				uindexes: &uindexes,
 			}
@@ -79,38 +79,44 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 			}
 		}
 	}
-	statement := prepareCreateStatement(tableName, res, fkeys, cols,db,mFieldName_Tags)
+	statement := prepareCreateStatement(tableName, res, fkeys, cols, db, mFieldName_Tags)
 	tbFound := false
 	pk := ""
-	for _,t := range db.Tables {
+	for _, t := range db.Tables {
 		if t.Name == tableName {
-			tbFound=true
-			if len(t.Columns) == 0 {t.Columns=cols}
-			if len(t.Tags) == 0 {t.Tags=mFieldName_Tags}
-			if len(t.ModelTypes) == 0 {t.Types=mFieldName_Type}
+			tbFound = true
+			if len(t.Columns) == 0 {
+				t.Columns = cols
+			}
+			if len(t.Tags) == 0 {
+				t.Tags = mFieldName_Tags
+			}
+			if len(t.ModelTypes) == 0 {
+				t.Types = mFieldName_Type
+			}
 		}
 	}
-	for col,tags := range mFieldName_Tags {
-		for _,tag := range tags {
+	for col, tags := range mFieldName_Tags {
+		for _, tag := range tags {
 			if tag == "autoinc" || tag == "pk" {
-				pk=col
+				pk = col
 				break
 			}
 		}
 	}
 	if !tbFound {
 		db.Tables = append(db.Tables, TableEntity{
-			Name: tableName,
-			Columns: cols,
-			Tags:mFieldName_Tags,
+			Name:       tableName,
+			Columns:    cols,
+			Tags:       mFieldName_Tags,
 			ModelTypes: mFieldName_Type,
-			Pk: pk,
+			Pk:         pk,
 		})
 	}
 	if Debug {
-		fmt.Printf(logger.Blue,"statement: "+ statement)
+		fmt.Printf(logger.Blue, "statement: "+statement)
 	}
-	
+
 	c, cancel := context.WithTimeout(context.TODO(), 3*time.Second)
 	defer cancel()
 	ress, err := db.Conn.ExecContext(c, statement)
@@ -121,34 +127,36 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 	if err != nil {
 		return err
 	}
-	if !strings.HasSuffix(tableName,"_temp") {
+	if !strings.HasSuffix(tableName, "_temp") {
 		statIndexes := ""
 		if len(indexes) > 0 {
 			if len(indexes) > 1 {
-				logger.Error(mi.fName,"cannot have more than 1 index")
+				logger.Error(mi.fName, "cannot have more than 1 index")
 			} else {
-				statIndexes = fmt.Sprintf("CREATE INDEX idx_%s_%s ON %s (%s)",tableName,indexes[0],tableName,indexes[0])
+				statIndexes = fmt.Sprintf("CREATE INDEX idx_%s_%s ON %s (%s)", tableName, indexes[0], tableName, indexes[0])
 			}
 		}
 		mstatIndexes := ""
 		if len(*mi.mindexes) > 0 {
 			if len(*mi.mindexes) > 1 {
-				logger.Error(mi.fName,"cannot have more than 1 multiple indexes")
+				logger.Error(mi.fName, "cannot have more than 1 multiple indexes")
 			} else {
-				for k,v := range *mi.mindexes {
-					mstatIndexes = fmt.Sprintf("CREATE INDEX idx_%s_%s ON %s (%s)",tableName,k,tableName,k+","+v)
+				for k, v := range *mi.mindexes {
+					mstatIndexes = fmt.Sprintf("CREATE INDEX idx_%s_%s ON %s (%s)", tableName, k, tableName, k+","+v)
 				}
 			}
 		}
 		ustatIndexes := ""
 		if len(*mi.uindexes) > 0 {
 			if len(*mi.uindexes) > 1 {
-				logger.Error(mi.fName,"cannot have more than 1 multiple unique indexes")
+				logger.Error(mi.fName, "cannot have more than 1 multiple unique indexes")
 			} else {
-				for k,v := range *mi.uindexes {
+				for k, v := range *mi.uindexes {
 					reste := ","
-					if v == "" {reste=v}
-					ustatIndexes = fmt.Sprintf("CREATE UNIQUE INDEX idx_%s_%s ON %s (%s)",tableName,k,tableName,k+reste+v)
+					if v == "" {
+						reste = v
+					}
+					ustatIndexes = fmt.Sprintf("CREATE UNIQUE INDEX idx_%s_%s ON %s (%s)", tableName, k, tableName, k+reste+v)
 				}
 			}
 		}
@@ -158,74 +166,74 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 			}
 			_, err := db.Conn.Exec(statIndexes)
 			if logger.CheckError(err) {
-				logger.Printfs("indexes: %s",statIndexes)
+				logger.Printfs("indexes: %s", statIndexes)
 				return err
 			}
 		}
 		if mstatIndexes != "" {
 			if Debug {
-				logger.Printfs("mindexes: %s",mstatIndexes)
+				logger.Printfs("mindexes: %s", mstatIndexes)
 			}
 			_, err := db.Conn.Exec(mstatIndexes)
 			if logger.CheckError(err) {
-				logger.Printfs("mindexes: %s",mstatIndexes)
+				logger.Printfs("mindexes: %s", mstatIndexes)
 				return err
 			}
 		}
 		if ustatIndexes != "" {
 			if Debug {
-				logger.Printfs("uindexes: %s",ustatIndexes)
+				logger.Printfs("uindexes: %s", ustatIndexes)
 			}
 			_, err := db.Conn.Exec(ustatIndexes)
 			if logger.CheckError(err) {
-				logger.Printfs("uindexes: %s",ustatIndexes)
+				logger.Printfs("uindexes: %s", ustatIndexes)
 				return err
 			}
 		}
 	}
-	
-	logger.Printfs("gr%s migrated successfully, restart the server",tableName)
+
+	logger.Printfs("gr%s migrated successfully, restart the server", tableName)
 	return nil
 }
 
 func AutoMigrate[T comparable](tableName string, dbName ...string) error {
-	if _,ok := mModelTablename[*new(T)];!ok {
-		mModelTablename[*new(T)]=tableName
+	if _, ok := mModelTablename[*new(T)]; !ok {
+		mModelTablename[*new(T)] = tableName
 	}
 	var db *DatabaseEntity
 	var err error
 	dbname := ""
 	if len(dbName) > 0 {
 		dbname = dbName[0]
-		db,err = GetDatabase(dbname)
+		db, err = GetDatabase(dbname)
 		if err != nil || db == nil {
 			return errors.New("database not found")
 		}
 	} else {
 		dbname = settings.Config.Db.Name
-		db,err = GetDatabase(dbname)
+		db, err = GetDatabase(dbname)
 		if err != nil || db == nil {
 			return errors.New("database not found")
 		}
 	}
-	
+
 	tbFoundDB := false
 	tables := GetAllTables(dbname)
 	for _, t := range tables {
 		if t == tableName {
-			tbFoundDB=true
+			tbFoundDB = true
 		}
 	}
-	
+
 	tbFoundLocal := false
 	if len(db.Tables) == 0 {
 		if tbFoundDB {
 			// found db not local
-			linkModel[T](tableName,db)
+			linkModel[T](tableName, db)
 			return nil
 		} else {
 			// not db and not local
-			err := autoMigrate[T](db,tableName)
+			err := autoMigrate[T](db, tableName)
 			if logger.CheckError(err) {
 				return err
 			}
@@ -233,155 +241,155 @@ func AutoMigrate[T comparable](tableName string, dbName ...string) error {
 		}
 	} else {
 		// db have tables
-		for _,t := range db.Tables {
+		for _, t := range db.Tables {
 			if t.Name == tableName {
-				tbFoundLocal=true
+				tbFoundLocal = true
 			}
 		}
-	} 	
+	}
 	if !tbFoundLocal {
 		if tbFoundDB {
-			linkModel[T](tableName,db)
+			linkModel[T](tableName, db)
 			return nil
 		} else {
-			err := autoMigrate[T](db,tableName)
+			err := autoMigrate[T](db, tableName)
 			if logger.CheckError(err) {
 				return err
 			}
 		}
-	} 
+	}
 
 	return nil
 }
 
 type migrationInput struct {
-	dialect string
-	fName string
-	fType string
-	fTags *map[string][]string
-	fKeys *[]string
-	res *map[string]string
-	indexes *[]string
+	dialect  string
+	fName    string
+	fType    string
+	fTags    *map[string][]string
+	fKeys    *[]string
+	res      *map[string]string
+	indexes  *[]string
 	mindexes *map[string]string
 	uindexes *map[string]string
 }
 
 func handleMigrationInt(mi *migrationInput) {
-	primary,index, autoinc, notnull, defaultt, checks,unique := "", "", "", "", "", []string{},""
+	primary, index, autoinc, notnull, defaultt, checks, unique := "", "", "", "", "", []string{}, ""
 	tags := (*mi.fTags)[mi.fName]
 	if len(tags) == 1 && tags[0] == "-" {
-		(*mi.res)[mi.fName]=""
+		(*mi.res)[mi.fName] = ""
 		return
 	}
 	for _, tag := range tags {
-		if !strings.Contains(tag,":") {
+		if !strings.Contains(tag, ":") {
 			switch tag {
-				case "autoinc","pk":
-					switch mi.dialect {
-					case SQLITE, "":
-						autoinc = "INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT"
-					case POSTGRES:
-						autoinc = "SERIAL NOT NULL PRIMARY KEY"
-					case MYSQL:
-						autoinc = "INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT"
-					default:
-						logger.Error("dialect can be sqlite, postgres or mysql only, not ", mi.dialect)
-					}
-				case "notnull":
-					notnull = "NOT NULL"
-				case "index":
-					*mi.indexes=append(*mi.indexes,mi.fName)
-				case "unique":
-					(*mi.uindexes)[mi.fName] = mi.fName
-				case "default":
-					defaultt=" DEFAULT 0"
+			case "autoinc", "pk":
+				switch mi.dialect {
+				case SQLITE, "":
+					autoinc = "INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT"
+				case POSTGRES:
+					autoinc = "SERIAL NOT NULL PRIMARY KEY"
+				case MYSQL:
+					autoinc = "INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT"
 				default:
-					logger.Error(tag,"not handled for migration int")
+					logger.Error("dialect can be sqlite, postgres or mysql only, not ", mi.dialect)
+				}
+			case "notnull":
+				notnull = "NOT NULL"
+			case "index":
+				*mi.indexes = append(*mi.indexes, mi.fName)
+			case "unique":
+				(*mi.uindexes)[mi.fName] = mi.fName
+			case "default":
+				defaultt = " DEFAULT 0"
+			default:
+				logger.Error(tag, "not handled for migration int")
 			}
 		} else {
-			sp := strings.Split(tag,":") 
+			sp := strings.Split(tag, ":")
 			tg := sp[0]
 			switch tg {
-				case "default":
-					defaultt = " DEFAULT " + sp[1]
-				case "fk":
-					ref := strings.Split(sp[1], ".")
-					if len(ref) == 2 {
-						fkey := "FOREIGN KEY (" + mi.fName + ") REFERENCES " + ref[0] + "(" + ref[1] + ")"
-						if len(sp) > 2 {
-							switch sp[2] {
-							case "cascade":
-								fkey += " ON DELETE CASCADE"
-							case "donothing","noaction":
-								fkey += " ON DELETE NO ACTION"
-							case "setnull","null":
-								fkey += " ON DELETE SET NULL"
-							case "setdefault","default":
-								fkey += " ON DELETE SET DEFAULT"
-							default:
-								logger.Printf("rdfk %s not handled",sp[2])
-							}
-							if len(sp) > 3 {
-								switch sp[3] {
-								case "cascade":
-									fkey += " ON UPDATE CASCADE"
-								case "donothing","noaction":
-									fkey += " ON UPDATE NO ACTION"
-								case "setnull","null":
-									fkey += " ON UPDATE SET NULL"
-								case "setdefault","default":
-									fkey += " ON UPDATE SET DEFAULT"
-								default:
-									logger.Printf("rdfk %s not handled",sp[3])
-								}
-							}
-						}
-						*mi.fKeys = append(*mi.fKeys, fkey)
-					} else {
-						logger.Error("allowed options cascade/donothing/noaction")
-					}
-				case "check":
-					if strings.Contains(strings.ToLower(sp[1]), "len") {
-						switch mi.dialect {
-						case SQLITE, "":
-							sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", 1)
-						case POSTGRES, MYSQL:
-							sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", 1)
+			case "default":
+				defaultt = " DEFAULT " + sp[1]
+			case "fk":
+				ref := strings.Split(sp[1], ".")
+				if len(ref) == 2 {
+					fkey := "FOREIGN KEY (" + mi.fName + ") REFERENCES " + ref[0] + "(" + ref[1] + ")"
+					if len(sp) > 2 {
+						switch sp[2] {
+						case "cascade":
+							fkey += " ON DELETE CASCADE"
+						case "donothing", "noaction":
+							fkey += " ON DELETE NO ACTION"
+						case "setnull", "null":
+							fkey += " ON DELETE SET NULL"
+						case "setdefault", "default":
+							fkey += " ON DELETE SET DEFAULT"
 						default:
-							logger.Error("check not handled for dialect:", mi.dialect)
+							logger.Printf("rdfk %s not handled", sp[2])
+						}
+						if len(sp) > 3 {
+							switch sp[3] {
+							case "cascade":
+								fkey += " ON UPDATE CASCADE"
+							case "donothing", "noaction":
+								fkey += " ON UPDATE NO ACTION"
+							case "setnull", "null":
+								fkey += " ON UPDATE SET NULL"
+							case "setdefault", "default":
+								fkey += " ON UPDATE SET DEFAULT"
+							default:
+								logger.Printf("rdfk %s not handled", sp[3])
+							}
 						}
 					}
-					checks = append(checks, strings.TrimSpace(sp[1]))
-				case "mindex":
-					if v,ok := (*mi.mindexes)[mi.fName];ok {
-						if v == "" {
-							(*mi.mindexes)[mi.fName] = sp[1]
-						} else if strings.Contains(sp[1],",") {
-							(*mi.mindexes)[mi.fName] += ","+sp[1]
-						} else {
-							logger.Error("mindex not working for",mi.fName,sp[1])
-						}
-					} else {
-						(*mi.mindexes)[mi.fName]=sp[1]
+					*mi.fKeys = append(*mi.fKeys, fkey)
+				} else {
+					logger.Error("allowed options cascade/donothing/noaction")
+				}
+			case "check":
+				if strings.Contains(strings.ToLower(sp[1]), "len") {
+					switch mi.dialect {
+					case SQLITE, "":
+						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", 1)
+					case POSTGRES, MYSQL:
+						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", 1)
+					default:
+						logger.Error("check not handled for dialect:", mi.dialect)
 					}
-				case "uindex":
-				if v,ok := (*mi.uindexes)[mi.fName];ok {
+				}
+				checks = append(checks, strings.TrimSpace(sp[1]))
+			case "mindex":
+				if v, ok := (*mi.mindexes)[mi.fName]; ok {
 					if v == "" {
-						(*mi.uindexes)[mi.fName] = sp[1]
-					} else if strings.Contains(sp[1],",") {
-						(*mi.uindexes)[mi.fName] += ","+sp[1]
+						(*mi.mindexes)[mi.fName] = sp[1]
+					} else if strings.Contains(sp[1], ",") {
+						(*mi.mindexes)[mi.fName] += "," + sp[1]
 					} else {
-						logger.Error("mindex not working for",mi.fName,sp[1])
+						logger.Error("mindex not working for", mi.fName, sp[1])
 					}
 				} else {
-					(*mi.uindexes)[mi.fName]=sp[1]
+					(*mi.mindexes)[mi.fName] = sp[1]
 				}
-				default:
-					logger.Error("not handled", sp[0], "for", tag, ",field:", mi.fName,"for migration int")
+			case "uindex":
+				if v, ok := (*mi.uindexes)[mi.fName]; ok {
+					if v == "" {
+						(*mi.uindexes)[mi.fName] = sp[1]
+					} else if strings.Contains(sp[1], ",") {
+						(*mi.uindexes)[mi.fName] += "," + sp[1]
+					} else {
+						logger.Error("mindex not working for", mi.fName, sp[1])
+					}
+				} else {
+					(*mi.uindexes)[mi.fName] = sp[1]
+				}
+			default:
+				logger.Error("not handled", sp[0], "for", tag, ",field:", mi.fName, "for migration int")
 			}
 		}
 	}
-	
+
 	if autoinc != "" {
 		// integer auto increment
 		(*mi.res)[mi.fName] = autoinc
@@ -405,8 +413,8 @@ func handleMigrationInt(mi *migrationInput) {
 			(*mi.res)[mi.fName] += defaultt
 		}
 		if len(checks) > 0 {
-			joined := strings.TrimSpace(strings.Join(checks," AND")) 
-			(*mi.res)[mi.fName] += " CHECK(" +joined+")"
+			joined := strings.TrimSpace(strings.Join(checks, " AND"))
+			(*mi.res)[mi.fName] += " CHECK(" + joined + ")"
 		}
 	}
 }
@@ -416,7 +424,7 @@ func handleMigrationBool(mi *migrationInput) {
 	(*mi.res)[mi.fName] = "INTEGER NOT NULL CHECK (" + mi.fName + " IN (0, 1))"
 	tags := (*mi.fTags)[mi.fName]
 	if len(tags) == 1 && tags[0] == "-" {
-		(*mi.res)[mi.fName]=""
+		(*mi.res)[mi.fName] = ""
 		return
 	}
 	for _, tag := range tags {
@@ -430,16 +438,16 @@ func handleMigrationBool(mi *migrationInput) {
 					defaultt = " DEFAULT false"
 				}
 			case "mindex":
-				if v,ok := (*mi.mindexes)[mi.fName];ok {
+				if v, ok := (*mi.mindexes)[mi.fName]; ok {
 					if v == "" {
 						(*mi.mindexes)[mi.fName] = sp[1]
-					} else if strings.Contains(sp[1],",") {
-						(*mi.mindexes)[mi.fName] += ","+sp[1]
+					} else if strings.Contains(sp[1], ",") {
+						(*mi.mindexes)[mi.fName] += "," + sp[1]
 					} else {
-						logger.Error("mindex not working for",mi.fName,sp[1])
+						logger.Error("mindex not working for", mi.fName, sp[1])
 					}
 				} else {
-					(*mi.mindexes)[mi.fName]=sp[1]
+					(*mi.mindexes)[mi.fName] = sp[1]
 				}
 			case "fk":
 				ref := strings.Split(sp[1], ".")
@@ -449,27 +457,27 @@ func handleMigrationBool(mi *migrationInput) {
 						switch sp[2] {
 						case "cascade":
 							fkey += " ON DELETE CASCADE"
-						case "donothing","noaction":
+						case "donothing", "noaction":
 							fkey += " ON DELETE NO ACTION"
-						case "setnull","null":
+						case "setnull", "null":
 							fkey += " ON DELETE SET NULL"
-						case "setdefault","default":
+						case "setdefault", "default":
 							fkey += " ON DELETE SET DEFAULT"
 						default:
-							logger.Printf("rdfk %s not handled",sp[2])
+							logger.Printf("rdfk %s not handled", sp[2])
 						}
 						if len(sp) > 3 {
 							switch sp[3] {
 							case "cascade":
 								fkey += " ON UPDATE CASCADE"
-							case "donothing","noaction":
+							case "donothing", "noaction":
 								fkey += " ON UPDATE NO ACTION"
-							case "setnull","null":
+							case "setnull", "null":
 								fkey += " ON UPDATE SET NULL"
-							case "setdefault","default":
+							case "setdefault", "default":
 								fkey += " ON UPDATE SET DEFAULT"
 							default:
-								logger.Printf("rdfk %s not handled",sp[3])
+								logger.Printf("rdfk %s not handled", sp[3])
 							}
 						}
 					}
@@ -478,18 +486,18 @@ func handleMigrationBool(mi *migrationInput) {
 					logger.Error("wtf ?, it should be fk:users.id:cascade/donothing")
 				}
 			default:
-				logger.Error(sp[0],"not handled for",mi.fName,"migration bool")
+				logger.Error(sp[0], "not handled for", mi.fName, "migration bool")
 			}
 		} else {
 			switch tag {
 			case "index":
-				*mi.indexes=append(*mi.indexes,mi.fName)
+				*mi.indexes = append(*mi.indexes, mi.fName)
 			case "default":
-				defaultt=" DEFAULT 0"
+				defaultt = " DEFAULT 0"
 			default:
-				logger.Error(tag,"not handled in Migration Bool")
+				logger.Error(tag, "not handled in Migration Bool")
 			}
-		} 
+		}
 	}
 	if defaultt != "" {
 		(*mi.res)[mi.fName] += defaultt
@@ -500,109 +508,109 @@ func handleMigrationString(mi *migrationInput) {
 	unique, notnull, text, defaultt, size, pk, checks := "", "", "", "", "", "", []string{}
 	tags := (*mi.fTags)[mi.fName]
 	if len(tags) == 1 && tags[0] == "-" {
-		(*mi.res)[mi.fName]=""
+		(*mi.res)[mi.fName] = ""
 		return
 	}
 	for _, tag := range tags {
-		if !strings.Contains(tag,":") {
+		if !strings.Contains(tag, ":") {
 			switch tag {
 			case "text":
 				text = "TEXT"
 			case "notnull":
 				notnull = " NOT NULL"
 			case "index":
-				*mi.indexes=append(*mi.indexes,mi.fName)
+				*mi.indexes = append(*mi.indexes, mi.fName)
 			case "unique":
 				(*mi.uindexes)[mi.fName] = mi.fName
 			case "default":
-				defaultt=" DEFAULT ''"
+				defaultt = " DEFAULT ''"
 			default:
-				logger.Error(tag,"not handled for migration string")
+				logger.Error(tag, "not handled for migration string")
 			}
 		} else {
 			sp := strings.Split(tag, ":")
 			switch sp[0] {
-				case "default":
-					defaultt = " DEFAULT " + sp[1]
-				case "mindex":
-					if v,ok := (*mi.mindexes)[mi.fName];ok {
-						if v == "" {
-							(*mi.mindexes)[mi.fName] = sp[1]
-						} else if strings.Contains(sp[1],",") {
-							(*mi.mindexes)[mi.fName] += ","+sp[1]
-						} else {
-							logger.Error("mindex not working for",mi.fName,sp[1])
-						}
+			case "default":
+				defaultt = " DEFAULT " + sp[1]
+			case "mindex":
+				if v, ok := (*mi.mindexes)[mi.fName]; ok {
+					if v == "" {
+						(*mi.mindexes)[mi.fName] = sp[1]
+					} else if strings.Contains(sp[1], ",") {
+						(*mi.mindexes)[mi.fName] += "," + sp[1]
 					} else {
-						(*mi.mindexes)[mi.fName]=sp[1]
+						logger.Error("mindex not working for", mi.fName, sp[1])
 					}
-				case "uindex":
-					if v,ok := (*mi.uindexes)[mi.fName];ok {
-						if v == "" {
-							(*mi.uindexes)[mi.fName] = sp[1]
-						} else if strings.Contains(sp[1],",") {
-							(*mi.uindexes)[mi.fName] += ","+sp[1]
-						} else {
-							logger.Error("mindex not working for",mi.fName,sp[1])
-						}
+				} else {
+					(*mi.mindexes)[mi.fName] = sp[1]
+				}
+			case "uindex":
+				if v, ok := (*mi.uindexes)[mi.fName]; ok {
+					if v == "" {
+						(*mi.uindexes)[mi.fName] = sp[1]
+					} else if strings.Contains(sp[1], ",") {
+						(*mi.uindexes)[mi.fName] += "," + sp[1]
 					} else {
-						(*mi.uindexes)[mi.fName]=sp[1]
+						logger.Error("mindex not working for", mi.fName, sp[1])
 					}
-				case "fk":
-					ref := strings.Split(sp[1], ".")
-					if len(ref) == 2 {
-						fkey := "FOREIGN KEY(" + mi.fName + ") REFERENCES " + ref[0] + "(" + ref[1] + ")"
-						if len(sp) > 2 {
-							switch sp[2] {
-							case "cascade":
-								fkey += " ON DELETE CASCADE"
-							case "donothing","noaction":
-								fkey += " ON DELETE NO ACTION"
-							case "setnull","null":
-								fkey += " ON DELETE SET NULL"
-							case "setdefault","default":
-								fkey += " ON DELETE SET DEFAULT"
-							default:
-								logger.Printf("rdfk %s not handled",sp[2])
-							}
-							if len(sp) > 3 {
-								switch sp[3] {
-								case "cascade":
-									fkey += " ON UPDATE CASCADE"
-								case "donothing","noaction":
-									fkey += " ON UPDATE NO ACTION"
-								case "setnull","null":
-									fkey += " ON UPDATE SET NULL"
-								case "setdefault","default":
-									fkey += " ON UPDATE SET DEFAULT"
-								default:
-									logger.Printf("rdfk %s not handled",sp[3])
-								}
-							}
-						}
-						*mi.fKeys = append(*mi.fKeys, fkey)
-					} else {
-						logger.Error("foreign key should be like fk:table.column:[cascade/donothing]")
-					}
-				case "size":
-					sp := strings.Split(tag, ":")
-					if sp[0] == "size" {
-						size = sp[1]
-					}
-				case "check":
-					if strings.Contains(strings.ToLower(sp[1]), "len") {
-						switch mi.dialect {
-						case SQLITE, "":
-							sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", 1)
-						case POSTGRES, MYSQL:
-							sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", 1)
+				} else {
+					(*mi.uindexes)[mi.fName] = sp[1]
+				}
+			case "fk":
+				ref := strings.Split(sp[1], ".")
+				if len(ref) == 2 {
+					fkey := "FOREIGN KEY(" + mi.fName + ") REFERENCES " + ref[0] + "(" + ref[1] + ")"
+					if len(sp) > 2 {
+						switch sp[2] {
+						case "cascade":
+							fkey += " ON DELETE CASCADE"
+						case "donothing", "noaction":
+							fkey += " ON DELETE NO ACTION"
+						case "setnull", "null":
+							fkey += " ON DELETE SET NULL"
+						case "setdefault", "default":
+							fkey += " ON DELETE SET DEFAULT"
 						default:
-							logger.Error("check not handled for dialect:", mi.dialect)
+							logger.Printf("rdfk %s not handled", sp[2])
+						}
+						if len(sp) > 3 {
+							switch sp[3] {
+							case "cascade":
+								fkey += " ON UPDATE CASCADE"
+							case "donothing", "noaction":
+								fkey += " ON UPDATE NO ACTION"
+							case "setnull", "null":
+								fkey += " ON UPDATE SET NULL"
+							case "setdefault", "default":
+								fkey += " ON UPDATE SET DEFAULT"
+							default:
+								logger.Printf("rdfk %s not handled", sp[3])
+							}
 						}
 					}
-					checks = append(checks, strings.TrimSpace(sp[1]))
-				default:
-					logger.Error("not handled", sp[0], "for", tag, ",field:", mi.fName,"migration string")
+					*mi.fKeys = append(*mi.fKeys, fkey)
+				} else {
+					logger.Error("foreign key should be like fk:table.column:[cascade/donothing]")
+				}
+			case "size":
+				sp := strings.Split(tag, ":")
+				if sp[0] == "size" {
+					size = sp[1]
+				}
+			case "check":
+				if strings.Contains(strings.ToLower(sp[1]), "len") {
+					switch mi.dialect {
+					case SQLITE, "":
+						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", 1)
+					case POSTGRES, MYSQL:
+						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", 1)
+					default:
+						logger.Error("check not handled for dialect:", mi.dialect)
+					}
+				}
+				checks = append(checks, strings.TrimSpace(sp[1]))
+			default:
+				logger.Error("not handled", sp[0], "for", tag, ",field:", mi.fName, "migration string")
 			}
 		}
 	}
@@ -630,8 +638,8 @@ func handleMigrationString(mi *migrationInput) {
 		(*mi.res)[mi.fName] += defaultt
 	}
 	if len(checks) > 0 {
-		joined := strings.TrimSpace(strings.Join(checks," AND")) 
-		(*mi.res)[mi.fName] += " CHECK(" +joined+")"
+		joined := strings.TrimSpace(strings.Join(checks, " AND"))
+		(*mi.res)[mi.fName] += " CHECK(" + joined + ")"
 	}
 }
 
@@ -639,22 +647,22 @@ func handleMigrationFloat(mi *migrationInput) {
 	mtags := map[string]string{}
 	tags := (*mi.fTags)[mi.fName]
 	if len(tags) == 1 && tags[0] == "-" {
-		(*mi.res)[mi.fName]=""
+		(*mi.res)[mi.fName] = ""
 		return
 	}
 	for _, tag := range tags {
-		if !strings.Contains(tag,":") {
+		if !strings.Contains(tag, ":") {
 			switch tag {
 			case "notnull":
 				mtags["notnull"] = " NOT NULL"
 			case "index":
-				*mi.indexes=append(*mi.indexes,mi.fName)
+				*mi.indexes = append(*mi.indexes, mi.fName)
 			case "unique":
 				(*mi.uindexes)[mi.fName] = mi.fName
 			case "default":
-				mtags["default"]=" DEFAULT 0.00"
+				mtags["default"] = " DEFAULT 0.00"
 			default:
-				logger.Error(tag,"not handled for migration float")
+				logger.Error(tag, "not handled for migration float")
 			}
 		} else {
 			sp := strings.Split(tag, ":")
@@ -671,27 +679,27 @@ func handleMigrationFloat(mi *migrationInput) {
 						switch sp[2] {
 						case "cascade":
 							fkey += " ON DELETE CASCADE"
-						case "donothing","noaction":
+						case "donothing", "noaction":
 							fkey += " ON DELETE NO ACTION"
-						case "setnull","null":
+						case "setnull", "null":
 							fkey += " ON DELETE SET NULL"
-						case "setdefault","default":
+						case "setdefault", "default":
 							fkey += " ON DELETE SET DEFAULT"
 						default:
-							logger.Printf("rdfk %s not handled",sp[2])
+							logger.Printf("rdfk %s not handled", sp[2])
 						}
 						if len(sp) > 3 {
 							switch sp[3] {
 							case "cascade":
 								fkey += " ON UPDATE CASCADE"
-							case "donothing","noaction":
+							case "donothing", "noaction":
 								fkey += " ON UPDATE NO ACTION"
-							case "setnull","null":
+							case "setnull", "null":
 								fkey += " ON UPDATE SET NULL"
-							case "setdefault","default":
+							case "setdefault", "default":
 								fkey += " ON UPDATE SET DEFAULT"
 							default:
-								logger.Printf("rdfk %s not handled",sp[3])
+								logger.Printf("rdfk %s not handled", sp[3])
 							}
 						}
 					}
@@ -700,28 +708,28 @@ func handleMigrationFloat(mi *migrationInput) {
 					logger.Error("foreign key should be like fk:table.column:[cascade/donothing]")
 				}
 			case "mindex":
-				if v,ok := (*mi.mindexes)[mi.fName];ok {
+				if v, ok := (*mi.mindexes)[mi.fName]; ok {
 					if v == "" {
 						(*mi.mindexes)[mi.fName] = sp[1]
-					} else if strings.Contains(sp[1],",") {
-						(*mi.mindexes)[mi.fName] += ","+sp[1]
+					} else if strings.Contains(sp[1], ",") {
+						(*mi.mindexes)[mi.fName] += "," + sp[1]
 					} else {
-						logger.Error("mindex not working for",mi.fName,sp[1])
+						logger.Error("mindex not working for", mi.fName, sp[1])
 					}
 				} else {
-					(*mi.mindexes)[mi.fName]=sp[1]
+					(*mi.mindexes)[mi.fName] = sp[1]
 				}
 			case "uindex":
-				if v,ok := (*mi.uindexes)[mi.fName];ok {
+				if v, ok := (*mi.uindexes)[mi.fName]; ok {
 					if v == "" {
 						(*mi.uindexes)[mi.fName] = sp[1]
-					} else if strings.Contains(sp[1],",") {
-						(*mi.uindexes)[mi.fName] += ","+sp[1]
+					} else if strings.Contains(sp[1], ",") {
+						(*mi.uindexes)[mi.fName] += "," + sp[1]
 					} else {
-						logger.Error("mindex not working for",mi.fName,sp[1])
+						logger.Error("mindex not working for", mi.fName, sp[1])
 					}
 				} else {
-					(*mi.uindexes)[mi.fName]=sp[1]
+					(*mi.uindexes)[mi.fName] = sp[1]
 				}
 			case "check":
 				if strings.Contains(strings.ToLower(sp[1]), "len") {
@@ -734,13 +742,13 @@ func handleMigrationFloat(mi *migrationInput) {
 						logger.Error("check not handled for dialect:", mi.dialect)
 					}
 				}
-				if v,ok := mtags["check"];ok && v != "" {
-					mtags["check"] += " AND "+ strings.TrimSpace(sp[1]) 
+				if v, ok := mtags["check"]; ok && v != "" {
+					mtags["check"] += " AND " + strings.TrimSpace(sp[1])
 				} else if v == "" {
 					mtags["check"] = strings.TrimSpace(sp[1])
-				}				
+				}
 			default:
-				logger.Error("not handled", sp[0], "for", tag, ",field:", mi.fName,"field float")
+				logger.Error("not handled", sp[0], "for", tag, ",field:", mi.fName, "field float")
 			}
 		}
 
@@ -760,7 +768,7 @@ func handleMigrationFloat(mi *migrationInput) {
 			case "default":
 				(*mi.res)[mi.fName] += v
 			case "check":
-				(*mi.res)[mi.fName] +=" CHECK("+v+")"
+				(*mi.res)[mi.fName] += " CHECK(" + v + ")"
 			default:
 				logger.Error("case", k, "not handled")
 			}
@@ -772,11 +780,11 @@ func handleMigrationTime(mi *migrationInput) {
 	defaultt, notnull, check := "", "", ""
 	tags := (*mi.fTags)[mi.fName]
 	if len(tags) == 1 && tags[0] == "-" {
-		(*mi.res)[mi.fName]=""
+		(*mi.res)[mi.fName] = ""
 		return
 	}
 	for _, tag := range tags {
-		if !strings.Contains(tag,":") {
+		if !strings.Contains(tag, ":") {
 			switch tag {
 			case "now":
 				switch mi.dialect {
@@ -801,7 +809,7 @@ func handleMigrationTime(mi *migrationInput) {
 					logger.Error("not handled Time for ", mi.fName, mi.fType)
 				}
 			default:
-				logger.Error(tag,"tag not handled for time")
+				logger.Error(tag, "tag not handled for time")
 			}
 		} else {
 			sp := strings.Split(tag, ":")
@@ -814,27 +822,27 @@ func handleMigrationTime(mi *migrationInput) {
 						switch sp[2] {
 						case "cascade":
 							fkey += " ON DELETE CASCADE"
-						case "donothing","noaction":
+						case "donothing", "noaction":
 							fkey += " ON DELETE NO ACTION"
-						case "setnull","null":
+						case "setnull", "null":
 							fkey += " ON DELETE SET NULL"
-						case "setdefault","default":
+						case "setdefault", "default":
 							fkey += " ON DELETE SET DEFAULT"
 						default:
-							logger.Printf("rdfk %s not handled",sp[2])
+							logger.Printf("rdfk %s not handled", sp[2])
 						}
 						if len(sp) > 3 {
 							switch sp[3] {
 							case "cascade":
 								fkey += " ON UPDATE CASCADE"
-							case "donothing","noaction":
+							case "donothing", "noaction":
 								fkey += " ON UPDATE NO ACTION"
-							case "setnull","null":
+							case "setnull", "null":
 								fkey += " ON UPDATE SET NULL"
-							case "setdefault","default":
+							case "setdefault", "default":
 								fkey += " ON UPDATE SET DEFAULT"
 							default:
-								logger.Printf("rdfk %s not handled",sp[3])
+								logger.Printf("rdfk %s not handled", sp[3])
 							}
 						}
 					}
@@ -854,7 +862,7 @@ func handleMigrationTime(mi *migrationInput) {
 					}
 				}
 				if check != "" {
-					check += " AND "+ strings.TrimSpace(sp[1]) 
+					check += " AND " + strings.TrimSpace(sp[1])
 				} else {
 					check += sp[1]
 				}
@@ -876,12 +884,12 @@ func handleMigrationTime(mi *migrationInput) {
 			(*mi.res)[mi.fName] += notnull
 		}
 		if check != "" {
-			(*mi.res)[mi.fName] +=" CHECK("+check+")"
+			(*mi.res)[mi.fName] += " CHECK(" + check + ")"
 		}
 	}
 }
 
-func prepareCreateStatement(tbName string, fields map[string]string, fkeys, cols []string,db *DatabaseEntity,ftags map[string][]string) string {
+func prepareCreateStatement(tbName string, fields map[string]string, fkeys, cols []string, db *DatabaseEntity, ftags map[string][]string) string {
 	st := "CREATE TABLE IF NOT EXISTS "
 	st += tbName + " ("
 	for i, col := range cols {
@@ -905,7 +913,7 @@ func prepareCreateStatement(tbName string, fields map[string]string, fkeys, cols
 			st += ","
 		}
 	}
-	st = strings.TrimSuffix(st,",")
+	st = strings.TrimSuffix(st, ",")
 	st += ");"
 	return st
 }

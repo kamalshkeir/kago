@@ -60,9 +60,9 @@ func BuilderS[T comparable]() *Builder[T] {
 func (b *Builder[T]) Database(dbName string) *Builder[T] {
 	b.database = dbName
 	if b.database == "" {
-		b.database =settings.Config.Db.Name
+		b.database = settings.Config.Db.Name
 	}
-	db,err := GetDatabase(b.database)
+	db, err := GetDatabase(b.database)
 	if logger.CheckError(err) {
 		return nil
 	}
@@ -76,8 +76,8 @@ func (b *Builder[T]) Insert(model *T) (int, error) {
 		if tName == "" {
 			return 0, errors.New("unable to find tableName from model, restart the app if you just migrated")
 		}
-		b.tableName=tName
-	}	
+		b.tableName = tName
+	}
 	if b.database == "" {
 		b.database = settings.Config.Db.Name
 	}
@@ -88,9 +88,9 @@ func (b *Builder[T]) Insert(model *T) (int, error) {
 			"database": b.database,
 		})
 	}
-	db,err := GetDatabase(b.database)
+	db, err := GetDatabase(b.database)
 	if logger.CheckError(err) {
-		return 0,err
+		return 0, err
 	}
 
 	names, mvalues, _, mtags := getStructInfos(model)
@@ -166,11 +166,11 @@ func (b *Builder[T]) Set(query string, args ...any) (int, error) {
 			"database": b.database,
 		})
 	}
-	db,err := GetDatabase(b.database)
+	db, err := GetDatabase(b.database)
 	if logger.CheckError(err) {
-		return 0,err
+		return 0, err
 	}
-	
+
 	if b.whereQuery == "" {
 		return 0, errors.New("you should use Where before Update")
 	}
@@ -218,9 +218,9 @@ func (b *Builder[T]) Delete() (int, error) {
 			"database": b.database,
 		})
 	}
-	db,err := GetDatabase(b.database)
+	db, err := GetDatabase(b.database)
 	if logger.CheckError(err) {
-		return 0,err
+		return 0, err
 	}
 	b.statement = "DELETE FROM " + b.tableName
 	if b.whereQuery != "" {
@@ -269,9 +269,9 @@ func (b *Builder[T]) Drop() (int, error) {
 			"database": b.database,
 		})
 	}
-	db,err := GetDatabase(b.database)
+	db, err := GetDatabase(b.database)
 	if logger.CheckError(err) {
-		return 0,err
+		return 0, err
 	}
 
 	b.statement = "DROP TABLE " + b.tableName
@@ -354,7 +354,7 @@ func (b *Builder[T]) Debug() *Builder[T] {
 
 func (b *Builder[T]) All() ([]T, error) {
 	if b.database == "" {
-		b.database=settings.Config.Db.Name
+		b.database = settings.Config.Db.Name
 	}
 	if b.tableName == "" {
 		return nil, errors.New("error: this model is not linked, execute orm.AutoMigrate before")
@@ -422,7 +422,7 @@ func (b *Builder[T]) All() ([]T, error) {
 
 func (b *Builder[T]) One() (T, error) {
 	if b.database == "" {
-		b.database=settings.Config.Db.Name
+		b.database = settings.Config.Db.Name
 	}
 	if b.tableName == "" {
 		return *new(T), errors.New("error: this model is not linked, execute orm.AutoMigrate first")
@@ -492,16 +492,16 @@ func (b *Builder[T]) One() (T, error) {
 
 func (b *Builder[T]) queryS(query string, args ...any) ([]T, error) {
 	if b.database == "" {
-		b.database=settings.Config.Db.Name
+		b.database = settings.Config.Db.Name
 	}
-	db,err := GetDatabase(b.database)
+	db, err := GetDatabase(b.database)
 	if logger.CheckError(err) {
-		return nil,err
+		return nil, err
 	}
 
 	adaptPlaceholdersToDialect(&query, db.Dialect)
 	res := make([]T, 0)
-	
+
 	var rows *sql.Rows
 	if b.ctx != nil {
 		rows, err = db.Conn.QueryContext(b.ctx, query, args...)
@@ -550,7 +550,7 @@ func (b *Builder[T]) queryS(query string, args ...any) ([]T, error) {
 		if b.selected != "" && b.selected != "*" {
 			fillStructColumns(row, b.selected, values...)
 		} else {
-			fillStruct(row,values...)
+			fillStruct(row, values...)
 		}
 
 		res = append(res, *row)

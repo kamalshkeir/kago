@@ -33,7 +33,7 @@ func init() {
 		return
 	}
 	// migrate user to 'db2'
-	err = orm.AutoMigrate[models.User]("users",otherDB)
+	err = orm.AutoMigrate[models.User]("users", otherDB)
 	if logger.CheckError(err) {
 		return
 	}
@@ -73,7 +73,7 @@ func TestInitDB(t *testing.T) {
 func TestNewDatabaseFromDSN(t *testing.T) {
 	err := orm.NewDatabaseFromDSN("sqlite", otherDB, "")
 	if err == nil {
-		t.Error("should error because",otherDB,"registered before")
+		t.Error("should error because", otherDB, "registered before")
 		return
 	}
 	databases := orm.GetDatabases()
@@ -160,22 +160,21 @@ type TestModel struct {
 }
 
 func TestAutoMigrate(t *testing.T) {
-	err := orm.AutoMigrate[TestModel]("test_model",otherDB)
+	err := orm.AutoMigrate[TestModel]("test_model", otherDB)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 }
 
-
 func TestCheckAutoMigrate(t *testing.T) {
 	// get or create first row
-	testModel,err := orm.Model[TestModel]().Database(otherDB).Limit(1).One()
+	testModel, err := orm.Model[TestModel]().Database(otherDB).Limit(1).One()
 	if err != nil {
 		// should work
-		_,err := orm.Model[TestModel]().Database(otherDB).Insert(&TestModel{
-			Content: "test",
-			UserId: 1,
+		_, err := orm.Model[TestModel]().Database(otherDB).Insert(&TestModel{
+			Content:   "test",
+			UserId:    1,
 			CreatedAt: time.Now(),
 		})
 		if err != nil {
@@ -183,9 +182,9 @@ func TestCheckAutoMigrate(t *testing.T) {
 			return
 		}
 		// should fail
-		_,err = orm.Model[TestModel]().Database(otherDB).Insert(&TestModel{
-			Content: "test",
-			UserId: 10,
+		_, err = orm.Model[TestModel]().Database(otherDB).Insert(&TestModel{
+			Content:   "test",
+			UserId:    10,
 			CreatedAt: time.Now(),
 		})
 		if err == nil {
@@ -208,4 +207,3 @@ func TestCheckAutoMigrate(t *testing.T) {
 		return
 	}
 }
-

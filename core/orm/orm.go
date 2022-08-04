@@ -45,7 +45,7 @@ const (
 )
 
 type TableEntity struct {
-	Pk		   string
+	Pk         string
 	Name       string
 	Columns    []string
 	Types      map[string]string

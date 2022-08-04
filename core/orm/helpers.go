@@ -47,9 +47,9 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 	for k := range colsNameType {
 		cols = append(cols, k)
 	}
-	for _,list := range ftags {
+	for _, list := range ftags {
 		for i := range list {
-			list[i]=strings.TrimSpace(list[i]) 
+			list[i] = strings.TrimSpace(list[i])
 		}
 	}
 
@@ -64,7 +64,7 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 
 	go func() {
 		// rename field
-		handleRename(to_table_name, fields, cols, diff, db,ftags)
+		handleRename(to_table_name, fields, cols, diff, db, ftags)
 		wg.Done()
 	}()
 	wg.Wait()
@@ -75,10 +75,10 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 			tFound = true
 		}
 	}
-	for col,tags := range ftags {
-		for _,tag := range tags {
+	for col, tags := range ftags {
+		for _, tag := range tags {
 			if tag == "autoinc" || tag == "pk" {
-				pk=col
+				pk = col
 				break
 			}
 		}
@@ -90,7 +90,7 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 			ModelTypes: ftypes,
 			Types:      colsNameType,
 			Tags:       ftags,
-			Pk: pk,
+			Pk:         pk,
 		})
 	}
 }
@@ -99,7 +99,7 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []string, db *DatabaseEntity, ftypes map[string]string, ftags map[string][]string) {
 	if len(cols) > len(fields) { // extra column db
 		for _, d := range diff {
-			if v,ok := ftags[d];ok && v[0] == "-"{
+			if v, ok := ftags[d]; ok && v[0] == "-" {
 				continue
 			}
 			fmt.Println(" ")
@@ -109,11 +109,11 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 
 			choice := input.Input(input.Yellow, "> do you want to remove '"+d+"' from database ? (Y/n): ")
 			if utils.SliceContains([]string{"yes", "Y", "y"}, choice) {
-				sst := "DROP INDEX IF EXISTS idx_"+to_table_name+"_"+d
+				sst := "DROP INDEX IF EXISTS idx_" + to_table_name + "_" + d
 				if len(databases) > 1 && db.Name == "" {
 					ddb := input.Input(input.Blue, "> There are more than one database connected, enter database name: ")
 					conn := GetConnection(ddb)
-					if conn != nil {						
+					if conn != nil {
 						if Debug {
 							logger.Info(sst)
 							logger.Info(statement)
@@ -125,16 +125,24 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 						}
 						_, err = conn.Exec(statement)
 						if err != nil {
-							temp := to_table_name+"_temp"
-							err := autoMigrate[T](db,temp)
-							if logger.CheckError(err) {return}
-							cls := strings.Join(fields,",")
-							_, err =conn.Exec("INSERT INTO "+temp+" SELECT "+cls+" FROM "+to_table_name)
-							if logger.CheckError(err) {return}
-							_,err = Table(to_table_name).Database(db.Name).Drop()
-							if logger.CheckError(err) {return}
-							_, err =conn.Exec("ALTER TABLE "+temp+" RENAME TO "+to_table_name)
-							if logger.CheckError(err) {return}
+							temp := to_table_name + "_temp"
+							err := autoMigrate[T](db, temp)
+							if logger.CheckError(err) {
+								return
+							}
+							cls := strings.Join(fields, ",")
+							_, err = conn.Exec("INSERT INTO " + temp + " SELECT " + cls + " FROM " + to_table_name)
+							if logger.CheckError(err) {
+								return
+							}
+							_, err = Table(to_table_name).Database(db.Name).Drop()
+							if logger.CheckError(err) {
+								return
+							}
+							_, err = conn.Exec("ALTER TABLE " + temp + " RENAME TO " + to_table_name)
+							if logger.CheckError(err) {
+								return
+							}
 						}
 						logger.Printfs("grDone, '%s' removed from '%s'", d, to_table_name)
 						os.Exit(0)
@@ -153,16 +161,24 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 						}
 						_, err = conn.Exec(statement)
 						if err != nil {
-							temp := to_table_name+"_temp"
-							err := autoMigrate[T](db,temp)
-							if logger.CheckError(err) {return}
-							cls := strings.Join(fields,",")
-							_, err =conn.Exec("INSERT INTO "+temp+" SELECT "+cls+" FROM "+to_table_name)
-							if logger.CheckError(err) {return}
-							_,err = Table(to_table_name).Database(db.Name).Drop()
-							if logger.CheckError(err) {return}
-							_, err =conn.Exec("ALTER TABLE "+temp+" RENAME TO "+to_table_name)
-							if logger.CheckError(err) {return}	
+							temp := to_table_name + "_temp"
+							err := autoMigrate[T](db, temp)
+							if logger.CheckError(err) {
+								return
+							}
+							cls := strings.Join(fields, ",")
+							_, err = conn.Exec("INSERT INTO " + temp + " SELECT " + cls + " FROM " + to_table_name)
+							if logger.CheckError(err) {
+								return
+							}
+							_, err = Table(to_table_name).Database(db.Name).Drop()
+							if logger.CheckError(err) {
+								return
+							}
+							_, err = conn.Exec("ALTER TABLE " + temp + " RENAME TO " + to_table_name)
+							if logger.CheckError(err) {
+								return
+							}
 						}
 						logger.Printfs("grDone, '%s' removed from '%s'", d, to_table_name)
 						os.Exit(0)
@@ -174,7 +190,7 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 		}
 	} else if len(cols) < len(fields) { // missing column db
 		for _, d := range diff {
-			if v,ok := ftags[d]; ok && v[0] == "-"{
+			if v, ok := ftags[d]; ok && v[0] == "-" {
 				continue
 			}
 			fmt.Println(" ")
@@ -182,20 +198,20 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 			choice, err := input.String(input.Yellow, "> do you want to add '"+d+"' to the database ? (Y/n):")
 			logger.CheckError(err)
 			statement := "ALTER TABLE " + to_table_name + " ADD " + d + " "
-			if ty, ok := ftypes[d]; ok {			
+			if ty, ok := ftypes[d]; ok {
 				res := map[string]string{}
 				fkeys := []string{}
 				indexes := []string{}
 				mindexes := map[string]string{}
 				uindexes := map[string]string{}
 				mi := &migrationInput{
-					dialect: db.Dialect,
-					fName: d,
-					fType: ty,
-					fTags: &ftags,
-					fKeys: &fkeys,
-					res: &res,
-					indexes: &indexes,
+					dialect:  db.Dialect,
+					fName:    d,
+					fType:    ty,
+					fTags:    &ftags,
+					fKeys:    &fkeys,
+					res:      &res,
+					indexes:  &indexes,
 					mindexes: &mindexes,
 					uindexes: &uindexes,
 				}
@@ -207,15 +223,15 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 					var fkey string
 					if v, ok := res[d]; ok {
 						s = v
-						if strings.Contains(v,"UNIQUE") {
-							s=strings.ReplaceAll(v,"UNIQUE","")
-							uindexes[d]=d
+						if strings.Contains(v, "UNIQUE") {
+							s = strings.ReplaceAll(v, "UNIQUE", "")
+							uindexes[d] = d
 						}
 					} else {
 						s = "VARCHAR(255)"
 					}
 					for _, fk := range fkeys {
-						r := strings.Index(fk,"REFERENCE")
+						r := strings.Index(fk, "REFERENCE")
 						fkey = fk[r:]
 					}
 					if fkey != "" {
@@ -228,18 +244,18 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 					var fkey string
 					if v, ok := res[d]; ok {
 						s = v
-						if !strings.Contains(v,"DEFAULT 0") {
+						if !strings.Contains(v, "DEFAULT 0") {
 							s += " DEFAULT 0"
 						}
-						if strings.Contains(v,"UNIQUE") {
-							s=strings.ReplaceAll(v,"UNIQUE","")
-							uindexes[d]=d
+						if strings.Contains(v, "UNIQUE") {
+							s = strings.ReplaceAll(v, "UNIQUE", "")
+							uindexes[d] = d
 						}
 					} else {
 						s = "INTEGER NOT NULL CHECK (" + d + " IN (0, 1)) DEFAULT 0"
 					}
 					for _, fk := range fkeys {
-						r := strings.Index(fk,"REFERENCE")
+						r := strings.Index(fk, "REFERENCE")
 						fkey = fk[r:]
 					}
 					if fkey != "" {
@@ -252,15 +268,15 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 					var fkey string
 					if v, ok := res[d]; ok {
 						s = v
-						if strings.Contains(v,"UNIQUE") {
-							s=strings.ReplaceAll(v,"UNIQUE","")
-							uindexes[d]=d
+						if strings.Contains(v, "UNIQUE") {
+							s = strings.ReplaceAll(v, "UNIQUE", "")
+							uindexes[d] = d
 						}
 					} else {
 						s = "INTEGER"
 					}
 					for _, fk := range fkeys {
-						r := strings.Index(fk,"REFERENCE")
+						r := strings.Index(fk, "REFERENCE")
 						fkey = fk[r:]
 					}
 					if fkey != "" {
@@ -273,15 +289,15 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 					var fkey string
 					if v, ok := res[d]; ok {
 						s = v
-						if strings.Contains(v,"UNIQUE") {
-							s=strings.ReplaceAll(v,"UNIQUE","")
-							uindexes[d]=d
+						if strings.Contains(v, "UNIQUE") {
+							s = strings.ReplaceAll(v, "UNIQUE", "")
+							uindexes[d] = d
 						}
 					} else {
 						s = "DECIMAL(5,2)"
 					}
 					for _, fk := range fkeys {
-						r := strings.Index(fk,"REFERENCE")
+						r := strings.Index(fk, "REFERENCE")
 						fkey = fk[r:]
 					}
 					if fkey != "" {
@@ -294,9 +310,9 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 					var fkey string
 					if v, ok := res[d]; ok {
 						s = v
-						if strings.Contains(v,"UNIQUE") {
-							s=strings.ReplaceAll(v,"UNIQUE","")
-							uindexes[d]=d
+						if strings.Contains(v, "UNIQUE") {
+							s = strings.ReplaceAll(v, "UNIQUE", "")
+							uindexes[d] = d
 						}
 					} else {
 						if strings.Contains(db.Dialect, SQLITE) {
@@ -314,7 +330,7 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 						s = strings.ReplaceAll(s, "not null", "")
 					}
 					for _, fk := range fkeys {
-						r := strings.Index(fk,"REFERENCE")
+						r := strings.Index(fk, "REFERENCE")
 						fkey = fk[r:]
 					}
 					if fkey != "" {
@@ -329,34 +345,36 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 				statIndexes := ""
 				if len(indexes) > 0 {
 					if len(indexes) > 1 {
-						logger.Error(mi.fName,"cannot have more than 1 index")
+						logger.Error(mi.fName, "cannot have more than 1 index")
 					} else {
-						statIndexes = fmt.Sprintf("CREATE INDEX idx_%s_%s ON %s (%s)",to_table_name,d,to_table_name,indexes[0])
+						statIndexes = fmt.Sprintf("CREATE INDEX idx_%s_%s ON %s (%s)", to_table_name, d, to_table_name, indexes[0])
 					}
 				}
 				mstatIndexes := ""
 				if len(*mi.mindexes) > 0 {
 					if len(*mi.mindexes) > 1 {
-						logger.Error(mi.fName,"cannot have more than 1 multiple indexes")
+						logger.Error(mi.fName, "cannot have more than 1 multiple indexes")
 					} else {
-						if v,ok := (*mi.mindexes)[mi.fName];ok {
-							mstatIndexes = fmt.Sprintf("CREATE INDEX idx_%s_%s ON %s (%s)",to_table_name,d,to_table_name,d+","+v)
+						if v, ok := (*mi.mindexes)[mi.fName]; ok {
+							mstatIndexes = fmt.Sprintf("CREATE INDEX idx_%s_%s ON %s (%s)", to_table_name, d, to_table_name, d+","+v)
 						}
 					}
 				}
 				ustatIndexes := ""
 				if len(*mi.uindexes) > 0 {
 					if len(*mi.uindexes) > 1 {
-						logger.Error(mi.fName,"cannot have more than 1 multiple indexes")
+						logger.Error(mi.fName, "cannot have more than 1 multiple indexes")
 					} else {
-						if v,ok := (*mi.uindexes)[mi.fName];ok {
+						if v, ok := (*mi.uindexes)[mi.fName]; ok {
 							reste := ","
-							if v == "" {reste=v}
-							mstatIndexes = fmt.Sprintf("CREATE UNIQUE INDEX idx_%s_%s ON %s (%s)",to_table_name,d,to_table_name,d+reste+v)
+							if v == "" {
+								reste = v
+							}
+							mstatIndexes = fmt.Sprintf("CREATE UNIQUE INDEX idx_%s_%s ON %s (%s)", to_table_name, d, to_table_name, d+reste+v)
 						}
 					}
 				}
-				
+
 				if utils.SliceContains([]string{"yes", "Y", "y"}, choice) {
 					if len(databases) > 1 && db.Name == "" {
 						ddb := input.Input(input.Blue, "> There are more than one database connected, database name:")
@@ -388,11 +406,11 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 									return
 								}
 							}
-							if (Debug) {
-								logger.Printfs("ylstatement: %s",statement)
-								logger.Printfs("ylstatIndexes: %s",statIndexes)
-								logger.Printfs("ylmstatIndexes: %s",mstatIndexes)
-								logger.Printfs("ylustatIndexes: %s",ustatIndexes)
+							if Debug {
+								logger.Printfs("ylstatement: %s", statement)
+								logger.Printfs("ylstatIndexes: %s", statIndexes)
+								logger.Printfs("ylmstatIndexes: %s", mstatIndexes)
+								logger.Printfs("ylustatIndexes: %s", ustatIndexes)
 							}
 							logger.Printfs("grDone, '%s' added to '%s', you may want to restart your server", d, to_table_name)
 						}
@@ -425,11 +443,11 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 									return
 								}
 							}
-							if (Debug) {
-								logger.Printfs("ylstatement: %s",statement)
-								logger.Printfs("ylstatIndexes: %s",statIndexes)
-								logger.Printfs("ylmstatIndexes: %s",mstatIndexes)
-								logger.Printfs("ylmstatIndexes: %s",mstatIndexes)
+							if Debug {
+								logger.Printfs("ylstatement: %s", statement)
+								logger.Printfs("ylstatIndexes: %s", statIndexes)
+								logger.Printfs("ylmstatIndexes: %s", mstatIndexes)
+								logger.Printfs("ylmstatIndexes: %s", mstatIndexes)
 							}
 							logger.Printfs("grDone, '%s' added to '%s', you may want to restart your server", d, to_table_name)
 						}
@@ -445,13 +463,13 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 }
 
 // handleRename handle sync with db when renaming fields struct
-func handleRename(to_table_name string, fields, cols, diff []string, db *DatabaseEntity,ftags map[string][]string) {
+func handleRename(to_table_name string, fields, cols, diff []string, db *DatabaseEntity, ftags map[string][]string) {
 	// rename field
 	old := []string{}
 	new := []string{}
 	if len(fields) == len(cols) && len(diff)%2 == 0 && len(diff) > 0 {
 		for _, d := range diff {
-			if v,ok := ftags[d];ok && v[0] == "-"{
+			if v, ok := ftags[d]; ok && v[0] == "-" {
 				continue
 			}
 			if !utils.SliceContains(cols, d) { // d is new
@@ -471,11 +489,11 @@ func handleRename(to_table_name string, fields, cols, diff []string, db *Databas
 					conn := GetConnection(ddb)
 					if conn != nil {
 						if Debug {
-							logger.Info("statement:",statement)
+							logger.Info("statement:", statement)
 						}
 						_, err := conn.Exec(statement)
 						if logger.CheckError(err) {
-							logger.Info("statement:",statement)
+							logger.Info("statement:", statement)
 							return
 						}
 						logger.Printfs("grDone, '%s' has been changed to %s", old[0], new[0])
@@ -484,11 +502,11 @@ func handleRename(to_table_name string, fields, cols, diff []string, db *Databas
 					conn := db.Conn
 					if conn != nil {
 						if Debug {
-							logger.Info("statement:",statement)
+							logger.Info("statement:", statement)
 						}
 						_, err := conn.Exec(statement)
 						if logger.CheckError(err) {
-							logger.Info("statement:",statement)
+							logger.Info("statement:", statement)
 							return
 						}
 						logger.Printfs("grDone, '%s' has been changed to %s", old[0], new[0])
@@ -509,23 +527,23 @@ func handleRename(to_table_name string, fields, cols, diff []string, db *Databas
 								conn := GetConnection(ddb)
 								if conn != nil {
 									if Debug {
-										logger.Info("statement:",statement)
+										logger.Info("statement:", statement)
 									}
 									_, err := conn.Exec(statement)
 									if logger.CheckError(err) {
-										logger.Info("statement:",statement)
+										logger.Info("statement:", statement)
 										return
 									}
 								}
 							} else {
 								if Debug {
-									logger.Info("statement:",statement)
+									logger.Info("statement:", statement)
 								}
 								conn := GetConnection(db.Name)
 								if conn != nil {
 									_, err := conn.Exec(statement)
 									if logger.CheckError(err) {
-										logger.Info("statement:",statement)
+										logger.Info("statement:", statement)
 										return
 									}
 								}

@@ -17,9 +17,8 @@ type PasswordConfig struct {
 	keyLen  uint32
 }
 
-
 func GenerateHash(password string) (string, error) {
-    c := &PasswordConfig{
+	c := &PasswordConfig{
 		time:    1,
 		memory:  64 * 1024,
 		threads: 4,

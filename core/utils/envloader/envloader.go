@@ -14,41 +14,37 @@ import (
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
-
-
 func Load(envFiles ...string) {
 	var wg sync.WaitGroup
 	if len(envFiles) == 0 {
 		Load(".env")
 	}
 	wg.Add(len(envFiles))
-	for _,env := range envFiles {
+	for _, env := range envFiles {
 		go func(env string) {
 			defer wg.Done()
-			f,err := os.OpenFile(env,os.O_RDONLY, os.ModePerm)
+			f, err := os.OpenFile(env, os.O_RDONLY, os.ModePerm)
 			if err != nil {
 				fmt.Println(err)
 				return
 			}
 			defer f.Close()
 			r := bufio.NewScanner(f)
-			
+
 			for r.Scan() {
-				sp := strings.Split(r.Text(),"=")
-				if len(sp) != 2 || r.Text()[0] == '#'{
+				sp := strings.Split(r.Text(), "=")
+				if len(sp) != 2 || r.Text()[0] == '#' {
 					continue
 				}
-				sp[0]=strings.TrimSpace(sp[0])
-				sp[1]=strings.TrimSpace(sp[1])
-				err := os.Setenv(sp[0],sp[1])
+				sp[0] = strings.TrimSpace(sp[0])
+				sp[1] = strings.TrimSpace(sp[1])
+				err := os.Setenv(sp[0], sp[1])
 				logger.CheckError(err)
 			}
 		}(env)
 	}
 	wg.Wait()
 }
-
-
 
 // FillStructFromEnv fill the struct from env
 func FillStruct(structure interface{}) error {
@@ -74,15 +70,15 @@ func fillStructFromEnv(s reflect.Value) error {
 			tag := t
 			defau := ""
 			required := false
-			if strings.Contains(t,"|") {
-				sp := strings.Split(t,"|")
+			if strings.Contains(t, "|") {
+				sp := strings.Split(t, "|")
 				if len(sp) == 2 {
-					tag=sp[0] 
-					defau=sp[1]
-					
-				} 
+					tag = sp[0]
+					defau = sp[1]
+
+				}
 			} else {
-				required=true
+				required = true
 			}
 			if osv := os.Getenv(strings.TrimSpace(tag)); osv != "" {
 				v, err := cast.FromTypeReflect(osv, s.Type().Field(i).Type)
@@ -94,7 +90,7 @@ func fillStructFromEnv(s reflect.Value) error {
 				ptr.Set(reflect.ValueOf(v))
 			} else {
 				if !required {
-					defau=strings.TrimSpace(defau)
+					defau = strings.TrimSpace(defau)
 					v, err := cast.FromTypeReflect(defau, s.Type().Field(i).Type)
 					if err != nil {
 						return fmt.Errorf("env: cannot set `%v` field; err: %v", s.Type().Field(i).Name, err)
@@ -116,10 +112,10 @@ func fillStructFromEnv(s reflect.Value) error {
 					return err
 				}
 			}
-		} 
+		}
 	}
 	if len(errored) > 0 {
-		return errors.New(strings.Join(errored,",")+" required and has not been found")
+		return errors.New(strings.Join(errored, ",") + " required and has not been found")
 	}
 	return nil
 }
