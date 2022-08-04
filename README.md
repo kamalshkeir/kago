@@ -794,7 +794,6 @@ Foreign Keys 'on_delete' and 'on_update' options: cascade,(donothing,noaction),(
 
 ---
 
-
 # Usage :
 ```go
 
@@ -807,7 +806,7 @@ type Bookmark struct {
 	IsDone	bool   
 	ToCheck string `orm:"size:50; notnull; check: len(to_check) > 10; check: is_used=true"`  // column type will be VARCHAR(50)
 	Content string `orm:"text"` // column type will be TEXT, and will have Rich Text Editor in admin panel
-	CreatedAt time.Time `orm:"now"` // now is default to current timestamp
+	CreatedAt time.Time `orm:"now"` // now is default to current timestamp and of type TEXT for sqlite
 }
 
 // To migrate/connect/sync with database:
