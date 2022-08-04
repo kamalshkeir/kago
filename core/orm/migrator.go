@@ -649,6 +649,8 @@ func handleMigrationFloat(mi *migrationInput) {
 				mtags["notnull"] = " NOT NULL"
 			case "index":
 				*mi.indexes=append(*mi.indexes,mi.fName)
+			case "unique":
+				(*mi.uindexes)[mi.fName] = mi.fName
 			case "default":
 				mtags["default"]=" DEFAULT 0.00"
 			default:

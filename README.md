@@ -774,6 +774,7 @@ Foreign Keys 'on_delete' and 'on_update' options: cascade,(donothing,noaction),(
 ```
 *   notnull
 *   index
+*   unique
 *   default
 ```
 </td>
