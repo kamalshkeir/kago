@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"html/template"
 	"io/fs"
-	"io/ioutil"
 	"net/http"
 	"net/http/pprof"
 	"os"
@@ -97,11 +96,10 @@ func (router *Router) AddLocalTemplates(pathToDir string) error {
                 return e1
             }
 
-            b, e2 := ioutil.ReadFile(path)
-            if e2 != nil {
+			b,e2 := os.ReadFile(path)
+			if e2 != nil {
                 return e2
             }
-
             name := filepath.ToSlash(path[pfx:])
             t := allTemplates.New(name).Funcs(functions)
             _, e2 = t.Parse(string(b))

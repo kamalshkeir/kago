@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"os"
 	"regexp"
-	"sync"
 
 	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/settings"
@@ -55,7 +54,6 @@ type Route struct {
 
 // New Create New Router from env file default: '.env'
 func New(envFiles ...string) *Router {
-	var wg sync.WaitGroup
 	app := &Router{
 		Routes: map[int][]Route{},
 		DefaultRoute: func(c *Context) {
@@ -63,22 +61,10 @@ func New(envFiles ...string) *Router {
 		},
 	}
 
-	// check flags
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		utils.GetTagsAndPrint()
-	}()
 	// load translations
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		LoadTranslations()
-	}()
-	wg.Wait()
+	go LoadTranslations()
 
-
-	// load Envs
+	// load Envs and Init Settings Config
 	if len(envFiles) > 0 {
 		app.LoadEnv(envFiles...)
 	} else {
@@ -90,6 +76,10 @@ func New(envFiles ...string) *Router {
 			app.LoadEnv(".env")
 		}
 	}
+	// after load env to override struct values
+	utils.GetTagsAndPrint()
+
+
 	// Init DB
 	err := orm.InitDB()
 	if err != nil {

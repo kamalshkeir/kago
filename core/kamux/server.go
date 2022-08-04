@@ -32,6 +32,7 @@ func (router *Router) initServer() {
 		handler = router
 	}
 	host := settings.Config.Host
+		
 	if host == "" {
 		host = "127.0.0.1"
 	}
@@ -46,7 +47,7 @@ func (router *Router) initServer() {
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 20 * time.Second,
 		IdleTimeout:  20 * time.Second,
-	}	
+	}
 	router.Server=&server
 }
 
