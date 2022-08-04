@@ -1,7 +1,6 @@
 package kamux
 
 import (
-	"flag"
 	"net/http"
 	"os"
 	"regexp"
@@ -56,7 +55,6 @@ type Route struct {
 
 // New Create New Router from env file default: '.env'
 func New(envFiles ...string) *Router {
-	utils.PrintServerStart()
 	var wg sync.WaitGroup
 	app := &Router{
 		Routes: map[int][]Route{},
@@ -64,7 +62,23 @@ func New(envFiles ...string) *Router {
 			c.Status(404).Text("Page Not Found")
 		},
 	}
-	
+
+	// check flags
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		utils.GetTagsAndPrint()
+	}()
+	// load translations
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		LoadTranslations()
+	}()
+	wg.Wait()
+
+
+	// load Envs
 	if len(envFiles) > 0 {
 		app.LoadEnv(envFiles...)
 	} else {
@@ -76,41 +90,7 @@ func New(envFiles ...string) *Router {
 			app.LoadEnv(".env")
 		}
 	}
-
-	// check flags
-	wg.Add(1)
-	go func() {
-		h := flag.String("h","localhost","overwrite host")
-		p := flag.String("p","9313","overwrite port number")
-		logs := flag.Bool("logs",false,"overwrite settings.Config.Logs for router /logs")
-		monitoring := flag.Bool("monitoring",false,"set settings.Config.Monitoring for prometheus and grafana /metrics")
-		docs := flag.Bool("docs",false,"set settings.Config.Docs for prometheus and grafana /docs")
-		profiler := flag.Bool("profiler",false,"set settings.Config.Profiler for pprof  /debug/pprof")
-		flag.Parse()
-		
-		settings.Config.Logs=*logs
-		settings.Config.Monitoring=*monitoring
-		settings.Config.Docs=*docs
-		settings.Config.Profiler=*profiler
-		if *p != "9313" {
-			settings.Config.Port=*p
-		}
-		if *h != "localhost" && *h != "127.0.0.1" && *h != "" {
-			settings.Config.Host=*h
-		} else {
-			settings.Config.Host="localhost"
-		}
-		wg.Done()
-	}()
-	
-	// load translations
-	wg.Add(1)
-	go func() {
-		LoadTranslations()
-		wg.Done()
-	}()
-	wg.Wait()
-
+	// Init DB
 	err := orm.InitDB()
 	if err != nil {
 		if settings.Config.Db.Name == "" && settings.Config.Db.DSN == "" {

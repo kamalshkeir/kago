@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"html/template"
 	"io"
@@ -404,6 +405,20 @@ func Difference[T comparable](slice1 []T, slice2 []T) []T {
 }
 
 
+func GetOutboundIP() string {
+    conn, err := net.Dial("udp", "8.8.8.8:80")
+    if err != nil {
+        return ""
+    }
+    defer conn.Close()
+
+    localAddr := conn.LocalAddr().(*net.UDPAddr)
+	if localAddr.IP.To4().IsPrivate() {
+		return localAddr.IP.String()
+	}
+    return ""
+}
+
 func GetLocalPrivateIps() []string {
 	ips := []string{}
 	host, _ := os.Hostname()
@@ -540,7 +555,27 @@ func GetIpCountry(ip string) string {
 	return ""
 }
 
-func PrintServerStart() {
+func GetTagsAndPrint() {
+	h := flag.String("h","localhost","overwrite host")
+	p := flag.String("p","9313","overwrite port number")
+	logs := flag.Bool("logs",false,"overwrite settings.Config.Logs for router /logs")
+	monitoring := flag.Bool("monitoring",false,"set settings.Config.Monitoring for prometheus and grafana /metrics")
+	docs := flag.Bool("docs",false,"set settings.Config.Docs for prometheus and grafana /docs")
+	profiler := flag.Bool("profiler",false,"set settings.Config.Profiler for pprof  /debug/pprof")
+	flag.Parse()
+	
+	settings.Config.Logs=*logs
+	settings.Config.Monitoring=*monitoring
+	settings.Config.Docs=*docs
+	settings.Config.Profiler=*profiler
+	if *p != "9313" {
+		settings.Config.Port=*p
+	}
+	if *h != "localhost" && *h != "127.0.0.1" && *h != "" {
+		settings.Config.Host=*h
+	} else {
+		settings.Config.Host="localhost"
+	}
 	host := settings.Config.Host
 	if host == "" {
 		host = "127.0.0.1"
