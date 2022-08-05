@@ -300,7 +300,7 @@ func handleMigrationInt(mi *migrationInput) {
 			case "index":
 				*mi.indexes = append(*mi.indexes, mi.fName)
 			case "unique":
-				(*mi.uindexes)[mi.fName] = mi.fName
+				unique = " UNIQUE"
 			case "default":
 				defaultt = " DEFAULT 0"
 			default:
@@ -352,9 +352,9 @@ func handleMigrationInt(mi *migrationInput) {
 				if strings.Contains(strings.ToLower(sp[1]), "len") {
 					switch mi.dialect {
 					case SQLITE, "":
-						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", 1)
+						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", -1)
 					case POSTGRES, MYSQL:
-						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", 1)
+						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", -1)
 					default:
 						logger.Error("check not handled for dialect:", mi.dialect)
 					}
@@ -413,7 +413,7 @@ func handleMigrationInt(mi *migrationInput) {
 			(*mi.res)[mi.fName] += defaultt
 		}
 		if len(checks) > 0 {
-			joined := strings.TrimSpace(strings.Join(checks, " AND"))
+			joined := strings.TrimSpace(strings.Join(checks, " AND "))
 			(*mi.res)[mi.fName] += " CHECK(" + joined + ")"
 		}
 	}
@@ -521,7 +521,7 @@ func handleMigrationString(mi *migrationInput) {
 			case "index":
 				*mi.indexes = append(*mi.indexes, mi.fName)
 			case "unique":
-				(*mi.uindexes)[mi.fName] = mi.fName
+				unique = " UNIQUE"
 			case "default":
 				defaultt = " DEFAULT ''"
 			default:
@@ -601,9 +601,9 @@ func handleMigrationString(mi *migrationInput) {
 				if strings.Contains(strings.ToLower(sp[1]), "len") {
 					switch mi.dialect {
 					case SQLITE, "":
-						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", 1)
+						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", -1)
 					case POSTGRES, MYSQL:
-						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", 1)
+						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", -1)
 					default:
 						logger.Error("check not handled for dialect:", mi.dialect)
 					}
@@ -638,7 +638,7 @@ func handleMigrationString(mi *migrationInput) {
 		(*mi.res)[mi.fName] += defaultt
 	}
 	if len(checks) > 0 {
-		joined := strings.TrimSpace(strings.Join(checks, " AND"))
+		joined := strings.TrimSpace(strings.Join(checks, " AND "))
 		(*mi.res)[mi.fName] += " CHECK(" + joined + ")"
 	}
 }
@@ -658,7 +658,7 @@ func handleMigrationFloat(mi *migrationInput) {
 			case "index":
 				*mi.indexes = append(*mi.indexes, mi.fName)
 			case "unique":
-				(*mi.uindexes)[mi.fName] = mi.fName
+				(*mi.uindexes)[mi.fName] = " UNIQUE"
 			case "default":
 				mtags["default"] = " DEFAULT 0.00"
 			default:
@@ -735,9 +735,9 @@ func handleMigrationFloat(mi *migrationInput) {
 				if strings.Contains(strings.ToLower(sp[1]), "len") {
 					switch mi.dialect {
 					case SQLITE, "":
-						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", 1)
+						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", -1)
 					case POSTGRES, MYSQL:
-						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", 1)
+						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", -1)
 					default:
 						logger.Error("check not handled for dialect:", mi.dialect)
 					}
@@ -854,9 +854,9 @@ func handleMigrationTime(mi *migrationInput) {
 				if strings.Contains(strings.ToLower(sp[1]), "len") {
 					switch mi.dialect {
 					case SQLITE, "":
-						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", 1)
+						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", -1)
 					case POSTGRES, MYSQL:
-						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", 1)
+						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", -1)
 					default:
 						logger.Error("check not handled for dialect:", mi.dialect)
 					}

@@ -114,12 +114,15 @@ var AllModelsGet = func(c *kamux.Context) {
 			}
 		}
 	}
+	dbCols := orm.GetAllColumns(model, orm.DefaultDB)
+
 	if settings.Config.Db.Type != "" {
 		c.Html("admin/admin_all_models.html", map[string]any{
 			"dbType":     settings.Config.Db.Type,
 			"model_name": model,
 			"rows":       rows,
 			"columns":    t.ModelTypes,
+			"dbcolumns":  dbCols,
 			"pk":         t.Pk,
 		})
 	} else {
@@ -290,6 +293,7 @@ var SingleModelGet = func(c *kamux.Context) {
 	if t.Pk != "" && t.Pk != "id" {
 		idString = t.Pk
 	}
+
 	modelRow, err := orm.Table(model).Where(idString+" = ?", id).One()
 	if logger.CheckError(err) {
 		c.Status(http.StatusBadRequest).Json(map[string]any{
@@ -297,11 +301,13 @@ var SingleModelGet = func(c *kamux.Context) {
 		})
 		return
 	}
+	dbCols := orm.GetAllColumns(model, orm.DefaultDB)
 	c.Html("admin/admin_single_model.html", map[string]any{
 		"model":      modelRow,
 		"model_name": model,
 		"id":         id,
 		"columns":    t.ModelTypes,
+		"dbcolumns":  dbCols,
 		"pk":         t.Pk,
 	})
 }

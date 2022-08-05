@@ -175,6 +175,9 @@ func (router *Router) initDefaultUrls() {
 }
 
 func (router *Router) cloneTemplatesAndStatic() {
+	if settings.Config.Embed.Static && settings.Config.Embed.Templates {
+		return
+	}
 	var generated bool
 
 	new_name := "assets"
