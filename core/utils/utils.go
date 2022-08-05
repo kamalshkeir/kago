@@ -431,6 +431,20 @@ func GetLocalPrivateIps() []string {
 	return ips
 }
 
+func GetOutboundIP() string {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return ""
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	if localAddr.IP.To4().IsPrivate() {
+		return localAddr.IP.String()
+	}
+	return ""
+}
+
 func randomizeStringSlice(slice []string) []string {
 	mrand.Seed(time.Now().UnixNano())
 	mrand.Shuffle(len(slice), func(i, j int) {
