@@ -1,5 +1,5 @@
 <div align="center">
-	<img src="./images/logo.png" width="auto" style="margin:0 auto 0 auto;"/>
+	<img src="https://user-images.githubusercontent.com/54605903/183331771-50e1bb95-2a75-4472-aebc-14e6b44f2a98.png" width="auto" style="margin:0 auto 0 auto;"/>
 </div>
 <br>
 
@@ -803,8 +803,9 @@ type Bookmark struct {
 	Id      uint   `orm:"pk"`
 	UserId  int    `orm:"fk:users.id:cascade:setnull"` // options cascade,(donothing,noaction),(setnull,null),(setdefault,default)
 	IsDone	bool   
-	ToCheck string `orm:"size:50; notnull; check: len(to_check) > 10; check: is_used=true"`  // column type will be VARCHAR(50)
+	ToCheck string `orm:"size:50; notnull; check: len(to_check) > 2 AND len(to_check) < 10; check: is_done=true"`  // column type will be VARCHAR(50)
 	Content string `orm:"text"` // column type will be TEXT, and will have Rich Text Editor in admin panel
+	UpdatedAt time.Time `orm:"update"` // will update when model updated, handled by triggers for sqlite and postgres, and builtin mysql
 	CreatedAt time.Time `orm:"now"` // now is default to current timestamp and of type TEXT for sqlite
 }
 
@@ -832,7 +833,7 @@ CREATE TABLE IF NOT EXISTS bookmarks (
 ##### And in the admin panel, you can see that 'bookmarks' table created, with a rich text editor for the column 'content'
 ##### this is because all columns with field type TEXT will be rendered as a rich text editor automatically
 <div align="center">
-	<img src="./images/model.png" width="auto" style="margin:0 auto 0 auto;"/>
+	<img src="https://user-images.githubusercontent.com/54605903/183331872-85647169-0d48-4bca-a79b-c2f87b61fb13.png" width="auto" style="margin:0 auto 0 auto;"/>
 </div>
 
 
