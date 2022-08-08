@@ -35,7 +35,7 @@ You can literally get up and running using two lines of code, easier than Django
 
 Kago offer you :
 - NEW: <strong>[Watcher/Auto-Reloader](#watcher--auto-reloader)</strong> 
-- NEW: <strong>[orm.AutoMigrate](#usage)</strong> will handle all your migrations from a struct model, if you remove a field from the migrated struct, you will be prompted to do the migration, it can handle foreign_keys, checks, indexes,...
+- NEW: <strong>[orm.AutoMigrate](#automigrate-usage)</strong> will handle all your migrations from a struct model, if you remove a field from the migrated struct, you will be prompted to do the migration, it can handle foreign_keys, checks, indexes,...
 - Fully editable [CRUD Admin Dashboard](#generated-admin-dashboard) (assets folder)
 - Realtime [Logs](#logs) at `/logs` running with flag `go run main.go --logs`
 - Convenient [Router](#routing) that handle params with regex type checking, Websockets and SSE protocols also 
@@ -805,7 +805,7 @@ Foreign Keys 'on_delete' and 'on_update' options: cascade,(donothing,noaction),(
 
 ---
 
-#Usage :
+# AutoMigrate Usage :
 ```go
 
 orm.AutoMigrate[T comparable](tableName string, dbName ...string) error 
