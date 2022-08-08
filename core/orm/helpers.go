@@ -64,17 +64,17 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 
 	diff := utils.Difference(fields, cols)
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		// add or remove field from struct
 		handleAddOrRemove[T](to_table_name, fields, cols, diff, db, ftypes, ftags,pk)
-		wg.Done()
 	}()
-
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		// rename field
 		handleRename(to_table_name, fields, cols, diff, db, ftags)
-		wg.Done()
 	}()
 	wg.Wait()
 	
@@ -561,7 +561,13 @@ func handleRename(to_table_name string, fields, cols, diff []string, db *Databas
 	if len(new) > 0 && len(new) == len(old) {
 		if len(new) == 1 {
 			choice := input.Input(input.Yellow, "⚠️ you renamed '"+old[0]+"' to '"+new[0]+"', execute these changes to db ? (Y/n):")
-			if utils.SliceContains([]string{"yes", "Y", "y"}, choice) {
+			if utils.SliceContains([]string{"yes", "Y", "y"}, choice) {	
+				if tags,ok := ftags[new[0]];ok {
+					if utils.SliceContains(tags,"update") {
+						logger.Printfs("ercannot rename update_at field, triggers must be renamed")
+						return
+					}
+				}
 				statement := "ALTER TABLE " + to_table_name + " RENAME COLUMN " + old[0] + " TO " + new[0]
 				if len(databases) > 1 && db.Name == "" {
 					ddb := input.Input(input.Blue, "> There are more than one database connected, database name:")
