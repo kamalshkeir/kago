@@ -805,7 +805,9 @@ Foreign Keys 'on_delete' and 'on_update' options: cascade,(donothing,noaction),(
 
 ---
 
-# AutoMigrate Usage :
+# AutoMigrate Usage
+
+
 ```go
 
 orm.AutoMigrate[T comparable](tableName string, dbName ...string) error 
