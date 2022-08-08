@@ -34,21 +34,22 @@ KaGo is a high-level web framework, that encourages clean and rapid development.
 You can literally get up and running using two lines of code, easier than Django and with a compiled language performance.
 
 Kago offer you :
-- NEW: <strong>orm.AutoMigrate</strong> will handle all your migrations from a struct model, if you remove a field from the migrated struct, you will be prompted to do the migration, it can handle foreign_keys, checks, indexes,...
-- Fully editable CRUD Admin Dashboard (assets folder)
-- Ready to use Progressive Web App Support (pure js, without workbox)
-- Realtime Logs at `/logs` running with flag `go run main.go --logs`
-- Convenient router that handle params with regex type checking, Websockets and SSE protocols also 
-- Interactive Shell `go run main.go shell`
-- Performant and Easy ORM and SQL builder using go generics (working with sqlite, mysql and postgres)
-- OpenApi docs at `/docs` running with flag `go run main.go --docs` with dedicated package docs to help you manipulate docs.json file
+- NEW: <strong>[Watcher/Auto-Reloader](#watcher--auto-reloader)</strong> 
+- NEW: <strong>[orm.AutoMigrate](#usage)</strong> will handle all your migrations from a struct model, if you remove a field from the migrated struct, you will be prompted to do the migration, it can handle foreign_keys, checks, indexes,...
+- Fully editable [CRUD Admin Dashboard](#generated-admin-dashboard) (assets folder)
+- Realtime [Logs](#logs) at `/logs` running with flag `go run main.go --logs`
+- Convenient [Router](#routing) that handle params with regex type checking, Websockets and SSE protocols also 
+- [Interactive Shell](#shell) `go run main.go shell`
+- Maybe the easiest [ORM and SQL builder](#orm) using go generics (working with sqlite, mysql and postgres)
+- OpenApi [docs](#openapi-documentation-ready-if-enabled-using-flags-or-settings-vars) at `/docs` running with flag `go run main.go --docs` with dedicated package docs to help you manipulate docs.json file
 - AES encryption for authentication sessions using package encryptor
 - Argon2 hashing using package hash
-- EnvLoader using package envloader directly load to struct
-- Internal Eventbus using go routines and channels (very powerful), use cases are endless
-- Monitoring Prometheus/grafana `/metrics` running with flag `go run main.go --monitoring`
-- Profiler golang official debug pprof `/debug/pprof/(heap|profile\trace)` running with flag `go run main.go --profiler`
-- Embed your application static and template files
+- [EnvLoader](#env-loader) using package envloader directly load to struct
+- [Internal Eventbus](#eventbus-internal) using go routines and channels (very powerful), use cases are endless
+- [Monitoring Prometheus/grafana](#grafana-with-prometheus-monitoring) `/metrics` running with flag `go run main.go --monitoring`
+- [Profiler golang official](#pprof-official-golang-profiling-tools) debug pprof `/debug/pprof/(heap|profile\trace)` running with flag `go run main.go --profiler`
+- [Embed](#build-single-binary-with-all-static-and-html-files) your application static and template files
+- Ready to use Progressive Web App Support (pure js, without workbox)
 
 
 Many features will be added in the future, like:
@@ -106,9 +107,20 @@ go run main.go shell
 # default: -h localhost -p 9313
 go run main.go -h 0.0.0.0 -p 3333
 ```
-###### YOU ARE DONE, you can visit /admin
+## YOU ARE DONE, you can visit /admin
 
 ---
+
+
+## Watcher / auto-reloader 
+```shell
+go install github.com/kamalshkeir/kago/cmd/kago
+```
+Then you can run:
+```shell
+kago --root C:\Path\To\Your\Folder --watch assets/templates,assets/static
+```
+
 
 # Generated Admin Dashboard
 ##### an easy way to create your own theme, is to modify files inside assets , upload the assets folder into a repo and set these 2 values:
@@ -793,7 +805,7 @@ Foreign Keys 'on_delete' and 'on_update' options: cascade,(donothing,noaction),(
 
 ---
 
-# Usage :
+#Usage :
 ```go
 
 orm.AutoMigrate[T comparable](tableName string, dbName ...string) error 
