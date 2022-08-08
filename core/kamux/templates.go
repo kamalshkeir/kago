@@ -339,7 +339,9 @@ var functions = template.FuncMap{
 				}
 			}
 		default:
-			logger.Error("type of", t, "is not handled,type is:", v)
+			if v != nil {
+				logger.Error("type of", t, "is not handled,type is:", v)
+			}
 			valueToReturn = ""
 		}
 		return valueToReturn

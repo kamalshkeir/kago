@@ -21,6 +21,31 @@ func Migrate() error {
 	return nil
 }
 
+func checkUpdatedAtTrigger(dialect,tableName,col,pk string) map[string][]string {
+	triggers := map[string][]string{}
+	t := "(datetime('now','localtime'))"
+	if dialect == "sqlite" {
+		st:="CREATE TRIGGER "
+		st+=tableName+"_update_trig AFTER UPDATE ON "+tableName
+		st+=" BEGIN update "+tableName+ " SET "+ col + " = " +  t 
+		st+=" WHERE " + pk + " = " + "NEW."+pk+";"
+		st+="End;"
+		triggers[col]=[]string{st}
+	} else if dialect == "postgres" {	
+		st:="CREATE OR REPLACE FUNCTION updated_at_trig() RETURNS trigger AS $$"
+		st+=" BEGIN NEW."+col+" = now();RETURN NEW;"
+		st+="END;$$ LANGUAGE plpgsql;"
+		triggers[col]=[]string{st}
+		trigCreate := "CREATE OR REPLACE TRIGGER "+tableName+"_update_trig"
+		trigCreate += " BEFORE UPDATE ON public."+tableName
+		trigCreate += " FOR EACH ROW EXECUTE PROCEDURE updated_at_trig();"
+		triggers[col]=append(triggers[col], trigCreate)
+	} else {
+		return nil
+	}
+	return triggers
+}
+
 func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 	dialect := db.Dialect
 	s := reflect.ValueOf(new(T)).Elem()
@@ -28,7 +53,7 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 	mFieldName_Type := map[string]string{}
 	mFieldName_Tags := map[string][]string{}
 	cols := []string{}
-
+	pk := ""
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		fname := typeOfT.Field(i).Name
@@ -38,7 +63,10 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 		mFieldName_Type[fname] = ftype.Name()
 		if ftag, ok := typeOfT.Field(i).Tag.Lookup("orm"); ok {
 			tags := strings.Split(ftag, ";")
-			for i := range tags {
+			for i,tag := range tags {
+				if tag == "autoinc" || tag == "pk" {
+					pk = fname
+				}
 				tags[i] = strings.TrimSpace(tags[i])
 			}
 			mFieldName_Tags[fname] = tags
@@ -53,6 +81,7 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 	for _, fName := range cols {
 		if ty, ok := mFieldName_Type[fName]; ok {
 			mi = &migrationInput{
+				table: tableName,
 				dialect:  dialect,
 				fName:    fName,
 				fType:    ty,
@@ -80,8 +109,10 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 		}
 	}
 	statement := prepareCreateStatement(tableName, res, fkeys, cols, db, mFieldName_Tags)
+	var triggers map[string][]string
 	tbFound := false
-	pk := ""
+	
+	// check if table in memory
 	for _, t := range db.Tables {
 		if t.Name == tableName {
 			tbFound = true
@@ -96,14 +127,17 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 			}
 		}
 	}
-	for col, tags := range mFieldName_Tags {
-		for _, tag := range tags {
-			if tag == "autoinc" || tag == "pk" {
-				pk = col
-				break
+	// check for update field to create a trigger
+	if db.Dialect != MYSQL {
+		for col, tags := range mFieldName_Tags {
+			for _, tag := range tags {
+				if tag == "update" {
+					triggers = checkUpdatedAtTrigger(db.Dialect,tableName,col,pk)	
+				}
 			}
 		}
 	}
+	
 	if !tbFound {
 		db.Tables = append(db.Tables, TableEntity{
 			Name:       tableName,
@@ -128,6 +162,20 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 		return err
 	}
 	if !strings.HasSuffix(tableName, "_temp") {
+		if len(triggers) > 0 {
+			for _,stats := range triggers {
+				for _,st := range stats {
+					if Debug {
+						logger.Printfs("trigger updated_at %s: %s",tableName, st)
+					}
+					err := Exec(db.Name,st)
+					if logger.CheckError(err) {
+						logger.Printfs("rdtrigger updated_at %s: %s",tableName, st)
+						return err
+					}
+				}
+			}
+		}
 		statIndexes := ""
 		if len(indexes) > 0 {
 			if len(indexes) > 1 {
@@ -166,7 +214,7 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 			}
 			_, err := db.Conn.Exec(statIndexes)
 			if logger.CheckError(err) {
-				logger.Printfs("indexes: %s", statIndexes)
+				logger.Printfs("rdindexes: %s", statIndexes)
 				return err
 			}
 		}
@@ -176,7 +224,7 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 			}
 			_, err := db.Conn.Exec(mstatIndexes)
 			if logger.CheckError(err) {
-				logger.Printfs("mindexes: %s", mstatIndexes)
+				logger.Printfs("rdmindexes: %s", mstatIndexes)
 				return err
 			}
 		}
@@ -186,7 +234,7 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 			}
 			_, err := db.Conn.Exec(ustatIndexes)
 			if logger.CheckError(err) {
-				logger.Printfs("uindexes: %s", ustatIndexes)
+				logger.Printfs("rduindexes: %s", ustatIndexes)
 				return err
 			}
 		}
@@ -263,6 +311,7 @@ func AutoMigrate[T comparable](tableName string, dbName ...string) error {
 }
 
 type migrationInput struct {
+	table    string
 	dialect  string
 	fName    string
 	fType    string
@@ -433,7 +482,13 @@ func handleMigrationBool(mi *migrationInput) {
 			switch sp[0] {
 			case "default":
 				if sp[1] != "" {
-					defaultt = " DEFAULT " + sp[1]
+					if sp[1] == "true" {
+						defaultt = " DEFAULT 1"
+					} else if sp[1] == "false" {
+						defaultt = " DEFAULT 0"
+					} else {
+						defaultt = " DEFAULT " + sp[1]
+					}
 				} else {
 					defaultt = " DEFAULT false"
 				}
@@ -789,7 +844,7 @@ func handleMigrationTime(mi *migrationInput) {
 			case "now":
 				switch mi.dialect {
 				case SQLITE, "":
-					defaultt = "TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP"
+					defaultt = "TEXT NOT NULL DEFAULT (datetime('now','localtime'))"
 				case POSTGRES:
 					defaultt = "TIMESTAMP NOT NULL DEFAULT (now())"
 				case MYSQL:
@@ -800,9 +855,9 @@ func handleMigrationTime(mi *migrationInput) {
 			case "update":
 				switch mi.dialect {
 				case SQLITE, "":
-					defaultt = "TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+					defaultt = "TEXT NOT NULL DEFAULT (datetime('now','localtime'))"
 				case POSTGRES:
-					defaultt = "TIMESTAMP NOT NULL DEFAULT (now()) ON UPDATE (now())"
+					defaultt = "TIMESTAMP NOT NULL DEFAULT (now())"
 				case MYSQL:
 					defaultt = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
 				default:
