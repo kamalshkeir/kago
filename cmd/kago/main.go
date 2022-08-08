@@ -2,11 +2,11 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/kamalshkeir/kago/core/utils/katcher"
+	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
 func main() {
@@ -15,7 +15,7 @@ func main() {
 	every := flag.Int("every",313,"time in milliseconds")
 	flag.Parse()
 	if root == nil || *root == "" {
-		fmt.Println("error: root tag not specified")
+		logger.Printfs("rderror: root tag not specified")
 		return
 	}
 	sp := strings.Split(*watch,"/")

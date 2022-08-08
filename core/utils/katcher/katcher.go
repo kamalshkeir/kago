@@ -8,6 +8,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
 func changesDetected(since time.Time,root string,dirs ...string) bool {
@@ -121,7 +123,7 @@ func Watch(every time.Duration,root string, dirs ...string) {
 		}
 
 		if stop != nil {
-			fmt.Println("ylRestarting...")
+			logger.Printfs("ylRestarting...")
 			stop()
 		}
 		stop, err = Start(
@@ -129,9 +131,9 @@ func Watch(every time.Duration,root string, dirs ...string) {
 			LaunchCommand(projName),
 			nil,
 		)
-		fmt.Println("grReady")
+		logger.Printfs("grReady")
 		if err != nil {
-			fmt.Println("error katcher:",err)
+			logger.Printfs("error katcher:",err)
 		}
 		lastScan = time.Now()
 		time.Sleep(every)
