@@ -44,7 +44,6 @@ var Auth = func(handler kamux.Handler) kamux.Handler {
 		if SESSION_ENCRYPTION {
 			session, err = encryptor.Decrypt(session)
 			if err != nil {
-				c.DeleteCookie("session")
 				handler(c)
 				return
 			}
@@ -80,7 +79,6 @@ var Admin = func(handler kamux.Handler) kamux.Handler {
 		if SESSION_ENCRYPTION {
 			session, err = encryptor.Decrypt(session)
 			if err != nil {
-				c.DeleteCookie("session")
 				c.Status(http.StatusTemporaryRedirect).Redirect("/admin/login")
 				return
 			}
