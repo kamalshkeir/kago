@@ -30,7 +30,6 @@ func changesDetected(since time.Time,root string,dirs ...string) bool {
 		})
 	} else {
 		for _,d := range dirs {
-			logger.Success("Watching",root+"/"+d)
 			err = filepath.Walk(root+"/"+d, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					return err
@@ -45,7 +44,7 @@ func changesDetected(since time.Time,root string,dirs ...string) bool {
 			})
 		}
 	}
-	logger.CheckError(err)
+	if err != nil {return false}
 	return changed
 }
 
@@ -140,7 +139,6 @@ func Watch(every time.Duration,root string, dirs ...string) {
 			LaunchCommand(projName),
 			nil,
 		)
-		logger.Printfs("grReady")
 		if err != nil {
 			logger.Printfs("error katcher:",err)
 		}
