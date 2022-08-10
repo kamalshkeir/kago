@@ -491,19 +491,19 @@ app.NewFuncMap(funcName string, function any)
 
 /* FUNC MAPS */
 var functions = template.FuncMap{
-	"isBool": func(something any) bool {
-	"isTrue": func(something any) bool {
-	"contains": func(str string, substrings ...string) bool {
-	"startWith": func(str string, substrings ...string) bool {
-	"finishWith": func(str string, substrings ...string) bool {
-	"generateUUID": func() template.HTML {
-	"add": func(a int,b int) int {
-	"safe": func(str string) template.HTML {
-	"timeFormat":func (t any) string {
-	"truncate": func(str any,size int) any {
-	"csrf_token":func (r *http.Request) template.HTML {
-	"translateFromRequest":func (translation string, request *http.Request) any {
-	"translateFromLang":func (translation,language  string) any {
+	"contains": func(str string, substrings ...string) bool 
+	"startWith": func(str string, substrings ...string) bool 
+	"finishWith": func(str string, substrings ...string) bool 
+	"generateUUID": func() template.HTML 
+	"add": func(a int,b int) int 
+	"safe": func(str string) template.HTML 
+	"timeFormat":func (t any) string 
+	"truncate": func(str any,size int) any 
+	"csrf_token":func (r *http.Request) template.HTML // generate input with id csrf_token
+	"date": func(t any) string // dd Month yyyy
+	"slug": func(str string) string
+	"translateFromLang":func (translation,language  string) any 
+	"translateFromRequest":func (translation string, request *http.Request) any 
 }
 
 ```

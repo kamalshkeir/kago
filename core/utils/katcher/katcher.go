@@ -14,9 +14,9 @@ import (
 
 func changesDetected(since time.Time,root string,dirs ...string) bool {
 	var changed bool
-
+	var err error
 	if len(dirs) == 0 {
-		filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		err = filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -30,7 +30,8 @@ func changesDetected(since time.Time,root string,dirs ...string) bool {
 		})
 	} else {
 		for _,d := range dirs {
-			filepath.Walk(root+"/"+d, func(path string, info os.FileInfo, err error) error {
+			logger.Success("Watching",root+"/"+d)
+			err = filepath.Walk(root+"/"+d, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					return err
 				}
@@ -44,6 +45,7 @@ func changesDetected(since time.Time,root string,dirs ...string) bool {
 			})
 		}
 	}
+	logger.CheckError(err)
 	return changed
 }
 
@@ -109,6 +111,13 @@ func Watch(every time.Duration,root string, dirs ...string) {
 
 	ssp := strings.Split(root,"/")
 	projName := ssp[len(ssp)-1]
+	if projName == "" {
+		projName = ssp[len(ssp)-2]
+		if projName == "" {
+			logger.Error(projName,"is empty")
+			return
+		}
+	}
 	if runtime.GOOS == "windows" {
 		projName+=".exe"
 	}

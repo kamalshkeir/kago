@@ -225,58 +225,6 @@ func (router *Router) cloneTemplatesAndStatic() {
 
 /* FUNC MAPS */
 var functions = template.FuncMap{
-	"isBool": func(something any) bool {
-		res := false
-		switch v := something.(type) {
-		case string:
-			if v == "true" || v == "1" || v == "false" || v == "0" {
-				res = true
-			}
-		case int:
-			if v == 1 || v == 0 {
-				res = true
-			}
-		case int64:
-			if int(v) == 1 || v == 0 {
-				res = true
-			}
-		case bool:
-			res = true
-		case uint64:
-			if int(v) == 1 || v == 0 {
-				res = true
-			}
-		default:
-			res = false
-		}
-		return res
-	},
-	"isTrue": func(something any) bool {
-		res := false
-		switch v := something.(type) {
-		case string:
-			if v == "true" || v == "1" {
-				res = true
-			}
-		case int:
-			if v == 1 {
-				res = true
-			}
-		case int64:
-			if int(v) == 1 {
-				res = true
-			}
-		case uint64:
-			if int(v) == 1 {
-				res = true
-			}
-		case bool:
-			res = v
-		default:
-			res = false
-		}
-		return res
-	},
 	"contains": func(str string, substrings ...string) bool {
 		for _, substr := range substrings {
 			if strings.Contains(strings.ToLower(str), substr) {
@@ -345,6 +293,52 @@ var functions = template.FuncMap{
 			valueToReturn = ""
 		}
 		return valueToReturn
+	},
+	"date": func(t any) string {
+		dString := "02 Jan 2006"
+		valueToReturn := ""
+		switch v := t.(type) {
+		case time.Time:
+			if !v.IsZero() {
+				valueToReturn = v.Format(dString)
+			} else {
+				valueToReturn = time.Now().Format(dString)
+			}
+		case string:
+			if len(v) >= len(dString) && strings.Contains(v[:13], "T") {
+				p, err := time.Parse(dString, v)
+				if logger.CheckError(err) {
+					valueToReturn = time.Now().Format(dString)
+				} else {
+					valueToReturn = p.Format(dString)
+				}
+			} else {
+				if len(v) >= 16 {
+					p, err := time.Parse(dString, v[:16])
+					if logger.CheckError(err) {
+						valueToReturn = time.Now().Format(dString)
+					} else {
+						valueToReturn = p.Format(dString)
+					}
+				}
+			}
+		default:
+			if v != nil {
+				logger.Error("type of", t, "is not handled,type is:", v)
+			}
+			valueToReturn = ""
+		}
+		return valueToReturn
+	},
+	"slug": func(str string) string {
+		if len(str) == 0 {
+			return ""
+		}
+		res, err := utils.ToSlug(str)
+		if err != nil {
+			return ""
+		}
+		return res
 	},
 	"truncate": func(str any, size int) any {
 		switch v := str.(type) {
