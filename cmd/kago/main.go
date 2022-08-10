@@ -18,6 +18,6 @@ func main() {
 		logger.Printfs("rderror: root tag not specified")
 		return
 	}
-	sp := strings.Split(*watch,"/")
+	sp := strings.Split(*watch,",")
 	katcher.Watch(time.Duration(*every) * time.Millisecond,*root,sp...)
 }
