@@ -125,7 +125,11 @@ func (c *Context) Html(template_name string, data map[string]any) {
 	}
 	c.WriteHeader(c.status)
 	err := allTemplates.ExecuteTemplate(c.ResponseWriter, template_name, data)
-	logger.CheckError(err)
+	if logger.CheckError(err) {
+		for _,t := range allTemplates.Templates() {
+			logger.Info("template:",t.Name())
+		}
+	}
 }
 
 // StreamResponse send SSE Streaming Response

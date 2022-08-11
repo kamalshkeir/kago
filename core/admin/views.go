@@ -29,7 +29,7 @@ var IndexView = func(c *kamux.Context) {
 }
 
 var LoginView = func(c *kamux.Context) {
-	c.Html("admin/admin_login.html", map[string]any{})
+	c.Html("admin/admin_login.html", nil)
 }
 
 var LoginPOSTView = func(c *kamux.Context) {
@@ -341,51 +341,61 @@ var UpdateRowPost = func(c *kamux.Context) {
 		return
 	}
 
+	ignored := []string{idString, "uuid", "file", "image", "photo", "img", "fichier", "row_id", "table"}
+	toUpdate := map[string]any{}
 	for key, val := range data {
-		switch key {
-		case "id", "_id", "uuid", "file", "image", "photo", "img", "fichier", "row_id", "table":
-		case "isadmin", "is_admin", "isAdmin", "IsAdmin":
-			isAdminString := fmt.Sprintf("%v", modelDB[key])
-			if isAdminString == val[0] {
+		if !utils.SliceContains(ignored,key) {
+			if modelDB[key] == val[0] {
+				// no changes for bool
 				continue
-			} else {
-				_, err := orm.Table(data["table"][0]).Where(idString+" = ?", id).Set(key+" = ?", val[0])
+			}
+			toUpdate[key]=val[0]
+		} 
+	}
 
-				if err != nil {
-					c.Status(http.StatusBadRequest).Json(map[string]any{
-						"error": err.Error(),
-					})
-					return
-				}
-				c.Json(map[string]any{
-					"success": key + " successfully Updated !",
-				})
-				return
+	s := ""
+	values := []any{}
+	if len(toUpdate) > 0 {
+		for col,v := range toUpdate {
+			if s == "" {
+				s += col + "= ?"
+			} else {
+				s += ","+col + "= ?"
 			}
-		default:
-			if modelDB[key] != val[0] {
-				_, err := orm.Table(data["table"][0]).Where(idString+" = ?", id).Set(key+" = ?", val[0])
-				if err != nil {
-					c.Json(map[string]any{
-						"error": err.Error(),
-					})
-					return
-				}
-			}
-			c.Json(map[string]any{
-				"success": key + " Updated successfully !",
-				"data":    data,
+			values = append(values, v) 
+		}
+	}
+	if s != "" {
+		_, err := orm.Table(data["table"][0]).Where(idString+" = ?", id).Set(s,values...)
+		if err != nil {
+			c.Status(http.StatusBadRequest).Json(map[string]any{
+				"error": err.Error(),
 			})
 			return
-		} //switch
+		}
 	}
-
+	s = ""
 	if len(files) > 0 {
-		c.Json(map[string]any{
-			"success": "Update Done",
-		})
+		for f := range files {
+			if s == "" {
+				s += f
+			} else {
+				s += ","+f
+			}
+		}
 	}
-
+	if len(toUpdate) > 0 {
+		for k := range toUpdate {
+			if s == "" {
+				s += k
+			} else {
+				s += ","+k
+			}
+		}
+	}
+	c.Json(map[string]string{
+		"success":s+" updated successfully",
+	})
 }
 
 func handleFilesUpload(files map[string][]*multipart.FileHeader, model string, id string, c *kamux.Context, idString string) error {
