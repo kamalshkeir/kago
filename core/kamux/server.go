@@ -227,8 +227,10 @@ func checkSameSite(c Context) bool {
 				privateIp=utils.GetLocalPrivateIps()[0]
 			}
 		}
-		if strings.Contains(origin, privateIp+port) {
+		if strings.Contains(origin, privateIp) {
 			foundInPrivateIps = true
+		} else {
+			logger.Info("origin:",origin,"not equal to privateIp:",privateIp+port)
 		}
 	}
 

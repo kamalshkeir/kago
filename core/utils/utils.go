@@ -602,7 +602,14 @@ func GetTagsAndPrint() {
 	fmt.Printf(logger.Yellow, logger.Ascii7)
 	fmt.Printf(logger.Blue, "-------⚡🚀 http://"+host+":"+port+" 🚀⚡-------")
 	if host == "0.0.0.0" {
-		logger.Printfs("HOST IP 0.0.0.0 --> %s", GetOutboundIP())
+		pIp := GetOutboundIP()
+		if pIp == "" {
+			pIp=ResolveHostIp()
+			if pIp == "" {
+				pIp=GetLocalPrivateIps()[0]
+			}
+		}
+		logger.Printfs("HOST IP 0.0.0.0 --> %s", pIp)
 	}
 }
 
