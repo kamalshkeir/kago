@@ -116,7 +116,7 @@ func (c *Context) Html(template_name string, data map[string]any) {
 		data["IsAuthenticated"] = true
 		data["User"] = user
 	} else {
-		data["is_authenticated"] = false
+		data["IsAuthenticated"] = false
 		data["User"] = nil
 	}
 	c.SetHeader("Content-Type", "text/html; charset=utf-8")
