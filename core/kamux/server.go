@@ -219,7 +219,7 @@ func checkSameSite(c Context) bool {
 	}
 
 	foundInPrivateIps := false
-	if host == "0.0.0.0" {
+	if host != "localhost" && host != "127.0.0.1"{
 		privateIp = utils.GetOutboundIP()
 		if privateIp == "" {
 			privateIp=utils.ResolveHostIp()
