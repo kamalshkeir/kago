@@ -104,6 +104,7 @@ func (c *Context) User() models.User {
 
 // Html return template_name with data to the client
 func (c *Context) Html(template_name string, data map[string]any) {
+	var buff bytes.Buffer
 	const key utils.ContextKey = "user"
 	if data == nil {
 		data = make(map[string]any)
@@ -119,17 +120,22 @@ func (c *Context) Html(template_name string, data map[string]any) {
 		data["IsAuthenticated"] = false
 		data["User"] = nil
 	}
+	
+	err := allTemplates.ExecuteTemplate(&buff, template_name, data)
+	if logger.CheckError(err) {
+		c.status=http.StatusInternalServerError
+		http.Error(c.ResponseWriter,"could not render "+template_name,c.status)
+		return
+	}
+
 	c.SetHeader("Content-Type", "text/html; charset=utf-8")
 	if c.status == 0 {
 		c.status = 200
 	}
 	c.WriteHeader(c.status)
-	err := allTemplates.ExecuteTemplate(c.ResponseWriter, template_name, data)
-	if logger.CheckError(err) {
-		for _,t := range allTemplates.Templates() {
-			logger.Info("template:",t.Name())
-		}
-	}
+
+	_,err = buff.WriteTo(c.ResponseWriter)
+	logger.CheckError(err)
 }
 
 // StreamResponse send SSE Streaming Response

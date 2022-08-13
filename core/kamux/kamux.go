@@ -83,6 +83,7 @@ func New(envFiles ...string) *Router {
 			logger.Warn("Environment variables not loaded, you can copy it from generated assets folder and rename it to .env, or set them manualy")
 		} else {
 			logger.Error(err)
+			os.Exit(1)
 		}
 	}
 	// migrate initial models

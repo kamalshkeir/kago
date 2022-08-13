@@ -40,7 +40,7 @@ Kago offer you :
 - Realtime [Logs](#logs) at `/logs` running with flag `go run main.go --logs`
 - Convenient [Router](#routing) that handle params with regex type checking, Websockets and SSE protocols also 
 - [Interactive Shell](#shell) `go run main.go shell`
-- Maybe the easiest [ORM and SQL builder](#orm) using go generics (working with sqlite, mysql and postgres)
+- Maybe the easiest [ORM and SQL builder](#orm) using go generics (working with sqlite, mysql,postgres and coakroach)
 - OpenApi [docs](#openapi-documentation-ready-if-enabled-using-flags-or-settings-vars) at `/docs` running with flag `go run main.go --docs` with dedicated package docs to help you manipulate docs.json file
 - AES encryption for authentication sessions using package encryptor
 - Argon2 hashing using package hash
@@ -819,7 +819,7 @@ type Bookmark struct {
 	IsDone	bool   
 	ToCheck string `orm:"size:50; notnull; check: len(to_check) > 2 AND len(to_check) < 10; check: is_done=true"`  // column type will be VARCHAR(50)
 	Content string `orm:"text"` // column type will be TEXT, and will have Rich Text Editor in admin panel
-	UpdatedAt time.Time `orm:"update"` // will update when model updated, handled by triggers for sqlite and postgres, and builtin mysql
+	UpdatedAt time.Time `orm:"update"` // will update when model updated, handled by triggers for sqlite, coakroach and postgres, and builtin mysql
 	CreatedAt time.Time `orm:"now"` // now is default to current timestamp and of type TEXT for sqlite
 }
 

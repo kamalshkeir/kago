@@ -69,6 +69,9 @@ func InitDB() error {
 			settings.Config.Db.Name = "db"
 		}
 	}
+	if strings.HasPrefix(settings.Config.Db.Type,"cockroach") {
+		settings.Config.Db.Type=POSTGRES
+	}
 
 	switch settings.Config.Db.Type {
 	case POSTGRES:
@@ -137,6 +140,9 @@ func InitDB() error {
 
 func NewDatabaseFromDSN(dbType, dbName string, dbDSN ...string) error {
 	var dsn string
+	if strings.HasPrefix(dbType,"cockroach") {
+		dbType=POSTGRES
+	}
 	switch dbType {
 	case POSTGRES:
 		if len(dbDSN) == 0 {
@@ -207,6 +213,9 @@ func NewDatabaseFromDSN(dbType, dbName string, dbDSN ...string) error {
 }
 
 func NewDatabaseFromConnection(dbType, dbName string, conn *sql.DB) error {
+	if strings.HasPrefix(dbType,"cockroach") {
+		dbType=POSTGRES
+	}
 	err := conn.Ping()
 	if logger.CheckError(err) {
 		return err
@@ -329,7 +338,7 @@ func GetAllTables(dbName ...string) []string {
 	tables := []string{}
 	switch settings.Config.Db.Type {
 	case POSTGRES:
-		rows, err := conn.Query(`SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname != 'pg_catalog' AND schemaname != 'information_schema';`)
+		rows, err := conn.Query(`SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema','crdb_internal','pg_extension') AND tableowner != 'node'`)
 		if logger.CheckError(err) {
 			return nil
 		}
