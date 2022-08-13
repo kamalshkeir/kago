@@ -28,12 +28,14 @@ func initTemplatesAndAssets(router *Router) {
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go func() {
-		router.cloneTemplatesAndStatic()
-		wg.Done()
+		defer wg.Done()
+		if !settings.Config.Embed.Static && !settings.Config.Embed.Templates {
+			router.cloneTemplatesAndStatic()
+		}
 	}()
 	go func() {
-		router.initDefaultUrls()
-		wg.Done()
+		defer wg.Done()
+		router.initDefaultUrls()		
 	}()
 	wg.Wait()
 	if settings.Config.Embed.Templates {
