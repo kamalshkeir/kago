@@ -194,24 +194,16 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 				}
 			}
 		}
-		ustatIndexes := ""
-		if len(*mi.uindexes) > 0 {
-			if len(*mi.uindexes) > 1 {
-				logger.Error(mi.fName, "cannot have more than 1 multiple unique indexes")
-			} else {
-				for k, v := range *mi.uindexes {
-					sp := strings.Split(v,",")
-					for i := range sp {
-						if sp[i][0] == 'I' {
-							sp[i] = "LOWER("+sp[i][1:]+")"
-						}
-					}
-					if len(sp) > 0 {
-						v=strings.Join(sp,",")
-					}
-					ustatIndexes = fmt.Sprintf("CREATE UNIQUE INDEX idx_%s_%s ON %s (%s)", tableName, k, tableName, v)
+		ustatIndexes := []string{}
+		for col, tagValue := range *mi.uindexes {
+			sp := strings.Split(tagValue,",")
+			for i := range sp {
+				if sp[i][0] == 'I' {
+					sp[i] = "LOWER("+sp[i][1:]+")"
 				}
 			}
+			res := strings.Join(sp,",")
+			ustatIndexes = append(ustatIndexes, fmt.Sprintf("CREATE UNIQUE INDEX idx_%s_%s ON %s (%s)", tableName, col, tableName, res)) 
 		}
 		if statIndexes != "" {
 			if Debug {
@@ -233,15 +225,18 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 				return err
 			}
 		}
-		if ustatIndexes != "" {
-			if Debug {
-				logger.Printfs("uindexes: %s", ustatIndexes)
+		if len(ustatIndexes) > 0 {
+			for i := range ustatIndexes {
+				if Debug {
+					logger.Printfs("uindexes: %s", ustatIndexes[i])
+				}
+				_, err := db.Conn.Exec(ustatIndexes[i])
+				if logger.CheckError(err) {
+					logger.Printfs("rduindexes: %s", ustatIndexes)
+					return err
+				}
 			}
-			_, err := db.Conn.Exec(ustatIndexes)
-			if logger.CheckError(err) {
-				logger.Printfs("rduindexes: %s", ustatIndexes)
-				return err
-			}
+			
 		}
 	}
 
@@ -582,6 +577,8 @@ func handleMigrationString(mi *migrationInput) {
 				*mi.indexes = append(*mi.indexes, mi.fName)
 			case "unique":
 				unique = " UNIQUE"
+			case "iunique":
+				(*mi.uindexes)[mi.fName] = "I"+mi.fName
 			case "default":
 				defaultt = " DEFAULT ''"
 			default:

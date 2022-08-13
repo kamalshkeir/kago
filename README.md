@@ -695,6 +695,7 @@ Available 'on_delete' and 'on_update' options: cascade,(donothing,noaction),(set
 *  	text (create column as TEXT not VARCHAR)
 *  	notnull
 *  	unique
+*   iunique // insensitive unique
 *  	index
 *  	default (DEFAULT '')
 ```
