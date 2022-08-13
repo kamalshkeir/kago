@@ -656,7 +656,7 @@ orm.CreateUser(email,password string,isAdmin int, dbName ...string) error // pas
 *   autoinc, pk  (PRIMARY KEY)
 *   notnull      (NOT NULL)
 *   index        (CREATE INDEX ON COLUMN)
-*   unique 		 (CREATE UNIQUE INDEX ON COLUMN)
+*   unique 		 (CREATE UNIQUE INDEX ON COLUMN) 
 *   default		 (DEFAULT 0)
 ```
 </td>
@@ -667,12 +667,12 @@ orm.CreateUser(email,password string,isAdmin int, dbName ...string) error // pas
 <td>
 
 ```
-Foreign Keys 'on_delete' and 'on_update' options: cascade,(donothing,noaction),(setnull,null),(setdefault,default)
+Available 'on_delete' and 'on_update' options: cascade,(donothing,noaction),(setnull,null),(setdefault,default)
 
 *   fk:{table}.{column}:{on_delete}:{on_update} 
-*   check:len(to_check) > 10 ; check: is_used=true (You can chain checks or keep it in the same CHECK separated by AND)
-*   mindex: first_name,last_name (CREATE MULTI INDEX ON COLUMN + first_name + last_name)
-*   uindex: first_name,last_name (CREATE MULTI UNIQUE INDEX ON COLUMN + first_name + last_name)
+*   check: len(to_check) > 10 ; check: is_used=true (You can chain checks or keep it in the same CHECK separated by AND)
+*   mindex: first_name, last_name (CREATE MULTI INDEX ON COLUMN + first_name + last_name)
+*   uindex: first_name, last_name (CREATE MULTI UNIQUE INDEX ON COLUMN + first_name + last_name) 
 *   default:5 (DEFAULT 5)
 ```
 
@@ -704,7 +704,8 @@ Foreign Keys 'on_delete' and 'on_update' options: cascade,(donothing,noaction),(
 ```
 * 	default:'any' (DEFAULT 'any')
 *	mindex:...
-* 	uindex:...
+* 	uindex:username,Iemail // CREATE UNIQUE INDEX ON users (username,LOWER(email)) 
+// index email is lower because of 'I' meaning Insensitive for email
 * 	fk:...
 * 	size:50  (VARCHAR(50))
 * 	check:...

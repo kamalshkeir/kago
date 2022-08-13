@@ -200,11 +200,16 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 				logger.Error(mi.fName, "cannot have more than 1 multiple unique indexes")
 			} else {
 				for k, v := range *mi.uindexes {
-					reste := ","
-					if v == "" {
-						reste = v
+					sp := strings.Split(v,",")
+					for i := range sp {
+						if sp[i][0] == 'I' {
+							sp[i] = "LOWER("+sp[i][1:]+")"
+						}
 					}
-					ustatIndexes = fmt.Sprintf("CREATE UNIQUE INDEX idx_%s_%s ON %s (%s)", tableName, k, tableName, k+reste+v)
+					if len(sp) > 0 {
+						v=strings.Join(sp,",")
+					}
+					ustatIndexes = fmt.Sprintf("CREATE UNIQUE INDEX idx_%s_%s ON %s (%s)", tableName, k, tableName, v)
 				}
 			}
 		}

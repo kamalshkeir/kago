@@ -530,11 +530,16 @@ func handleIndexes(to_table_name,colName string,indexes []string,mi *migrationIn
 			logger.Error(mi.fName, "cannot have more than 1 multiple indexes")
 		} else {
 			if v, ok := (*mi.uindexes)[mi.fName]; ok {
-				reste := ","
-				if v == "" {
-					reste = v
+				sp := strings.Split(v,",")
+				for i := range sp {
+					if sp[i][0] == 'I' {
+						sp[i] = "LOWER("+sp[i][1:]+")"
+					}
 				}
-				ustatIndexes = fmt.Sprintf("CREATE UNIQUE INDEX idx_%s_%s ON %s (%s)", to_table_name, colName, to_table_name, colName+reste+v)
+				if len(sp) > 0 {
+					v=strings.Join(sp,",")
+				}
+				ustatIndexes = fmt.Sprintf("CREATE UNIQUE INDEX idx_%s_%s ON %s (%s)", to_table_name, colName, to_table_name,v)
 			}
 		}
 	}
