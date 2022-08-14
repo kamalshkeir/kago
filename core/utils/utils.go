@@ -55,6 +55,10 @@ func ParseMultipartForm(r *http.Request, size ...int64) (formData url.Values, fo
 	if parseErr != nil {
 		logger.Error("Parse error = ", parseErr)
 	}
+	defer func ()  {
+		err := r.MultipartForm.RemoveAll()
+		logger.CheckError(err)
+	}()
 	formData = r.Form
 	formFiles = r.MultipartForm.File
 	return formData, formFiles
@@ -140,6 +144,10 @@ func UploadFileBytes(fileData []byte, filename string, outPath string, acceptedF
 
 func UploadFile(received_filename, folder_out string, r *http.Request, acceptedFormats ...string) (string, []byte, error) {
 	r.ParseMultipartForm(10 << 20) //10Mb
+	defer func ()  {
+		err := r.MultipartForm.RemoveAll()
+		logger.CheckError(err)
+	}()
 	var buff bytes.Buffer
 	file, header, err := r.FormFile(received_filename)
 	if logger.CheckError(err) {

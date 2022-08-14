@@ -233,6 +233,12 @@ var CreateModelView = func(c *kamux.Context) {
 		logger.Error("Parse error = ", parseErr)
 	}
 	data := c.Request.Form
+	
+	defer func ()  {
+		err := c.Request.MultipartForm.RemoveAll()
+		logger.CheckError(err)
+	}()
+
 
 	model := data["table"][0]
 
@@ -257,6 +263,7 @@ var CreateModelView = func(c *kamux.Context) {
 		}
 
 	}
+	
 	_, err := orm.Table(model).Insert(
 		strings.Join(fields, ","),
 		values,

@@ -202,6 +202,10 @@ func (c *Context) ServeEmbededFile(content_type string, embed_file []byte) {
 // UploadFile upload received_filename into folder_out and return url,fileByte,error
 func (c *Context) UploadFile(received_filename, folder_out string, acceptedFormats ...string) (string, []byte, error) {
 	c.Request.ParseMultipartForm(int64(MultipartSize)) //10Mb
+	defer func ()  {
+		err := c.Request.MultipartForm.RemoveAll()
+		logger.CheckError(err)
+	}()
 	var buff bytes.Buffer
 	file, header, err := c.Request.FormFile(received_filename)
 	if logger.CheckError(err) {
