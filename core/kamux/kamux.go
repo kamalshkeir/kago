@@ -8,7 +8,6 @@ import (
 	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/shell"
-	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 	"golang.org/x/net/websocket"
 )
@@ -55,7 +54,7 @@ type Route struct {
 }
 
 // New Create New Router from env file default: '.env'
-func New(envFiles ...string) *Router {
+func New() *Router {
 	app := &Router{
 		Routes: map[int][]Route{},
 		DefaultRoute: func(c *Context) {
@@ -67,20 +66,18 @@ func New(envFiles ...string) *Router {
 	go LoadTranslations()
 
 	// load Envs and Init Settings Config
-	if len(envFiles) > 0 {
-		app.LoadEnv(envFiles...)
-	} else if _, err := os.Stat(".env"); !os.IsNotExist(err) {
+	if _, err := os.Stat(".env"); !os.IsNotExist(err) {
 		app.LoadEnv(".env")
 	}
 
 	// after load env to override struct values
-	utils.GetTagsAndPrint()
+	getTagsAndPrint()
 
 	// Init DB
 	err := orm.InitDB()
 	if err != nil {
 		if settings.Config.Db.Name == "" && settings.Config.Db.DSN == "" {
-			logger.Warn("Environment variables not loaded, you can copy it from generated assets folder and rename it to .env, or set them manualy")
+			logger.Warn("Environment variables not loaded, you can copy it from generated assets folder and rename it to .env, or set them manualy DB_NAME, DB_TYPE, DB_DSN")
 		} else {
 			logger.Error(err)
 			os.Exit(1)
@@ -93,6 +90,23 @@ func New(envFiles ...string) *Router {
 	if shell.InitShell() {
 		os.Exit(0)
 	}
+	return app
+}
+
+func BareBone() *Router {
+	app := &Router{
+		Routes: map[int][]Route{},
+		DefaultRoute: func(c *Context) {
+			c.Status(404).Text("Page Not Found")
+		},
+	}
+	settings.MODE="barebone"
+	// load Envs and Init Settings Config
+	if _, err := os.Stat(".env"); !os.IsNotExist(err) {
+		app.LoadEnv(".env")
+	}
+	// after load env to override struct values
+	getTagsAndPrint()	
 	return app
 }
 

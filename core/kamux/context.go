@@ -172,7 +172,6 @@ func (c *Context) BodyJson() map[string]any {
 func (c *Context) BodyText() string {
 	defer c.Request.Body.Close()
 	b, err := io.ReadAll(c.Request.Body)
-	// b, err := ioutil.ReadAll(resp.Body)  Go.1.15 and earlier
 	if logger.CheckError(err) {
 		return ""
 	}
@@ -220,7 +219,7 @@ func (c *Context) UploadFile(received_filename, folder_out string, acceptedForma
 	data_string := buff.String()
 
 	// make DIRS if not exist
-	err = os.MkdirAll("media/"+folder_out+"/", 0664)
+	err = os.MkdirAll(settings.MEDIA_DIR+"/"+folder_out+"/", 0664)
 	if err != nil {
 		return "", nil, err
 	}
@@ -229,14 +228,14 @@ func (c *Context) UploadFile(received_filename, folder_out string, acceptedForma
 		acceptedFormats = []string{"jpg", "jpeg", "png", "json"}
 	}
 	if utils.StringContains(header.Filename, acceptedFormats...) {
-		dst, err := os.Create("media/" + folder_out + "/" + header.Filename)
+		dst, err := os.Create(settings.MEDIA_DIR+"/" + folder_out + "/" + header.Filename)
 		if err != nil {
 			return "", nil, err
 		}
 		defer dst.Close()
 		dst.Write([]byte(data_string))
 
-		url := "media/" + folder_out + "/" + header.Filename
+		url := settings.MEDIA_DIR+"/" + folder_out + "/" + header.Filename
 		return url, []byte(data_string), nil
 	} else {
 		return "", nil, fmt.Errorf("expecting filename to finish to be %v", acceptedFormats)
@@ -264,7 +263,7 @@ func (c *Context) UploadFiles(received_filenames []string, folder_out string, ac
 				data_string := buff.String()
 
 				// make DIRS if not exist
-				err = os.MkdirAll("media/"+folder_out+"/", 0664)
+				err = os.MkdirAll(settings.MEDIA_DIR+"/"+folder_out+"/", 0664)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -273,14 +272,14 @@ func (c *Context) UploadFiles(received_filenames []string, folder_out string, ac
 					acceptedFormats = []string{"jpg", "jpeg", "png", "json"}
 				}
 				if utils.StringContains(f.Filename, acceptedFormats...) {
-					dst, err := os.Create("media/" + folder_out + "/" + f.Filename)
+					dst, err := os.Create(settings.MEDIA_DIR+"/" + folder_out + "/" + f.Filename)
 					if err != nil {
 						return nil, nil, err
 					}
 					defer dst.Close()
 					dst.Write([]byte(data_string))
 
-					url := "media/" + folder_out + "/" + f.Filename
+					url := settings.MEDIA_DIR+"/" + folder_out + "/" + f.Filename
 					urls = append(urls, url)
 					datas = append(datas, []byte(data_string))
 				} else {

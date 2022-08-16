@@ -13,6 +13,7 @@ import (
 	"github.com/kamalshkeir/kago/core/utils/eventbus"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 	"github.com/kamalshkeir/kago/core/utils/safemap"
+	"github.com/kamalshkeir/kago/core/utils/strct"
 )
 
 var cachesOneS = safemap.New[dbCache, any]()
@@ -548,11 +549,10 @@ func (b *Builder[T]) queryS(query string, args ...any) ([]T, error) {
 
 		row := new(T)
 		if b.selected != "" && b.selected != "*" {
-			fillStructColumns(row, b.selected, values...)
+			strct.FillSelectedValues(row,b.selected,values...)
 		} else {
-			fillStruct(row, values...)
+			strct.FillValues(row,values...)
 		}
-
 		res = append(res, *row)
 	}
 

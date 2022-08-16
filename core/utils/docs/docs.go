@@ -3,16 +3,17 @@ package docs
 import (
 	"encoding/json"
 	"io/fs"
-	"io/ioutil"
+	"os"
 
+	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
-const path = "assets/static/docs/docs.json"
+var path = settings.STATIC_DIR+"/docs/docs.json"
 
 func New() *Docs {
 	// read the file
-	bytee, err := ioutil.ReadFile(path)
+	bytee, err := os.ReadFile(path)
 	if logger.CheckError(err) {
 		return &Docs{
 			OpenApi: "3.0.1",
@@ -82,7 +83,7 @@ func (docs *Docs) Save() {
 	docs.m.RLock()
 	byte_again, _ := json.MarshalIndent(docs, "", "\t")
 	docs.m.RUnlock()
-	err := ioutil.WriteFile(path, byte_again, fs.ModePerm)
+	err := os.WriteFile(path, byte_again, fs.ModePerm)
 	logger.CheckError(err)
 }
 

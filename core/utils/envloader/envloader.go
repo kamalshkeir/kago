@@ -8,10 +8,9 @@ import (
 	"reflect"
 	"strings"
 	"sync"
-	"unsafe"
 
-	"github.com/kamalshkeir/kago/core/utils/cast"
 	"github.com/kamalshkeir/kago/core/utils/logger"
+	"github.com/kamalshkeir/kago/core/utils/strct"
 )
 
 func Load(envFiles ...string) {
@@ -81,22 +80,10 @@ func fillStructFromEnv(s reflect.Value) error {
 				required = true
 			}
 			if osv := os.Getenv(strings.TrimSpace(tag)); osv != "" {
-				v, err := cast.FromTypeReflect(osv, s.Type().Field(i).Type)
-				if err != nil {
-					return fmt.Errorf("env: cannot set `%v` field; err: %v", s.Type().Field(i).Name, err)
-				}
-
-				ptr := reflect.NewAt(s.Field(i).Type(), unsafe.Pointer(s.Field(i).UnsafeAddr())).Elem()
-				ptr.Set(reflect.ValueOf(v))
+				strct.SetFieldValue(s.Field(i),osv)
 			} else {
 				if !required {
-					defau = strings.TrimSpace(defau)
-					v, err := cast.FromTypeReflect(defau, s.Type().Field(i).Type)
-					if err != nil {
-						return fmt.Errorf("env: cannot set `%v` field; err: %v", s.Type().Field(i).Name, err)
-					}
-					ptr := reflect.NewAt(s.Field(i).Type(), unsafe.Pointer(s.Field(i).UnsafeAddr())).Elem()
-					ptr.Set(reflect.ValueOf(v))
+					strct.SetFieldValue(s.Field(i),defau)
 				} else {
 					errored = append(errored, t)
 				}
@@ -119,3 +106,5 @@ func fillStructFromEnv(s reflect.Value) error {
 	}
 	return nil
 }
+
+

@@ -6,7 +6,6 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
-	"flag"
 	"fmt"
 	"html/template"
 	"io"
@@ -68,7 +67,7 @@ func ParseMultipartForm(r *http.Request, size ...int64) (formData url.Values, fo
 func UploadMultipartFile(file multipart.File, filename string, outPath string, acceptedFormats ...string) (string, error) {
 	//create destination file making sure the path is writeable.
 	if outPath == "" {
-		outPath = "media/uploads/"
+		outPath = settings.MEDIA_DIR+"/uploads/"
 	} else {
 		if !strings.HasSuffix(outPath, "/") {
 			outPath += "/"
@@ -107,7 +106,7 @@ func UploadMultipartFile(file multipart.File, filename string, outPath string, a
 func UploadFileBytes(fileData []byte, filename string, outPath string, acceptedFormats ...string) (string, error) {
 	//create destination file making sure the path is writeable.
 	if outPath == "" {
-		outPath = "media/uploads/"
+		outPath = settings.MEDIA_DIR+"/uploads/"
 	} else {
 		if !strings.HasSuffix(outPath, "/") {
 			outPath += "/"
@@ -162,7 +161,7 @@ func UploadFile(received_filename, folder_out string, r *http.Request, acceptedF
 	data_string := buff.String()
 
 	// make DIRS if not exist
-	err = os.MkdirAll("media/"+folder_out+"/", 0664)
+	err = os.MkdirAll(settings.MEDIA_DIR+"/"+folder_out+"/", 0664)
 	if err != nil {
 		return "", nil, err
 	}
@@ -171,14 +170,14 @@ func UploadFile(received_filename, folder_out string, r *http.Request, acceptedF
 		acceptedFormats = []string{"jpg", "jpeg", "png", "json"}
 	}
 	if StringContains(header.Filename, acceptedFormats...) {
-		dst, err := os.Create("media/" + folder_out + "/" + header.Filename)
+		dst, err := os.Create(settings.MEDIA_DIR+"/" + folder_out + "/" + header.Filename)
 		if err != nil {
 			return "", nil, err
 		}
 		defer dst.Close()
 		dst.Write([]byte(data_string))
 
-		url := "media/" + folder_out + "/" + header.Filename
+		url := settings.MEDIA_DIR+"/" + folder_out + "/" + header.Filename
 		return url, []byte(data_string), nil
 	} else {
 		return "", nil, fmt.Errorf("expecting filename to finish to be %v", acceptedFormats)
@@ -206,7 +205,7 @@ func UploadFiles(received_filenames []string, folder_out string, r *http.Request
 				data_string := buff.String()
 
 				// make DIRS if not exist
-				err = os.MkdirAll("media/"+folder_out+"/", 0664)
+				err = os.MkdirAll(settings.MEDIA_DIR+"/"+folder_out+"/", 0664)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -215,14 +214,14 @@ func UploadFiles(received_filenames []string, folder_out string, r *http.Request
 					acceptedFormats = []string{"jpg", "jpeg", "png", "json"}
 				}
 				if StringContains(f.Filename, acceptedFormats...) {
-					dst, err := os.Create("media/" + folder_out + "/" + f.Filename)
+					dst, err := os.Create(settings.MEDIA_DIR+"/" + folder_out + "/" + f.Filename)
 					if err != nil {
 						return nil, nil, err
 					}
 					defer dst.Close()
 					dst.Write([]byte(data_string))
 
-					url := "media/" + folder_out + "/" + f.Filename
+					url := settings.MEDIA_DIR+"/" + folder_out + "/" + f.Filename
 					urls = append(urls, url)
 					datas = append(datas, []byte(data_string))
 				} else {
@@ -413,50 +412,6 @@ func Difference[T comparable](slice1 []T, slice2 []T) []T {
 	return diff
 }
 
-func ResolveHostIp() string {
-	netInterfaceAddresses, err := net.InterfaceAddrs()
-
-	if err != nil {
-		return ""
-	}
-
-	for _, netInterfaceAddress := range netInterfaceAddresses {
-		networkIp, ok := netInterfaceAddress.(*net.IPNet)
-		if ok && !networkIp.IP.IsLoopback() && networkIp.IP.To4() != nil {
-			ip := networkIp.IP.String()
-			return ip
-		}
-	}
-
-	return ""
-}
-
-func GetLocalPrivateIps() []string {
-	ips := []string{}
-	host, _ := os.Hostname()
-	addrs, _ := net.LookupIP(host)
-	for _, addr := range addrs {
-		if ipv4 := addr.To4(); ipv4 != nil {
-			ips = append(ips, ipv4.String())
-		}
-	}
-	return ips
-}
-
-func GetOutboundIP() string {
-	conn, err := net.Dial("udp", "8.8.8.8:80")
-	if err != nil {
-		return ""
-	}
-	defer conn.Close()
-
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	if localAddr.IP.To4().IsPrivate() {
-		return localAddr.IP.String()
-	}
-	return ""
-}
-
 func randomizeStringSlice(slice []string) []string {
 	mrand.Seed(time.Now().UnixNano())
 	mrand.Shuffle(len(slice), func(i, j int) {
@@ -465,6 +420,7 @@ func randomizeStringSlice(slice []string) []string {
 
 	return slice
 }
+
 func ShuffleCharacters(text string) string {
 	characters := strings.Split(text, "")
 	randomCharacters := randomizeStringSlice(characters)
@@ -576,51 +532,6 @@ func GetIpCountry(ip string) string {
 	return ""
 }
 
-func GetTagsAndPrint() {
-	h := flag.String("h", "localhost", "overwrite host")
-	p := flag.String("p", "9313", "overwrite port number")
-	logs := flag.Bool("logs", false, "overwrite settings.Config.Logs for router /logs")
-	monitoring := flag.Bool("monitoring", false, "set settings.Config.Monitoring for prometheus and grafana /metrics")
-	docs := flag.Bool("docs", false, "set settings.Config.Docs for prometheus and grafana /docs")
-	profiler := flag.Bool("profiler", false, "set settings.Config.Profiler for pprof  /debug/pprof")
-	flag.Parse()
-
-	settings.Config.Logs = *logs
-	settings.Config.Monitoring = *monitoring
-	settings.Config.Docs = *docs
-	settings.Config.Profiler = *profiler
-	if *p != "9313" {
-		settings.Config.Port = *p
-	}
-	if *h != "localhost" && *h != "127.0.0.1" && *h != "" {
-		settings.Config.Host = *h
-	} else {
-		settings.Config.Host = "localhost"
-	}
-	host := settings.Config.Host
-	if host == "" {
-		host = "127.0.0.1"
-	}
-	port := settings.Config.Port
-	if port == "" {
-		settings.Config.Port = "9313"
-		port = "9313"
-	}
-
-	fmt.Printf(logger.Yellow, logger.Ascii7)
-	fmt.Printf(logger.Blue, "-------⚡🚀 http://"+host+":"+port+" 🚀⚡-------")
-	if host == "0.0.0.0" {
-		pIp := GetOutboundIP()
-		if pIp == "" {
-			pIp=ResolveHostIp()
-			if pIp == "" {
-				pIp=GetLocalPrivateIps()[0]
-			}
-		}
-		logger.Printfs("HOST IP 0.0.0.0 --> %s", pIp)
-	}
-}
-
 func IsUpper(s string) bool {
 	for _, r := range s {
 		if !unicode.IsUpper(r) && unicode.IsLetter(r) {
@@ -693,4 +604,92 @@ func ToSlug(s string) (string, error) {
 	}
 
 	return strings.TrimSpace(slug), nil
+}
+
+var matchFirstCap = regexp.MustCompile("(.)([A-Z][a-z]+)")
+var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
+
+func ToSnakeCase(str string) string {
+	snake := matchFirstCap.ReplaceAllString(str, "${1}_${2}")
+	snake = matchAllCap.ReplaceAllString(snake, "${1}_${2}")
+	return strings.ToLower(snake)
+}
+
+func SnakeCaseToTitle(inputUnderScoreStr string) (camelCase string) {
+	//snake_case to camelCase
+	isToUpper := false
+	for k, v := range inputUnderScoreStr {
+		if k == 0 {
+			camelCase = strings.ToUpper(string(inputUnderScoreStr[0]))
+		} else {
+			if isToUpper {
+				camelCase += strings.ToUpper(string(v))
+				isToUpper = false
+			} else {
+				if v == '_' {
+					isToUpper = true
+				} else {
+					camelCase += string(v)
+				}
+			}
+		}
+	}
+	return
+}
+
+
+/* Private Ip */
+func GetPrivateIp() string {
+	pIp := getOutboundIP()
+	if pIp == "" {
+		pIp=resolveHostIp()
+		if pIp == "" {
+			pIp=getLocalPrivateIps()[0]
+		}
+	}
+	return pIp
+}
+
+func resolveHostIp() string {
+	netInterfaceAddresses, err := net.InterfaceAddrs()
+
+	if err != nil {
+		return ""
+	}
+
+	for _, netInterfaceAddress := range netInterfaceAddresses {
+		networkIp, ok := netInterfaceAddress.(*net.IPNet)
+		if ok && !networkIp.IP.IsLoopback() && networkIp.IP.To4() != nil {
+			ip := networkIp.IP.String()
+			return ip
+		}
+	}
+
+	return ""
+}
+
+func getLocalPrivateIps() []string {
+	ips := []string{}
+	host, _ := os.Hostname()
+	addrs, _ := net.LookupIP(host)
+	for _, addr := range addrs {
+		if ipv4 := addr.To4(); ipv4 != nil {
+			ips = append(ips, ipv4.String())
+		}
+	}
+	return ips
+}
+
+func getOutboundIP() string {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return ""
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+	if localAddr.IP.To4().IsPrivate() {
+		return localAddr.IP.String()
+	}
+	return ""
 }

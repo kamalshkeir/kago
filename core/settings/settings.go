@@ -2,12 +2,16 @@ package settings
 
 import "github.com/kamalshkeir/kago/core/utils/safemap"
 
+var MODE = "default"
 var Config = &GlobalConfig{}
 var Secret string
 var Translations = safemap.New[string, map[string]any]()
 var TranslationFolder = "translations"
 var REPO_NAME = "kago-assets"
 var REPO_USER = "kamalshkeir"
+var STATIC_DIR= "assets/static"
+var TEMPLATE_DIR= "assets/templates"
+var MEDIA_DIR = "media"
 var Languages = []string{}
 
 type GlobalConfig struct {

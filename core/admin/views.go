@@ -410,7 +410,7 @@ func handleFilesUpload(files map[string][]*multipart.FileHeader, model string, i
 		for key, val := range files {
 			file, _ := val[0].Open()
 			defer file.Close()
-			uploadedImage, err := utils.UploadMultipartFile(file, val[0].Filename, "media/uploads/")
+			uploadedImage, err := utils.UploadMultipartFile(file, val[0].Filename, settings.MEDIA_DIR+"/uploads/")
 			if err != nil {
 				return err
 			}
@@ -522,33 +522,33 @@ var ImportView = func(c *kamux.Context) {
 	}
 
 	c.Json(map[string]any{
-		"success": "Import Done , you can find backups at media folder",
+		"success": "Import Done , you can find backups at settings.MEDIA_DIR folder",
 	})
 }
 
 var ManifestView = func(c *kamux.Context) {
 	if settings.Config.Embed.Static {
-		f, err := kamux.Static.ReadFile("assets/static/manifest.json")
+		f, err := kamux.Static.ReadFile(settings.STATIC_DIR+"/manifest.json")
 		if err != nil {
 			logger.Error("cannot embed manifest.json from static", err)
 			return
 		}
 		c.ServeEmbededFile("application/json; charset=utf-8", f)
 	} else {
-		c.ServeFile("application/json; charset=utf-8", "./assets/static/manifest.json")
+		c.ServeFile("application/json; charset=utf-8", settings.STATIC_DIR+"/manifest.json")
 	}
 }
 
 var ServiceWorkerView = func(c *kamux.Context) {
 	if settings.Config.Embed.Static {
-		f, err := kamux.Static.ReadFile("assets/static/sw.js")
+		f, err := kamux.Static.ReadFile(settings.STATIC_DIR+"/sw.js")
 		if err != nil {
 			logger.Error("cannot embed sw.js from static", err)
 			return
 		}
 		c.ServeEmbededFile("application/javascript; charset=utf-8", f)
 	} else {
-		c.ServeFile("application/javascript; charset=utf-8", "./assets/static/sw.js")
+		c.ServeFile("application/javascript; charset=utf-8", settings.STATIC_DIR+"/sw.js")
 	}
 }
 

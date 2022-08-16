@@ -38,6 +38,7 @@ var Auth = func(handler kamux.Handler) kamux.Handler {
 		session, err := c.GetCookie("session")
 		if err != nil || session == "" {
 			// NOT AUTHENTICATED
+			c.DeleteCookie("session")
 			handler(c)
 			return
 		}
@@ -73,6 +74,7 @@ var Admin = func(handler kamux.Handler) kamux.Handler {
 		session, err := c.GetCookie("session")
 		if err != nil || session == "" {
 			// NOT AUTHENTICATED
+			c.DeleteCookie("session")
 			http.Redirect(c.ResponseWriter, c.Request, "/admin/login", http.StatusTemporaryRedirect)
 			return
 		}

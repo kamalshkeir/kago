@@ -15,6 +15,13 @@ import (
 	"golang.org/x/net/websocket"
 )
 
+var (
+	ReadTimeout=  5 * time.Second
+	WriteTimeout= 20 * time.Second
+	IdleTimeout= 20 * time.Second
+)
+
+
 var midwrs []func(http.Handler) http.Handler
 
 // InitServer init the server with midws,
@@ -41,9 +48,9 @@ func (router *Router) initServer() {
 	server := http.Server{
 		Addr:         host + ":" + port,
 		Handler:      handler,
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 20 * time.Second,
-		IdleTimeout:  20 * time.Second,
+		ReadTimeout:  ReadTimeout,
+		WriteTimeout: WriteTimeout,
+		IdleTimeout:  IdleTimeout,
 	}
 	router.Server = &server
 }
@@ -55,8 +62,13 @@ func (router *Router) UseMiddlewares(midws ...func(http.Handler) http.Handler) {
 
 // Run start the server
 func (router *Router) Run() {
-	// init templates and assets
-	initTemplatesAndAssets(router)
+	if settings.MODE != "barebone" {
+		// init templates and assets
+		initTemplatesAndAssets(router)
+	} else {
+		router.initDefaultUrls()
+	}
+	
 	// init server
 	router.initServer()
 	// graceful Shutdown server + db if exist
@@ -71,8 +83,12 @@ func (router *Router) Run() {
 
 // RunTLS start the server TLS
 func (router *Router) RunTLS(certFile string, keyFile string) {
-	// init templates and assets
-	initTemplatesAndAssets(router)
+	if settings.MODE != "barebone" {
+		// init templates and assets
+		initTemplatesAndAssets(router)
+	} else {
+		router.initDefaultUrls()
+	}
 	// init server
 	router.initServer()
 	// graceful Shutdown server + db if exist
@@ -220,13 +236,7 @@ func checkSameSite(c Context) bool {
 
 	foundInPrivateIps := false
 	if host != "localhost" && host != "127.0.0.1"{
-		privateIp = utils.GetOutboundIP()
-		if privateIp == "" {
-			privateIp=utils.ResolveHostIp()
-			if privateIp == "" {
-				privateIp=utils.GetLocalPrivateIps()[0]
-			}
-		}
+		privateIp = utils.GetPrivateIp()
 		if strings.Contains(origin,host) {
 			foundInPrivateIps = true
 		} else if strings.Contains(origin, privateIp) {

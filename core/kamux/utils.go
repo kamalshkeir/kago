@@ -4,6 +4,7 @@ import (
 	"embed"
 	"encoding/csv"
 	"encoding/json"
+	"flag"
 	"io/fs"
 	"net/http"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/kamalshkeir/kago/core/settings"
+	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/envloader"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 	"github.com/kamalshkeir/kago/core/utils/safemap"
@@ -77,4 +79,44 @@ var Static embed.FS
 func (r *Router) Embed(staticDir *embed.FS, templateDir *embed.FS) {
 	Static = *staticDir
 	Templates = *templateDir
+}
+
+
+func getTagsAndPrint() {
+	h := flag.String("h", "localhost", "overwrite host")
+	p := flag.String("p", "9313", "overwrite port number")
+	logs := flag.Bool("logs", false, "overwrite settings.Config.Logs for router /logs")
+	monitoring := flag.Bool("monitoring", false, "set settings.Config.Monitoring for prometheus and grafana /metrics")
+	docs := flag.Bool("docs", false, "set settings.Config.Docs for prometheus and grafana /docs")
+	profiler := flag.Bool("profiler", false, "set settings.Config.Profiler for pprof  /debug/pprof")
+	flag.Parse()
+
+	settings.Config.Logs = *logs
+	settings.Config.Monitoring = *monitoring
+	settings.Config.Docs = *docs
+	settings.Config.Profiler = *profiler
+	if *p != "9313" {
+		settings.Config.Port = *p
+	}
+	if *h != "localhost" && *h != "127.0.0.1" && *h != "" {
+		settings.Config.Host = *h
+	} else {
+		settings.Config.Host = "localhost"
+	}
+	host := settings.Config.Host
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	port := settings.Config.Port
+	if port == "" {
+		settings.Config.Port = "9313"
+		port = "9313"
+	}
+
+	logger.Printfs("yl%s", logger.Ascii7)
+	logger.Printfs("%s", "-------⚡🚀 http://"+host+":"+port+" 🚀⚡-------")
+	if host == "0.0.0.0" {
+		pIp := utils.GetPrivateIp()
+		logger.Printfs("HOST IP 0.0.0.0 --> %s", pIp)
+	}
 }

@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 
 	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils"
@@ -51,7 +52,11 @@ func Decrypt(data string) (string, error) {
 	}
 	var salt []byte
 	dataByte, _ := hex.DecodeString(data)
-	salt, dataByte = dataByte[len(dataByte)-32:], dataByte[:len(dataByte)-32]
+	if len(dataByte) > 32 {
+		salt, dataByte = dataByte[len(dataByte)-32:], dataByte[:len(dataByte)-32]
+	} else {
+		return "",errors.New("bad token")
+	}
 
 	key, _, err := deriveKey([]byte(keyEnv), salt)
 	if err != nil {

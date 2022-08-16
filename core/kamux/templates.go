@@ -39,10 +39,10 @@ func initTemplatesAndAssets(router *Router) {
 	}()
 	wg.Wait()
 	if settings.Config.Embed.Templates {
-		router.AddEmbededTemplates(Templates, "assets/templates")
+		router.AddEmbededTemplates(Templates, settings.TEMPLATE_DIR)
 	} else {
 		//local
-		router.AddLocalTemplates("assets/templates")
+		router.AddLocalTemplates(settings.TEMPLATE_DIR)
 	}
 }
 
@@ -158,26 +158,26 @@ func (router *Router) initDefaultUrls() {
 	// STATIC
 	if settings.Config.Embed.Static {
 		//EMBED STATIC
-		router.ServeEmbededDir("assets/static", Static, "static")
+		router.ServeEmbededDir(settings.STATIC_DIR, Static, "static")
 		if settings.Config.Docs {
-			router.ServeEmbededDir("assets/static/docs", Static, "docs")
+			router.ServeEmbededDir(settings.STATIC_DIR+"/docs", Static, "docs")
 		}
 	} else {
 		// LOCAL STATIC
-		router.ServeLocalDir("assets/static", "static")
+		router.ServeLocalDir(settings.STATIC_DIR, "static")
 		if settings.Config.Docs {
-			router.ServeLocalDir("assets/static/docs", "docs")
+			router.ServeLocalDir(settings.STATIC_DIR+"/docs", "docs")
 		}
 	}
 	// MEDIA
-	media_root := http.FileServer(http.Dir("./media"))
-	router.GET(`/media/*`, func(c *Context) {
-		http.StripPrefix("/media/", media_root).ServeHTTP(c.ResponseWriter, c.Request)
+	media_root := http.FileServer(http.Dir("./"+settings.MEDIA_DIR))
+	router.GET(`/`+settings.MEDIA_DIR+`/*`, func(c *Context) {
+		http.StripPrefix("/"+settings.MEDIA_DIR+"/", media_root).ServeHTTP(c.ResponseWriter, c.Request)
 	})
 }
 
 func (router *Router) cloneTemplatesAndStatic() {
-	if settings.Config.Embed.Static && settings.Config.Embed.Templates {
+	if settings.Config.Embed.Static || settings.Config.Embed.Templates {
 		return
 	}
 	var generated bool

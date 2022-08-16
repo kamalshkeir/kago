@@ -10,6 +10,7 @@ import (
 
 	"github.com/kamalshkeir/kago/core/admin/models"
 	"github.com/kamalshkeir/kago/core/settings"
+	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
@@ -57,7 +58,7 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		fname := typeOfT.Field(i).Name
-		fname = ToSnakeCase(fname)
+		fname = utils.ToSnakeCase(fname)
 		ftype := f.Type()
 		cols = append(cols, fname)
 		mFieldName_Type[fname] = ftype.Name()
