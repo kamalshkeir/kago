@@ -14,7 +14,7 @@
 </div>
 <br>
 <div align="center">
-	<a href="https://kamalshkeir.github.io/" target="_blank">
+	<a href="https://kamalshkeir.dev" target="_blank">
 		<img src="https://img.shields.io/badge/my_portfolio-000?style=for-the-badge&logo=ko-fi&logoColor=white" width="auto" height="32px">
 	</a>
 	<a href="https://www.linkedin.com/in/kamal-shkeir/">
@@ -34,8 +34,12 @@ KaGo is a high-level web framework, that encourages clean and rapid development.
 You can literally get up and running using two lines of code, easier than Django and with a compiled language performance.
 
 Kago offer you :
-- NEW: <strong>[Watcher/Auto-Reloader](#watcher--auto-reloader)</strong> 
-- NEW: <strong>[orm.AutoMigrate](#automigrate-usage)</strong> will handle all your migrations from a struct model, if you remove a field from the migrated struct, you will be prompted to do the migration, it can handle foreign_keys, checks, indexes,...
+- <strong>NEW :</strong>  [BareBone Mode](#barebone--router-only-no-assets-cloned) Without admin dashboard
+- <strong>NEW :</strong>  [ORM Insensitive Unique Indexes](#available-tags-by-struct-field-type-tags-are-separated-by)
+- <strong>NEW :</strong>  ORM handle coakroachdb in addition to sqlite,postgres and mysql
+- <strong>NEW :</strong>  Admin Update can update all fields in the same time, and delete files from media when data deleted from admin dashboard
+- <strong>NEW :</strong> [Watcher/Auto-Reloader](#watcher--auto-reloader)
+- <strong>NEW :</strong> [orm.AutoMigrate](#automigrate-usage) will handle all your migrations from a struct model, if you remove a field from the migrated struct, you will be prompted to do the migration, it can handle foreign_keys, checks, indexes,...
 - Fully editable [CRUD Admin Dashboard](#generated-admin-dashboard) (assets folder)
 - Realtime [Logs](#logs) at `/logs` running with flag `go run main.go --logs`
 - Convenient [Router](#routing) that handle params with regex type checking, Websockets and SSE protocols also 
@@ -66,28 +70,63 @@ Join our  [discussions here](https://github.com/kamalshkeir/kago/discussions/1)
 $ go get -u github.com/kamalshkeir/kago
 ```
 
-Make sure you have git installed, otherwise you can download assets folder from [Here](https://github.com/kamalshkeir/kago-assets) , put the folder beside your main and rename it to assets
-
 ---
-# Quick start
 
-Create main.go:
+# Quick start
+##### New : Router + Admin + Database + Shell
+
 ```go
 package main
 
 import (
 	"github.com/kamalshkeir/kago"
-	"github.com/kamalshkeir/kago/core/middlewares"
 )
 
 func main() {
-	app := kago.New()
-	app.UseMiddlewares(middlewares.GZIP) // optional
+	app := kago.New() // router + admin + database + shell
 	app.Run()
 }
 ```
 
-#### 1- running 'go run main.go' the first time, will clone assets folder with all static and template files for admin using git
+##### BareBone : Router only (no assets cloned)
+```go
+package main
+
+import (
+	"github.com/kamalshkeir/kago"
+)
+
+func main() {
+	app := kago.BareBone() // router only
+
+	//settings.STATIC_DIR="static" --> to serve at /static (optional)
+	//settings.TEMPLATE_DIR="templates" --> templates inside this folder are used with c.Html
+
+	app.GET("/test/id:int",func(c *kamux.Context) {
+		id,ok := c.Params["id"]
+		if !ok {
+			... punish him
+			return
+		}
+		c.Html("index.html",map[string]any{
+			"id":id,
+		})
+	})
+
+	// you can add static and templates folder as much as u want
+	app.ServeLocalDir("/path/to/static","assets") // serve /path/to/static folder at /assets
+	app.AddLocalTemplates("/path/to/templates1")
+	app.AddLocalTemplates("/path/to/templates2")
+
+	// you can server also embeded templates and static as much as u want 😊
+	router.ServeEmbededDir(settings.STATIC_DIR, Static, "static")
+	router.AddEmbededTemplates(Templates, settings.TEMPLATE_DIR)
+
+	app.Run()
+}
+```
+
+#### 1- running 'go run main.go' the first time, will clone assets folder if run with kago.New
 ```shell
 go run main.go
 ```
@@ -105,7 +144,7 @@ go run main.go shell
 #### 4- you can change port and host by putting Env Vars 'HOST' and 'PORT' or using flags:
 ```zsh
 # default: -h localhost -p 9313
-go run main.go -h 0.0.0.0 -p 3333
+go run main.go -h kamalshkeir.dev -p 443
 ```
 ## YOU ARE DONE, you can visit /admin
 
@@ -1333,7 +1372,7 @@ BenchmarkGetAllColumns-4        64293176                20.87 ns/op            0
 ---
 
 # 🔗 Links
-[![portfolio](https://img.shields.io/badge/my_portfolio-000?style=for-the-badge&logo=ko-fi&logoColor=white)](https://kamalshkeir.github.io/)
+[![portfolio](https://img.shields.io/badge/my_portfolio-000?style=for-the-badge&logo=ko-fi&logoColor=white)](https://kamalshkeir.dev/)
 [![linkedin](https://img.shields.io/badge/linkedin-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white)](https://www.linkedin.com/in/kamal-shkeir/)
 
 

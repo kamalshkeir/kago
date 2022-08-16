@@ -67,6 +67,12 @@ func (router *Router) Run() {
 		initTemplatesAndAssets(router)
 	} else {
 		router.initDefaultUrls()
+		if settings.Config.Embed.Templates {
+			router.AddEmbededTemplates(Templates, settings.TEMPLATE_DIR)
+		} else {
+			//local
+			router.AddLocalTemplates(settings.TEMPLATE_DIR)
+		}
 	}
 	
 	// init server
@@ -88,6 +94,12 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 		initTemplatesAndAssets(router)
 	} else {
 		router.initDefaultUrls()
+		if settings.Config.Embed.Templates {
+			router.AddEmbededTemplates(Templates, settings.TEMPLATE_DIR)
+		} else {
+			//local
+			router.AddLocalTemplates(settings.TEMPLATE_DIR)
+		}
 	}
 	// init server
 	router.initServer()
