@@ -156,6 +156,8 @@ func SetFieldValue(fld reflect.Value, value any) {
 		case reflect.String:
 			if value == "1" {
 				fld.SetBool(true)
+			} else if value == "true" {
+				fld.SetBool(true)
 			}
 		}
 	case reflect.Uint:
