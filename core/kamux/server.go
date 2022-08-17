@@ -60,6 +60,7 @@ func (router *Router) UseMiddlewares(midws ...func(http.Handler) http.Handler) {
 	midwrs = append(midwrs, midws...)
 }
 
+
 // Run start the server
 func (router *Router) Run() {
 	if settings.MODE != "barebone" {

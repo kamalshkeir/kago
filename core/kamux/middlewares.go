@@ -1,4 +1,4 @@
-package middlewares
+package kamux
 
 import (
 	"context"
@@ -10,31 +10,34 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/kamalshkeir/kago/core/admin/models"
-	"github.com/kamalshkeir/kago/core/kamux"
-	"github.com/kamalshkeir/kago/core/middlewares/csrf"
-	"github.com/kamalshkeir/kago/core/middlewares/gzip"
-	"github.com/kamalshkeir/kago/core/middlewares/logs"
+	"github.com/kamalshkeir/kago/core/kamux/csrf"
+	"github.com/kamalshkeir/kago/core/kamux/gzip"
+	"github.com/kamalshkeir/kago/core/kamux/logs"
 	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/encryption/encryptor"
 	"github.com/kamalshkeir/kago/core/utils/eventbus"
 	"github.com/kamalshkeir/kago/core/utils/logger"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"golang.org/x/time/rate"
 )
 
+
 var SESSION_ENCRYPTION = true
 
 // AuthMiddleware can be added to any handler to get user cookie authentication and pass it to handler and templates
-var Auth = func(handler kamux.Handler) kamux.Handler {
+var Auth = func(handler Handler) Handler {
 	const key utils.ContextKey = "user"
-	return func(c *kamux.Context) {
+	return func(c *Context) {
 		session, err := c.GetCookie("session")
 		if err != nil || session == "" {
 			// NOT AUTHENTICATED
@@ -59,7 +62,7 @@ var Auth = func(handler kamux.Handler) kamux.Handler {
 
 		// AUTHENTICATED AND FOUND IN DB
 		ctx := context.WithValue(c.Request.Context(), key, user)
-		*c = kamux.Context{
+		*c = Context{
 			ResponseWriter: c.ResponseWriter,
 			Request:        c.Request.WithContext(ctx),
 			Params:         c.Params,
@@ -68,9 +71,9 @@ var Auth = func(handler kamux.Handler) kamux.Handler {
 	}
 }
 
-var Admin = func(handler kamux.Handler) kamux.Handler {
+var Admin = func(handler Handler) Handler {
 	const key utils.ContextKey = "user"
-	return func(c *kamux.Context) {
+	return func(c *Context) {
 		session, err := c.GetCookie("session")
 		if err != nil || session == "" {
 			// NOT AUTHENTICATED
@@ -100,7 +103,7 @@ var Admin = func(handler kamux.Handler) kamux.Handler {
 		}
 
 		ctx := context.WithValue(c.Request.Context(), key, user)
-		*c = kamux.Context{
+		*c = Context{
 			ResponseWriter: c.ResponseWriter,
 			Request:        c.Request.WithContext(ctx),
 			Params:         c.Params,
@@ -110,8 +113,8 @@ var Admin = func(handler kamux.Handler) kamux.Handler {
 	}
 }
 
-var BasicAuth = func(next kamux.Handler, user, pass string) kamux.Handler {
-	return func(c *kamux.Context) {
+var BasicAuth = func(next Handler, user, pass string) Handler {
+	return func(c *Context) {
 		// Extract the username and password from the request
 		// Authorization header. If no Authentication header is present
 		// or the header value is invalid, then the 'ok' return value
@@ -276,7 +279,7 @@ var RECOVERY = func(next http.Handler) http.Handler {
 
 var LOGS = func(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if utils.StringContains(r.URL.Path, "metrics", "sw.js", "favicon", "/static/", "/sse/", "/ws/", "/wss/") {
+		if utils.StringContains(r.URL.Path, "metrics", "sw.js", "favicon", "/"+settings.STATIC_DIR+"/", "/sse/", "/ws/", "/wss/") {
 			h.ServeHTTP(w, r)
 			return
 		}
@@ -309,3 +312,53 @@ var LOGS = func(h http.Handler) http.Handler {
 		}
 	})
 }
+
+
+
+
+/* Prometheus */
+var PROMETHEUS = func(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if utils.StringContains(r.URL.Path, "metrics", "sw.js", "favicon", "/"+settings.STATIC_DIR+"/", "/sse/", "/ws/", "/wss/") {
+			next.ServeHTTP(w, r)
+			return
+		}
+		//check if connection is ws
+		for _, header := range r.Header["Upgrade"] {
+			if header == "websocket" {
+				// connection is ws
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+		recorder := &logs.StatusRecorder{
+			ResponseWriter: w,
+			Status:         200,
+		}
+		t := time.Now()
+        next.ServeHTTP(recorder, r)
+		statusString := strconv.Itoa(recorder.Status)
+		httpDuration.With(prometheus.Labels{"method": r.Method, "endpoint": r.URL.Path,"status":statusString}).Observe(float64(time.Since(t).Seconds()))
+		totalRequests.With(prometheus.Labels{"method": r.Method, "endpoint": r.URL.Path,"status":statusString}).Inc()
+    })
+}
+
+
+
+var totalRequests = promauto.NewCounterVec(prometheus.CounterOpts{
+    Name: "kago_total_requests",
+    Help: "Total requests",
+}, []string{"method", "endpoint","status"})
+
+//======================================================================
+
+var httpDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+    Name:    "kago_http_request_duration_seconds",
+    Help:    "Duration of HTTP requests in seconds",
+    Buckets: []float64{.1},
+}, []string{"method", "endpoint","status"})
+
+//======================================================================
+
+
+//rate(kago_http_request_duration_seconds_sum{}[1m]) / rate(kago_http_request_duration_seconds_count{}[1m])

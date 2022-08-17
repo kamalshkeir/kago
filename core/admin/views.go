@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/kamalshkeir/kago/core/kamux"
-	"github.com/kamalshkeir/kago/core/middlewares"
 	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils"
@@ -67,7 +66,7 @@ var LoginPOSTView = func(c *kamux.Context) {
 				return
 			} else {
 				if uuid, ok := data["uuid"].(string); ok {
-					if middlewares.SESSION_ENCRYPTION {
+					if kamux.SESSION_ENCRYPTION {
 						uuid, err = encryptor.Encrypt(uuid)
 						logger.CheckError(err)
 					}
