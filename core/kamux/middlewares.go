@@ -279,7 +279,7 @@ var RECOVERY = func(next http.Handler) http.Handler {
 
 var LOGS = func(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if utils.StringContains(r.URL.Path, "metrics", "sw.js", "favicon", "/"+settings.STATIC_DIR+"/", "/sse/", "/ws/", "/wss/") {
+		if utils.StringContains(r.URL.Path, "metrics", "sw.js", "favicon", "/static/", "/sse/", "/ws/", "/wss/") {
 			h.ServeHTTP(w, r)
 			return
 		}
@@ -319,7 +319,7 @@ var LOGS = func(h http.Handler) http.Handler {
 /* Prometheus */
 var PROMETHEUS = func(next http.Handler) http.Handler {
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if utils.StringContains(r.URL.Path, "metrics", "sw.js", "favicon", "/"+settings.STATIC_DIR+"/", "/sse/", "/ws/", "/wss/") {
+		if utils.StringContains(r.URL.Path, "metrics", "sw.js", "favicon", "/static/", "/sse/", "/ws/", "/wss/") {
 			next.ServeHTTP(w, r)
 			return
 		}
