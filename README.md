@@ -186,21 +186,21 @@ r.GET("/offline",OfflineView)
 r.GET("/manifest.webmanifest",ManifestView) 
 r.GET("/sw.js",ServiceWorkerView) 
 r.GET("/robots.txt",RobotsTxtView) 
-r.GET("/admin", middlewares.Admin(IndexView))
-r.GET("/admin/login",middlewares.Auth(LoginView))
-r.POST("/admin/login",middlewares.Auth(LoginPOSTView))
+r.GET("/admin", kamux.Admin(IndexView))
+r.GET("/admin/login",kamux.Auth(LoginView))
+r.POST("/admin/login",kamux.Auth(LoginPOSTView))
 r.GET("/admin/logout", LogoutView)
-r.POST("/admin/delete/row", middlewares.Admin(DeleteRowPost))
-r.POST("/admin/update/row", middlewares.Admin(UpdateRowPost))
-r.POST("/admin/create/row", middlewares.Admin(CreateModelView))
-r.POST("/admin/drop/table", middlewares.Admin(DropTablePost))
-r.GET("/admin/table/model:str", middlewares.Admin(AllModelsGet))
-r.POST("/admin/table/model:str", middlewares.Admin(AllModelsPost))
-r.GET("/admin/get/model:str/id:int", middlewares.Admin(SingleModelGet))
-r.GET("/admin/export/table:str", middlewares.Admin(ExportView))
-r.POST("/admin/import", middlewares.Admin(ImportView))
-r.GET("/logs",middlewares.Admin(LogsGetView))
-r.SSE("/sse/logs",middlewares.Admin(LogsSSEView))
+r.POST("/admin/delete/row", kamux.Admin(DeleteRowPost))
+r.POST("/admin/update/row", kamux.Admin(UpdateRowPost))
+r.POST("/admin/create/row", kamux.Admin(CreateModelView))
+r.POST("/admin/drop/table", kamux.Admin(DropTablePost))
+r.GET("/admin/table/model:str", kamux.Admin(AllModelsGet))
+r.POST("/admin/table/model:str", kamux.Admin(AllModelsPost))
+r.GET("/admin/get/model:str/id:int", kamux.Admin(SingleModelGet))
+r.GET("/admin/export/table:str", kamux.Admin(ExportView))
+r.POST("/admin/import", kamux.Admin(ImportView))
+r.GET("/logs",kamux.Admin(LogsGetView))
+r.SSE("/sse/logs",kamux.Admin(LogsSSEView))
 
 // Example : how to override a handler
 // add it before kago.New()
@@ -211,11 +211,11 @@ admin.LoginView=func(c *kamux.Context) {
 
 
 // Example : how to override a middleware
-middlewares.Auth = func(handler kamux.Handler) kamux.Handler { // handlerFunc
+kamux.Auth = func(handler kamux.Handler) kamux.Handler { // handlerFunc
 		...
 }
 // Example : how to override a Global middleware
-middlewares.GZIP = func(handler http.Handler) http.Handler { // Handler
+kamux.GZIP = func(handler http.Handler) http.Handler { // Handler
 		...
 }
 ```
@@ -229,7 +229,6 @@ package main
 import (
 	"github.com/kamalshkeir/kago"
 	"github.com/kamalshkeir/kago/core/kamux"
-	"github.com/kamalshkeir/kago/core/middlewares"
 )
 
 
@@ -238,11 +237,11 @@ func main() {
 	app := kago.New()
 
     // You can add GLOBAL middlewares easily  (GZIP,CORS,CSRF,LIMITER,RECOVERY)
-	app.UseMiddlewares(middlewares.GZIP)
+	app.UseMiddlewares(kamux.GZIP)
 
 	// OR middleware for single handler (Auth,Admin,BasicAuth)
 	// Auth ensure user is authenticated and pass to c.Html '.user' and '.request', so accessible in all templates
-	app.GET("/",middlewares.Auth(IndexHandler))
+	app.GET("/",kamux.Auth(IndexHandler))
 
 	app.POST("/somePost", posting)
 	app.PUT("/somePut", putting)
@@ -565,11 +564,11 @@ app.AddEmbededTemplates(template_embed embed.FS,rootDir string) error
 func main() {
 	app := New()
 	app.UseMiddlewares(
-		middlewares.GZIP,
-		middlewares.CORS,
-		middlewares.CSRF,
-		middlewares.LIMITER,
-		middlewares.RECOVERY,
+		kamux.GZIP,
+		kamux.CORS,
+		kamux.CSRF,
+		kamux.LIMITER,
+		kamux.RECOVERY,
 	)
 
 	// GZIP nothing to do , just add it
@@ -580,8 +579,8 @@ func main() {
 
 	// LIMITER 
 	// if enabled , requester are blocked 5 minutes if make more then 50 request/s , you can change these values:
-	middlewares.LIMITER_TOKENS=50
-	middlewares.LIMITER_TIMEOUT=5*time.Minute
+	kamux.LIMITER_TOKENS=50
+	kamux.LIMITER_TIMEOUT=5*time.Minute
 
 	// RECOVERY
 	// will recover any error and log it, you can see it in console and also at /logs if LOGS middleware enabled
@@ -633,9 +632,9 @@ func main() {
 
 ```go
 // USAGE:
-r.GET("/admin", middlewares.Admin(IndexView)) // will check from session cookie if user.is_admin is true
-r.GET("/admin/login",middlewares.Auth(LoginView)) // will get session from cookies decrypt it and validate it
-r.GET("/test",middlewares.BasicAuth(LoginView,"username","password"))
+r.GET("/admin", kamux.Admin(IndexView)) // will check from session cookie if user.is_admin is true
+r.GET("/admin/login",kamux.Auth(LoginView)) // will get session from cookies decrypt it and validate it
+r.GET("/test",kamux.BasicAuth(LoginView,"username","password"))
 ```
 ---
 
