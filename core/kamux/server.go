@@ -103,9 +103,6 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 			router.AddLocalTemplates(settings.TEMPLATE_DIR)
 		}
 	}
-	if strings.HasSuffix(settings.Config.Port,"443") {
-		router.UseMiddlewares(TLS)
-	} 
 	// init server
 	router.initServer()
 	// graceful Shutdown server + db if exist
