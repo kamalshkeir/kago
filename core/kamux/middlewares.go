@@ -315,6 +315,22 @@ var LOGS = func(h http.Handler) http.Handler {
 
 
 
+/* TLS */
+var TLS = func(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.TLS == nil {
+			// http
+			http.Redirect(w,r,"https://"+settings.Config.Host+r.RequestURI,http.StatusPermanentRedirect)
+		} else {
+			// https
+			next.ServeHTTP(w, r)
+		}
+    })
+}
+
+
+
+
 
 /* Prometheus */
 var PROMETHEUS = func(next http.Handler) http.Handler {

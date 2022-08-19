@@ -103,27 +103,14 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 			router.AddLocalTemplates(settings.TEMPLATE_DIR)
 		}
 	}
-
+	if strings.HasSuffix(settings.Config.Port,"443") {
+		router.UseMiddlewares(TLS)
+	} 
 	// init server
 	router.initServer()
 	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
-	if strings.HasSuffix(settings.Config.Port,"443") {
-		go func() {
-			pIp := utils.GetPrivateIp()
-			m := router.Server
-			m.Addr=pIp+":80"
-			m.Handler=http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				http.Redirect(w, r, "https://"+pIp+":443"+r.RequestURI, http.StatusMovedPermanently)
-			})
-			err := m.ListenAndServe()
-			if err != nil {
-				logger.Error("error serving on port 80 for redirection to https when running tls:",err)
-			}
-		}()
-	} else {
-		logger.Error("no",settings.Config.Port)
-	}
+	
 	if err := router.Server.ListenAndServeTLS(certFile, keyFile); err != http.ErrServerClosed {
 		logger.Error("Unable to shutdown the server : ", err)
 	} else {
