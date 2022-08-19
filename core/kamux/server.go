@@ -112,10 +112,14 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 		go func() {
 			pIp := utils.GetPrivateIp()
 			logger.Success("Listenning on",pIp+":80")
-			err := http.ListenAndServe(pIp+":80", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				logger.Success("redirecting from",pIp+":80","to","https://" + settings.Config.Host + r.RequestURI)
-				http.Redirect(w, r, "https://" + settings.Config.Host + r.RequestURI, http.StatusPermanentRedirect)
-			}))
+			m := router.Server
+			m.Addr=pIp+":80"
+			logger.Success("Running on",m.Addr)
+			m.Handler=http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				logger.Success("redirect to","https://"+pIp+r.RequestURI)
+				http.Redirect(w, r, "https://"+pIp+r.RequestURI, http.StatusMovedPermanently)
+			})
+			err := m.ListenAndServe()
 			if err != nil {
 				logger.Error("error serving on port 80 for redirection to https when running tls:",err)
 			}
