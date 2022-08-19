@@ -111,7 +111,7 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 	if strings.HasSuffix(settings.Config.Port,"443") {
 		go func() {
 			err := http.ListenAndServe(":80", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				http.Redirect(w, r, "https://" + r.Host + r.RequestURI, http.StatusPermanentRedirect)
+				http.Redirect(w, r, "https://" + settings.Config.Host + r.RequestURI, http.StatusPermanentRedirect)
 			}))
 			if err != nil {
 				logger.Error("error serving on port 80 for redirection to https when running tls:",err)
