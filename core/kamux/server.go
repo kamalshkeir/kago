@@ -111,13 +111,10 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 	if strings.HasSuffix(settings.Config.Port,"443") {
 		go func() {
 			pIp := utils.GetPrivateIp()
-			logger.Success("Listenning on",pIp+":80")
 			m := router.Server
 			m.Addr=pIp+":80"
-			logger.Success("Running on",m.Addr)
 			m.Handler=http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				logger.Success("redirect to","https://"+pIp+r.RequestURI)
-				http.Redirect(w, r, "https://"+pIp+r.RequestURI, http.StatusMovedPermanently)
+				http.Redirect(w, r, "https://"+pIp+":443"+r.RequestURI, http.StatusMovedPermanently)
 			})
 			err := m.ListenAndServe()
 			if err != nil {
