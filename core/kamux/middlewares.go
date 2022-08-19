@@ -26,11 +26,18 @@ import (
 	"github.com/kamalshkeir/kago/core/utils/eventbus"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
 
 	"golang.org/x/time/rate"
 )
 
+func init() {
+	if settings.Config.Monitoring {
+		err := prometheus.Register(totalRequests)
+		logger.CheckError(err)
+		err = prometheus.Register(httpDuration)
+		logger.CheckError(err)
+	}
+}
 
 var SESSION_ENCRYPTION = true
 
@@ -343,14 +350,14 @@ var PROMETHEUS = func(next http.Handler) http.Handler {
 
 
 
-var totalRequests = promauto.NewCounterVec(prometheus.CounterOpts{
+var totalRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
     Name: "kago_total_requests",
     Help: "Total requests",
 }, []string{"method", "endpoint","status"})
 
 //======================================================================
 
-var httpDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+var httpDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
     Name:    "kago_http_request_duration_seconds",
     Help:    "Duration of HTTP requests in seconds",
     Buckets: []float64{.1},
