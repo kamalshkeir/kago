@@ -849,9 +849,9 @@ func handleMigrationTime(mi *migrationInput) {
 				case SQLITE, "":
 					defaultt = "TEXT NOT NULL DEFAULT (datetime('now','localtime'))"
 				case POSTGRES:
-					defaultt = "TIMESTAMP NOT NULL DEFAULT (now())"
+					defaultt = "TIMESTAMPTZ  NOT NULL DEFAULT (now())"
 				case MYSQL:
-					defaultt = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP"
+					defaultt = "DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP"
 				default:
 					logger.Error("not handled Time for ", mi.fName, mi.fType)
 				}

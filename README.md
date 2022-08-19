@@ -96,6 +96,11 @@ import (
 	"github.com/kamalshkeir/kago"
 )
 
+//go:embed assets/templates
+var Templates embed.FS
+//go:embed assets/static
+var Static embed.FS
+
 func main() {
 	app := kago.BareBone() // router only
 
@@ -105,48 +110,45 @@ func main() {
 	app.GET("/test/id:int",func(c *kamux.Context) {
 		id,ok := c.Params["id"]
 		if !ok {
-			... punish him
+			...
 			return
 		}
-		c.Html("index.html",map[string]any{
+		c.Html("index.html",kamux.M{
 			"id":id,
 		})
 	})
 
-	// you can add static and templates folder as much as u want
-	app.ServeLocalDir("/path/to/static","assets") // serve /path/to/static folder at /assets
-	app.AddLocalTemplates("/path/to/templates1")
+	// you can add static and templates folder 
+	app.ServeLocalDir("/path/to/static","static") // serve local /path/to/static folder at /static/*
+	app.AddLocalTemplates("/path/to/templates1") // templates inside this folder are used with c.Html
 	app.AddLocalTemplates("/path/to/templates2")
 
-	// you can server also embeded templates and static as much as u want 😊
-	router.ServeEmbededDir(settings.STATIC_DIR, Static, "static")
-	router.AddEmbededTemplates(Templates, settings.TEMPLATE_DIR)
+	// you can serve also embeded templates and static
+	router.ServeEmbededDir("/path/to/static", Static, "static") // serve embeded assets/static folder at endpoint /static/*
+	router.AddEmbededTemplates(Templates,"/path/to/templates")
 
 	app.Run()
 }
 ```
 
-#### 1- running 'go run main.go' the first time, will clone assets folder if run with kago.New
+#### 1- running 'go run main.go' the first time, will clone assets folder if run with kago.New and will not if run using kago.BareBone
 ```shell
 go run main.go
 ```
 
-#### 2- make sure you have a folder named assets at the root of your project
-
-#### 3- you are ready to create your Admin account
+#### 2- create super user
 ```shell
 go run main.go shell    
 
 -> createsuperuser
 ```
 
-
-#### 4- you can change port and host by putting Env Vars 'HOST' and 'PORT' or using flags:
+#### 3- you can change port and host by putting Env Vars 'HOST' and 'PORT' or using flags:
 ```zsh
 # default: -h localhost -p 9313
-go run main.go -h kamalshkeir.dev -p 443
+go run main.go -h kamalshkeir.dev -p 443 // production
 ```
-## YOU ARE DONE, you can visit /admin
+## That's it, you can visit /admin
 
 ---
 
@@ -157,7 +159,8 @@ go install github.com/kamalshkeir/kago/cmd/kago
 ```
 Then you can run:
 ```shell
-kago --root C:\Path\To\Your\Folder --watch assets/templates,assets/static
+kago --root C:\Path\To\Your\Folder (will watch all files at root)
+kago --root C:\Path\To\Your\Folder --watch assets/templates,assets/static (will watch only templates and assets folder)
 ```
 
 
@@ -177,8 +180,7 @@ app.GET("/admin/login",func(c *kamux.Context) {
 // so it is very safe to do it this way also
 ```
 
-### The other way: i make all handlers and all middlewares as variables to give you full control on the behavior of any 
-### handler/middleware already written by me
+### Admin + PWA default handlers
 ```go
 // all these handlers can be overriden
 r.GET("/mon/ping",func(c *kamux.Context) {c.Status(200).Text("pong")})
@@ -210,7 +212,7 @@ admin.LoginView=func(c *kamux.Context) {
 ...
 
 
-// Example : how to override a middleware
+// Example : how to override a handler middleware
 kamux.Auth = func(handler kamux.Handler) kamux.Handler { // handlerFunc
 		...
 }
@@ -221,7 +223,7 @@ kamux.GZIP = func(handler http.Handler) http.Handler { // Handler
 ```
 ---
 # Routing
-### Using GET, POST, PUT, PATCH, DELETE
+### Using GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS
 
 ```go
 package main
@@ -242,23 +244,26 @@ func main() {
 	// OR middleware for single handler (Auth,Admin,BasicAuth)
 	// Auth ensure user is authenticated and pass to c.Html '.user' and '.request', so accessible in all templates
 	app.GET("/",kamux.Auth(IndexHandler))
-
 	app.POST("/somePost", posting)
 	app.PUT("/somePut", putting)
-	app.DELETE("/someDelete", deleting)
 	app.PATCH("/somePatch", patching)
+	app.DELETE("/someDelete", deleting)
+	app.HEAD("/someDelete", head)
+	app.OPTIONS("/someDelete", options)
 	
 	app.Run()
 }
 
 var IndexHandler = func(c *kamux.Context) {
     if param1,ok := c.Params["param1"];ok {
-        c.Status(200).Json(map[string]any{
+        c.Json(kamux.M{ // Status default to 200, so no need for it
             "param1":param1,
         }) // send json
     } else {
 		// P.S:
-		c.SetStatus(404) // will set the status header
+		c.Status(400).Json(kamux.M{
+            "error":"message",
+        }) // send json
     }
 }
 ```
@@ -289,7 +294,7 @@ func main() {
 			}
 
 			// send Json to current user
-			err = c.Json(map[string]any{
+			err = c.Json(kamux.M{
 				"Hello":"World",
 			})
 
@@ -297,7 +302,7 @@ func main() {
 			err = c.Text("any data string")
 
 			// broadcast to all connected users
-			c.Broadcast(map[string]any{
+			c.Broadcast(kamux.M{
 				"you can send":"struct insetead of maps here",
 			})
 
@@ -345,7 +350,7 @@ func main() {
     app.GET("/",func(c *kamux.Context) {
 		page := c.QueryParam("page")
 		if page != "" {
-			c.Status(200).Json(map[string]any{
+			c.Json(kamux.M{
 				"page":page,
 			})
 		} else {
@@ -357,7 +362,7 @@ func main() {
     // accepted param Type: string,slug,int,float and validated on the go, before it hit the handler
     app.POST("/param1:slug",func(c *kamux.Context) {
 		if param1,ok := c.Params["param1"];ok {
-			c.Json(map[string]any{
+			c.Json(kamux.M{
 				"param1":param1,
 			})
 		} else {
@@ -370,7 +375,7 @@ func main() {
 	// param1 can be ascii, no symbole
 	app.PATCH("/test/:param1",func(c *kamux.Context) {
 		if param1,ok := c.Params["param1"];ok {
-			c.Json(map[string]any{
+			c.Json(kamux.M{
 				"param1":param1,
 			})
 		} else {
@@ -493,7 +498,7 @@ func main() {
 	})
 
 
-	app.Run(":8080")
+	app.Run()
 }
 ```
 
@@ -517,7 +522,7 @@ func main() {
 		c.DeleteCookie(key string)
 	})
 
-	app.Run(":8080")
+	app.Run()
 }
 ```
 
@@ -664,24 +669,66 @@ orm.CreateUser(email,password string,isAdmin int, dbName ...string) error // pas
 ```
 
 ---
----
----
 
 # Migrations
-##### using the shell, you can migrate a .sql file 'go run main.go shell'
-##### OR
-##### you can migrate from a struct
-##### when running the main, all models registered using AutoMigrate will be synchronized with the database so if you add a field to you struct or add a column to your table, you will have a prompt proposing solutions
-##### execute AutoMigrate and don't think about it, it will handle all synchronisations between your project structs types like 'Bookmark' below
+## using the shell, you can migrate a .sql file ```go run main.go shell```
 
-## BONUS: notice that if you add a struct field with tags, tags are handled too, so you can add foreign keys, remove foreign keys, all from your struct, by removing a field, run the app, then put it again and run, results should be mirrored in the database after your confirmation
-## if you need to change a tag, remove the field, restart, put the new one with the new tag, restart again, that's it 
+## OR
+## you can migrate from a struct using [Auto Migrate](#automigrate-usage)
+
+## when kago app executed, all models registered using AutoMigrate will be synchronized with the database so if you add a field to you struct or add a column to your table, you will have a prompt proposing migration
+
+## execute AutoMigrate and don't think about it, it will handle all synchronisations between your project structs types like in the example Bookmark below
+
+## For instance you can add foreign keys column to your table by adding extra field to your struct and restart your app, you can also remove foreign keys. 
+
+## If you need to change a tag, remove the field, restart, put the new one with the new tag, restart again, that's it 
 
 ---
-### Available Tags by struct field type (tags are separated by ';'):
+### Available Tags by struct field type :
+###### tags are separated by ';'
 ---
 
-# Int, Uint, Int64, Uint64 :
+#String Field:
+<table>
+<tr>
+<th>Without parameter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
+<th>With parameter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
+</tr>
+<tr>
+<td>
+ 
+```
+*  	text (create column as TEXT not VARCHAR)
+*  	notnull
+*  	unique
+*   iunique // insensitive unique
+*  	index
+*  	default (DEFAULT '')
+```
+</td>
+<td>
+
+```
+* 	default:'any' (DEFAULT 'any')
+*	mindex:...
+* 	uindex:username,Iemail // CREATE UNIQUE INDEX ON users (username,LOWER(email)) 
+// index email is lower because of 'I' meaning Insensitive for email
+* 	fk:...
+* 	size:50  (VARCHAR(50))
+* 	check:...
+```
+
+</td>
+</tr>
+</table>
+
+
+---
+
+
+
+# Int, Uint, Int64, Uint64 Fields:
 <table>
 <tr>
 <th>Without parameter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
@@ -720,45 +767,8 @@ Available 'on_delete' and 'on_update' options: cascade,(donothing,noaction),(set
 
 ---
 
-#String :
-<table>
-<tr>
-<th>Without parameter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
-<th>With parameter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>
-</tr>
-<tr>
-<td>
- 
-```
-*  	text (create column as TEXT not VARCHAR)
-*  	notnull
-*  	unique
-*   iunique // insensitive unique
-*  	index
-*  	default (DEFAULT '')
-```
-</td>
-<td>
 
-```
-* 	default:'any' (DEFAULT 'any')
-*	mindex:...
-* 	uindex:username,Iemail // CREATE UNIQUE INDEX ON users (username,LOWER(email)) 
-// index email is lower because of 'I' meaning Insensitive for email
-* 	fk:...
-* 	size:50  (VARCHAR(50))
-* 	check:...
-```
-
-</td>
-</tr>
-</table>
-
-
----
-
-
-# Bool : bool is INTEGER NOT NULL checked if 0 or 1
+# Bool : bool is INTEGER NOT NULL checked between 0 and 1 (in order to be consistent accross sql dialects)
 <table>
 <tr>
 <th>Without parameter&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</th>

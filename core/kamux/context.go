@@ -18,6 +18,8 @@ import (
 
 var MultipartSize = 10 << 20
 
+type M map[string]any
+
 // Context is a wrapper of responseWriter, request, and params map
 type Context struct {
 	http.ResponseWriter
@@ -54,19 +56,20 @@ func (c *Context) QueryParam(name string) string {
 }
 
 // Json return json to the client
-func (c *Context) Json(body any) {
+func (c *Context) Json(data any) {
 	c.SetHeader("Content-Type", "application/json")
 	if c.status == 0 {
 		c.status = 200
 	}
 	c.WriteHeader(c.status)
 	enc := json.NewEncoder(c.ResponseWriter)
-	err := enc.Encode(body)
+	err := enc.Encode(data)
 	logger.CheckError(err)
 }
 
+
 // JsonIndent return json indented to the client
-func (c *Context) JsonIndent(body any) {
+func (c *Context) JsonIndent(data any) {
 	c.SetHeader("Content-Type", "application/json")
 	if c.status == 0 {
 		c.status = 200
@@ -74,7 +77,7 @@ func (c *Context) JsonIndent(body any) {
 	c.WriteHeader(c.status)
 	enc := json.NewEncoder(c.ResponseWriter)
 	enc.SetIndent("", "\t")
-	err := enc.Encode(body)
+	err := enc.Encode(data)
 	logger.CheckError(err)
 }
 

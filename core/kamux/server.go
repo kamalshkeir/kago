@@ -26,6 +26,7 @@ var midwrs []func(http.Handler) http.Handler
 
 // InitServer init the server with midws,
 func (router *Router) initServer() {
+	port := settings.Config.Port
 	var handler http.Handler
 	if len(midwrs) != 0 {
 		handler = midwrs[0](router)
@@ -40,7 +41,7 @@ func (router *Router) initServer() {
 	if host == "" {
 		host = "127.0.0.1"
 	}
-	port := settings.Config.Port
+	
 	if port == "" {
 		port = "9313"
 	}
@@ -102,17 +103,81 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 			router.AddLocalTemplates(settings.TEMPLATE_DIR)
 		}
 	}
+
 	// init server
 	router.initServer()
 	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
-
+	if strings.HasSuffix(settings.Config.Port,"443") {
+		go http.ListenAndServe(":80", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "https://" + r.Host + r.RequestURI, http.StatusPermanentRedirect)
+		}))
+	}
 	if err := router.Server.ListenAndServeTLS(certFile, keyFile); err != http.ErrServerClosed {
 		logger.Error("Unable to shutdown the server : ", err)
 	} else {
 		fmt.Printf(logger.Green, "Server Off !")
 	}
 }
+
+// ServeHTTP serveHTTP by handling methods,pattern,and params
+func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	c := &Context{Request: r, ResponseWriter: w, Params: map[string]string{}}
+	var allRoutes []Route
+	switch r.Method {
+	case "GET":
+		if strings.Contains(r.URL.Path, "/ws/") {
+			allRoutes = router.Routes[WS]
+		} else if strings.Contains(r.URL.Path, "/sse/") {
+			allRoutes = router.Routes[SSE]
+		} else {
+			allRoutes = router.Routes[GET]
+		}
+	case "POST":
+		allRoutes = router.Routes[POST]
+	case "PUT":
+		allRoutes = router.Routes[PUT]
+	case "PATCH":
+		allRoutes = router.Routes[PATCH]
+	case "DELETE":
+		allRoutes = router.Routes[DELETE]
+	case "HEAD":
+		allRoutes = router.Routes[HEAD]
+	case "OPTIONS":
+		allRoutes = router.Routes[OPTIONS]
+	default:
+		c.Status(http.StatusBadRequest).Text("Method Not Allowed")
+		return
+	}
+
+	if len(allRoutes) > 0 {
+		for _, rt := range allRoutes {
+			// match route
+			if matches := rt.Pattern.FindStringSubmatch(c.URL.Path); len(matches) > 0 {
+				// add params
+				paramsValues := matches[1:]
+				if names := rt.Pattern.SubexpNames(); len(names) > 0 {
+					for i, name := range rt.Pattern.SubexpNames()[1:] {
+						c.Params[name] = paramsValues[i]
+					}
+				}
+				if rt.WsHandler != nil {
+					// WS
+					rt.Method = r.Method
+					handleWebsockets(c, rt)
+					return
+				} else {
+					// HTTP
+					rt.Method = r.Method
+					handleHttp(c, rt)
+					return
+				}
+			}
+		}
+	}
+	router.DefaultRoute(c)
+}
+
 
 // Graceful Shutdown
 func (router *Router) gracefulShutdown() {
@@ -134,59 +199,6 @@ func (router *Router) gracefulShutdown() {
 	if logger.CheckError(err) {
 		os.Exit(1)
 	}
-}
-
-// ServeHTTP serveHTTP by handling methods,pattern,and params
-func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	c := &Context{Request: r, ResponseWriter: w, Params: map[string]string{}}
-	var allRoutes []Route
-
-	switch r.Method {
-	case "GET":
-		if strings.Contains(r.URL.Path, "/ws/") {
-			allRoutes = router.Routes[WS]
-		} else if strings.Contains(r.URL.Path, "/sse/") {
-			allRoutes = router.Routes[SSE]
-		} else {
-			allRoutes = router.Routes[GET]
-		}
-	case "POST":
-		allRoutes = router.Routes[POST]
-	case "PUT":
-		allRoutes = router.Routes[PUT]
-	case "PATCH":
-		allRoutes = router.Routes[PATCH]
-	case "DELETE":
-		allRoutes = router.Routes[DELETE]
-	default:
-		c.Status(http.StatusBadRequest).Text("Method Not Allowed .")
-		return
-	}
-
-	if len(allRoutes) > 0 {
-		for _, rt := range allRoutes {
-			// match route
-			if matches := rt.Pattern.FindStringSubmatch(c.URL.Path); len(matches) > 0 {
-				// add params
-				paramsValues := matches[1:]
-				if names := rt.Pattern.SubexpNames(); len(names) > 0 {
-					for i, name := range rt.Pattern.SubexpNames()[1:] {
-						c.Params[name] = paramsValues[i]
-					}
-				}
-				if rt.WsHandler != nil {
-					// WS
-					handleWebsockets(c, rt)
-					return
-				} else {
-					// HTTP
-					handleHttp(c, rt)
-					return
-				}
-			}
-		}
-	}
-	router.DefaultRoute(c)
 }
 
 func adaptParams(url string) string {
@@ -317,44 +329,49 @@ func handleWebsockets(c *Context, rt Route) {
 }
 
 func handleHttp(c *Context, rt Route) {
-	if rt.Method == "GET" {
+	switch rt.Method {
+	case "GET":
 		if rt.Method == "SSE" {
 			sseHeaders(c)
 		}
 		rt.Handler(c)
 		return
-	}
-	// check cross origin
-	if checkSameSite(*c) {
-		// same site
-		rt.Handler(c)
-		return
-	} else if rt.Method == "SSE" {
+	case "SSE":
 		sseHeaders(c)
 		rt.Handler(c)
 		return
-	} else {
-		// cross origin
-		if len(rt.AllowedOrigines) == 0 {
-			logger.Warn(c.Request.Header.Get("Origin"), "not allowed csrf")
-			c.Status(http.StatusBadRequest).Text("you are not allowed cross origin for this url,origin")
+	case "HEAD","OPTIONS":
+		rt.Handler(c)
+		return
+	default:
+		// check cross origin
+		if checkSameSite(*c) {
+			// same site
+			rt.Handler(c)
 			return
 		} else {
-			allowed := false
-			for _, dom := range rt.AllowedOrigines {
-				if strings.Contains(c.Request.Header.Get("Origin"), dom) {
-					allowed = true
-				}
-			}
-			if allowed {
-				rt.Handler(c)
+			// cross origin
+			if len(rt.AllowedOrigines) == 0 {
+				c.Status(http.StatusBadRequest).Text("no cross origin not allowed")
 				return
 			} else {
-				c.Status(http.StatusBadRequest).Text("you are not allowed to access this route from cross origin")
-				return
+				allowed := false
+				for _, dom := range rt.AllowedOrigines {
+					if strings.Contains(c.Request.Header.Get("Origin"), dom) {
+						allowed = true
+					}
+				}
+				if allowed {
+					rt.Handler(c)
+					return
+				} else {
+					c.Status(http.StatusBadRequest).Text("you are not allowed cross origin this url")
+					return
+				}
 			}
 		}
 	}
+	
 }
 
 func sseHeaders(c *Context) {

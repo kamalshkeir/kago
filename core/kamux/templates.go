@@ -41,7 +41,6 @@ func initTemplatesAndAssets(router *Router) {
 	if settings.Config.Embed.Templates {
 		router.AddEmbededTemplates(Templates, settings.TEMPLATE_DIR)
 	} else {
-		//local
 		router.AddLocalTemplates(settings.TEMPLATE_DIR)
 	}
 }
@@ -166,9 +165,16 @@ func (router *Router) initDefaultUrls() {
 		}
 	} else {
 		// LOCAL STATIC
-		router.ServeLocalDir(settings.STATIC_DIR, "static")
-		if settings.Config.Docs {
-			router.ServeLocalDir(settings.STATIC_DIR+"/docs", "docs")
+		if _,err := os.Stat(settings.STATIC_DIR);err == nil {
+			router.ServeLocalDir(settings.STATIC_DIR, "static")
+			if settings.Config.Docs {
+				if _,err := os.Stat(settings.STATIC_DIR+"/docs");err == nil {
+					router.ServeLocalDir(settings.STATIC_DIR+"/docs", "docs")
+				} else {
+					logger.Error(settings.STATIC_DIR+"/docs","not found")
+					os.Exit(0)
+				}
+			}
 		}
 	}
 	// MEDIA

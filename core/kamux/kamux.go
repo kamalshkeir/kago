@@ -18,6 +18,8 @@ const (
 	PUT
 	PATCH
 	DELETE
+	HEAD
+	OPTIONS
 	WS
 	SSE
 )
@@ -101,6 +103,8 @@ func BareBone() *Router {
 		},
 	}
 	settings.MODE="barebone"
+	// load translations
+	go LoadTranslations()
 	// load Envs and Init Settings Config
 	if _, err := os.Stat(".env"); !os.IsNotExist(err) {
 		app.LoadEnv(".env")
@@ -114,7 +118,7 @@ func BareBone() *Router {
 func (router *Router) handle(method int, pattern string, handler Handler, wshandler WsHandler, allowed []string) {
 	re := regexp.MustCompile(adaptParams(pattern))
 	route := Route{Method: methods[method], Pattern: re, Handler: handler, WsHandler: wshandler, Clients: nil, AllowedOrigines: []string{}}
-	if len(allowed) > 0 && method != GET {
+	if len(allowed) > 0 && method != GET && method != HEAD && method != OPTIONS {
 		route.AllowedOrigines = append(route.AllowedOrigines, allowed...)
 	}
 	if method == WS {
@@ -158,6 +162,15 @@ func (router *Router) PATCH(pattern string, handler Handler, allowed_origines ..
 // DELETE handle DELETE to a route
 func (router *Router) DELETE(pattern string, handler Handler, allowed_origines ...string) {
 	router.handle(DELETE, pattern, handler, nil, allowed_origines)
+}
+
+// HEAD handle HEAD to a route
+func (router *Router) HEAD(pattern string, handler Handler, allowed_origines ...string) {
+	router.handle(HEAD, pattern, handler, nil, allowed_origines)
+}
+// OPTIONS handle OPTIONS to a route
+func (router *Router) OPTIONS(pattern string, handler Handler, allowed_origines ...string) {
+	router.handle(OPTIONS, pattern, handler, nil, allowed_origines)
 }
 
 // WS handle WS connection on a pattern
