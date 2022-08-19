@@ -144,7 +144,6 @@ func (router *Router) AddEmbededTemplates(template_embed embed.FS, rootDir strin
 func (router *Router) initDefaultUrls() {
 	// prometheus metrics
 	if settings.Config.Monitoring {
-		router.UseMiddlewares(PROMETHEUS)
 		router.GET("/metrics", func(c *Context) {
 			promhttp.Handler().ServeHTTP(c.ResponseWriter, c.Request)
 		})

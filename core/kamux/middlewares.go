@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -25,19 +24,11 @@ import (
 	"github.com/kamalshkeir/kago/core/utils/encryption/encryptor"
 	"github.com/kamalshkeir/kago/core/utils/eventbus"
 	"github.com/kamalshkeir/kago/core/utils/logger"
-	"github.com/prometheus/client_golang/prometheus"
 
 	"golang.org/x/time/rate"
 )
 
-func init() {
-	if settings.Config.Monitoring {
-		err := prometheus.Register(totalRequests)
-		logger.CheckError(err)
-		err = prometheus.Register(httpDuration)
-		logger.CheckError(err)
-	}
-}
+
 
 var SESSION_ENCRYPTION = true
 
@@ -321,49 +312,3 @@ var LOGS = func(h http.Handler) http.Handler {
 }
 
 
-/* Prometheus */
-var PROMETHEUS = func(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if utils.StringContains(r.URL.Path, "metrics", "sw.js", "favicon", "/static/", "/sse/", "/ws/", "/wss/") {
-			next.ServeHTTP(w, r)
-			return
-		}
-		//check if connection is ws
-		for _, header := range r.Header["Upgrade"] {
-			if header == "websocket" {
-				// connection is ws
-				next.ServeHTTP(w, r)
-				return
-			}
-		}
-		recorder := &logs.StatusRecorder{
-			ResponseWriter: w,
-			Status:         200,
-		}
-		t := time.Now()
-        next.ServeHTTP(recorder, r)
-		statusString := strconv.Itoa(recorder.Status)
-		httpDuration.With(prometheus.Labels{"method": r.Method, "endpoint": r.URL.Path,"status":statusString}).Observe(float64(time.Since(t).Seconds()))
-		totalRequests.With(prometheus.Labels{"method": r.Method, "endpoint": r.URL.Path,"status":statusString}).Inc()
-    })
-}
-
-
-
-var totalRequests = prometheus.NewCounterVec(prometheus.CounterOpts{
-    Name: "kago_total_requests",
-    Help: "Total requests",
-}, []string{"method", "endpoint","status"})
-
-//======================================================================
-
-var httpDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts{
-    Name:    "kago_http_request_duration_seconds",
-    Help:    "Duration of HTTP requests in seconds",
-    Buckets: []float64{.1},
-}, []string{"method", "endpoint","status"})
-
-//======================================================================
-
-
-//rate(kago_http_request_duration_seconds_sum{}[1m]) / rate(kago_http_request_duration_seconds_count{}[1m])
