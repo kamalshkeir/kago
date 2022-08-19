@@ -114,14 +114,12 @@ func getTagsAndPrint() {
 	}
 	
 
-	if host == "0.0.0.0" || len(strings.Split(host,".")) < 4 {
-		pIp := utils.GetPrivateIp()
-		logger.Printfs("HOST IP 0.0.0.0 --> %s", pIp)
-		if port == "443" {
-			settings.Config.Host=pIp
-		}
-	}
+	
 
 	logger.Printfs("yl%s", logger.Ascii7)
 	logger.Printfs("%s", "-------⚡🚀 http://"+host+":"+port+" 🚀⚡-------")
+	if host == "0.0.0.0" || len(strings.Split(host,".")) < 4 {
+		pIp := utils.GetPrivateIp()
+		logger.Printfs("HOST IP 0.0.0.0 --> %s", pIp)
+	}
 }
