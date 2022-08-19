@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/settings"
@@ -25,13 +26,15 @@ const (
 )
 
 var methods = map[int]string{
-	GET:    "GET",
-	POST:   "POST",
-	PUT:    "PUT",
-	PATCH:  "PATCH",
-	DELETE: "DELETE",
-	WS:     "WS",
-	SSE:    "SSE",
+	GET:     "GET",
+	POST:    "POST",
+	PUT:     "PUT",
+	PATCH:   "PATCH",
+	DELETE:  "DELETE",
+	HEAD:    "HEAD",
+	OPTIONS: "OPTIONS",
+	WS:      "WS",
+	SSE:     "SSE",
 }
 
 // Handler
@@ -102,7 +105,7 @@ func BareBone() *Router {
 			c.Status(404).Text("Page Not Found")
 		},
 	}
-	settings.MODE="barebone"
+	settings.MODE = "barebone"
 	// load translations
 	go LoadTranslations()
 	// load Envs and Init Settings Config
@@ -110,7 +113,7 @@ func BareBone() *Router {
 		app.LoadEnv(".env")
 	}
 	// after load env to override struct values
-	getTagsAndPrint()	
+	getTagsAndPrint()
 	return app
 }
 
@@ -144,6 +147,37 @@ func (router *Router) GET(pattern string, handler Handler) {
 	router.handle(GET, pattern, handler, nil, nil)
 }
 
+// GET handle GET to a route
+func (router *Router) HandlerFunc(method string, pattern string, handler http.HandlerFunc, allowed ...string) {
+	var	meth int
+	for i,v := range methods {
+		if strings.EqualFold(v,method) {
+			meth=i
+		}
+	}
+	re := regexp.MustCompile(adaptParams(pattern))
+	route := Route{Method: methods[meth], Pattern: re, Handler: func(c *Context) {handler.ServeHTTP(c.ResponseWriter,c.Request)}, WsHandler: nil, Clients: nil, AllowedOrigines: []string{}}
+	if len(allowed) > 0 && meth != GET && meth != HEAD && meth != OPTIONS {
+		route.AllowedOrigines = append(route.AllowedOrigines, allowed...)
+	}
+	if meth == WS {
+		route.Clients = map[string]*websocket.Conn{}
+	}
+	if _, ok := router.Routes[meth]; !ok {
+		router.Routes[meth] = []Route{}
+	}
+	if len(router.Routes[meth]) == 0 {
+		router.Routes[meth] = append(router.Routes[meth], route)
+		return
+	}
+	for i, rt := range router.Routes[meth] {
+		if rt.Pattern.String() == re.String() {
+			router.Routes[meth] = append(router.Routes[meth][:i], router.Routes[meth][i+1:]...)
+		}
+	}
+	router.Routes[meth] = append(router.Routes[meth], route)
+}
+
 // POST handle POST to a route
 func (router *Router) POST(pattern string, handler Handler, allowed_origines ...string) {
 	router.handle(POST, pattern, handler, nil, allowed_origines)
@@ -166,11 +200,12 @@ func (router *Router) DELETE(pattern string, handler Handler, allowed_origines .
 
 // HEAD handle HEAD to a route
 func (router *Router) HEAD(pattern string, handler Handler, allowed_origines ...string) {
-	router.handle(HEAD, pattern, handler, nil, allowed_origines)
+	router.handle(HEAD, pattern, handler, nil, nil)
 }
+
 // OPTIONS handle OPTIONS to a route
 func (router *Router) OPTIONS(pattern string, handler Handler, allowed_origines ...string) {
-	router.handle(OPTIONS, pattern, handler, nil, allowed_origines)
+	router.handle(OPTIONS, pattern, handler, nil, nil)
 }
 
 // WS handle WS connection on a pattern

@@ -109,9 +109,14 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
 	if strings.HasSuffix(settings.Config.Port,"443") {
-		go http.ListenAndServe(":80", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			http.Redirect(w, r, "https://" + r.Host + r.RequestURI, http.StatusPermanentRedirect)
-		}))
+		go func() {
+			err := http.ListenAndServe(":80", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "https://" + r.Host + r.RequestURI, http.StatusPermanentRedirect)
+			}))
+			if err != nil {
+				logger.Error("error serving on port 80 for redirection to https when running tls:",err)
+			}
+		}()
 	}
 	if err := router.Server.ListenAndServeTLS(certFile, keyFile); err != http.ErrServerClosed {
 		logger.Error("Unable to shutdown the server : ", err)

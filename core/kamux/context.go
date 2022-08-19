@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -157,9 +159,9 @@ func (c *Context) StreamResponse(response string) error {
 // BodyJson get json body from request and return map
 // USAGE : data := c.BodyJson(r)
 func (c *Context) BodyJson() map[string]any {
+	defer c.Request.Body.Close()
 	d := map[string]any{}
 	dec := json.NewDecoder(c.Request.Body)
-	defer c.Request.Body.Close()
 	if err := dec.Decode(&d); err == io.EOF {
 		//empty body
 		logger.Error("empty body EOF")
@@ -201,52 +203,78 @@ func (c *Context) ServeEmbededFile(content_type string, embed_file []byte) {
 	_, _ = c.ResponseWriter.Write(embed_file)
 }
 
-// UploadFile upload received_filename into folder_out and return url,fileByte,error
-func (c *Context) UploadFile(received_filename, folder_out string, acceptedFormats ...string) (string, []byte, error) {
-	c.Request.ParseMultipartForm(int64(MultipartSize)) //10Mb
+
+func (c *Context) ParseMultipartForm(size ...int64) (formData url.Values, formFiles map[string][]*multipart.FileHeader) {
+	s := int64(32 << 20)
+	if len(size) > 0 {
+		s = size[0]
+	}
+	r := c.Request
+	parseErr := r.ParseMultipartForm(s)
+	if parseErr != nil {
+		logger.Error("ParseMultipartForm error = ", parseErr)
+	}
 	defer func ()  {
-		err := c.Request.MultipartForm.RemoveAll()
+		err := r.MultipartForm.RemoveAll()
 		logger.CheckError(err)
 	}()
-	var buff bytes.Buffer
-	file, header, err := c.Request.FormFile(received_filename)
-	if logger.CheckError(err) {
-		return "", nil, err
-	}
-	defer file.Close()
-	// copy the uploaded file to the buffer
-	if _, err := io.Copy(&buff, file); err != nil {
-		return "", nil, err
-	}
+	formData = r.Form
+	formFiles = r.MultipartForm.File
+	return formData, formFiles
+}
 
-	data_string := buff.String()
+// UploadFile upload received_filename into folder_out and return url,fileByte,error
+func (c *Context) UploadFile(received_filename, folder_out string, acceptedFormats ...string) (string, []byte, error) {
+	_, formFiles := c.ParseMultipartForm()
+	url := ""
+	data := []byte{}
+	for inputName, files := range formFiles {
+		var buff bytes.Buffer
+		if received_filename == inputName {
+				f := files[0]
+				file, err := f.Open()
+				if logger.CheckError(err) {
+					return "", nil, err
+				}
+				defer file.Close()
+				// copy the uploaded file to the buffer
+				if _, err := io.Copy(&buff, file); err != nil {
+					return "", nil, err
+				}
 
-	// make DIRS if not exist
-	err = os.MkdirAll(settings.MEDIA_DIR+"/"+folder_out+"/", 0664)
-	if err != nil {
-		return "", nil, err
-	}
-	// make file
-	if len(acceptedFormats) == 0 {
-		acceptedFormats = []string{"jpg", "jpeg", "png", "json"}
-	}
-	if utils.StringContains(header.Filename, acceptedFormats...) {
-		dst, err := os.Create(settings.MEDIA_DIR+"/" + folder_out + "/" + header.Filename)
-		if err != nil {
-			return "", nil, err
+				data_string := buff.String()
+
+				// make DIRS if not exist
+				err = os.MkdirAll(settings.MEDIA_DIR+"/"+folder_out+"/", 0664)
+				if err != nil {
+					return "", nil, err
+				}
+				// make file
+				if len(acceptedFormats) == 0 {
+					acceptedFormats = []string{"jpg", "jpeg", "png", "json"}
+				}
+				if utils.StringContains(f.Filename, acceptedFormats...) {
+					dst, err := os.Create(settings.MEDIA_DIR+"/" + folder_out + "/" + f.Filename)
+					if err != nil {
+						return "", nil, err
+					}
+					defer dst.Close()
+					dst.Write([]byte(data_string))
+
+					url = settings.MEDIA_DIR+"/" + folder_out + "/" + f.Filename
+					data = []byte(data_string)
+				} else {
+					logger.Info(f.Filename, "not handled")
+					return "", nil, fmt.Errorf("expecting filename to finish to be %v", acceptedFormats)
+				}
 		}
-		defer dst.Close()
-		dst.Write([]byte(data_string))
 
-		url := settings.MEDIA_DIR+"/" + folder_out + "/" + header.Filename
-		return url, []byte(data_string), nil
-	} else {
-		return "", nil, fmt.Errorf("expecting filename to finish to be %v", acceptedFormats)
 	}
+	return url, data, nil
 }
 
 func (c *Context) UploadFiles(received_filenames []string, folder_out string, acceptedFormats ...string) ([]string, [][]byte, error) {
-	_, formFiles := utils.ParseMultipartForm(c.Request)
+	_, formFiles := c.ParseMultipartForm()
 	urls := []string{}
 	datas := [][]byte{}
 	for inputName, files := range formFiles {

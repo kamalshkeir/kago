@@ -84,6 +84,13 @@ import (
 
 func main() {
 	app := kago.New() // router + admin + database + shell
+
+	app.GET("/bla/(hello|world)",func(c *kamux.Context) { // handle GET /bla/hello and /bla/world
+		c.Json(kamux.M{
+			"message":"success",
+		})
+	})
+	
 	app.Run()
 }
 ```
@@ -449,6 +456,7 @@ func main() {
 	c.StreamResponse(response string) error //SSE
 	c.ServeFile("application/json; charset=utf-8", "./test.json")
 	c.ServeEmbededFile(content_type string,embed_file []byte)
+	c.ParseMultipartForm(size ...int64) (formData url.Values, formFiles map[string][]*multipart.FileHeader) // return form data and form files
 	c.UploadFile(received_filename,folder_out string, acceptedFormats ...string) (string,[]byte,error) // UploadFile upload received_filename into folder_out and return url,fileByte,error
 	c.UploadFiles(received_filenames []string,folder_out string, acceptedFormats ...string) ([]string,[][]byte,error) // UploadFilse handle also if it's the same name but multiple files or multiple names multiple files
 	c.DeleteFile(path string) error
@@ -474,7 +482,7 @@ func main() {
         }
 
         if err != nil {
-            c.Status(400).Json(map[string]any{
+            c.Status(400).Json(kamux.M{
 			    "error":"User doesn not Exist",
 		    })
         }

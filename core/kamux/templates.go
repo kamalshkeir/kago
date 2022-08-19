@@ -151,9 +151,16 @@ func (router *Router) initDefaultUrls() {
 	}
 	// PROFILER
 	if settings.Config.Profiler {
-		router.GET("/debug/pprof/?heap*", func(c *Context) { pprof.Index(c.ResponseWriter, c.Request) })
-		router.GET("/debug/pprof/profile*", func(c *Context) { pprof.Profile(c.ResponseWriter, c.Request) })
-		router.GET("/debug/pprof/trace*", func(c *Context) { pprof.Trace(c.ResponseWriter, c.Request) })
+		router.GET("/debug/*", func(c *Context) {
+			if strings.Contains(c.Request.URL.Path,"profile") {
+				pprof.Profile(c.ResponseWriter, c.Request)
+				return
+			} else if strings.Contains(c.Request.URL.Path,"trace") {
+				pprof.Trace(c.ResponseWriter, c.Request)
+				return
+			}
+			pprof.Index(c.ResponseWriter, c.Request) 
+		})
 	}
 	
 	// STATIC
