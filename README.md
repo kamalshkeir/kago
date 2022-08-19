@@ -85,10 +85,14 @@ import (
 func main() {
 	app := kago.New() // router + admin + database + shell
 
+	// using an adapter for go std http handlerfunc
+	app.HandlerFunc("GET","/",func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("hello world"))
+	})
+
+	// using kago handler
 	app.GET("/bla/(hello|world)",func(c *kamux.Context) { // handle GET /bla/hello and /bla/world
-		c.Json(kamux.M{
-			"message":"success",
-		})
+		c.Text("hello world")
 	})
 	
 	app.Run()
@@ -230,7 +234,7 @@ kamux.GZIP = func(handler http.Handler) http.Handler { // Handler
 ```
 ---
 # Routing
-### Using GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS
+### Using GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, HandlerFunc
 
 ```go
 package main
@@ -249,7 +253,7 @@ func main() {
 	app.UseMiddlewares(kamux.GZIP)
 
 	// OR middleware for single handler (Auth,Admin,BasicAuth)
-	// Auth ensure user is authenticated and pass to c.Html '.user' and '.request', so accessible in all templates
+	// Auth check if user is authenticated and pass to c.Html '.User' and '.Request' accessible in all templates
 	app.GET("/",kamux.Auth(IndexHandler))
 	app.POST("/somePost", posting)
 	app.PUT("/somePut", putting)
@@ -257,7 +261,11 @@ func main() {
 	app.DELETE("/someDelete", deleting)
 	app.HEAD("/someDelete", head)
 	app.OPTIONS("/someDelete", options)
-	
+
+	app.HandlerFunc("GET","/",func(w http.ResponseWriter, r *http.Request) { // using net/http handlerFunc
+		w.Write([]byte("hello world"))
+	})
+
 	app.Run()
 }
 

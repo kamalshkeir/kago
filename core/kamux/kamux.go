@@ -147,7 +147,7 @@ func (router *Router) GET(pattern string, handler Handler) {
 	router.handle(GET, pattern, handler, nil, nil)
 }
 
-// GET handle GET to a route
+// HandlerFunc support standard library http.HandlerFunc
 func (router *Router) HandlerFunc(method string, pattern string, handler http.HandlerFunc, allowed ...string) {
 	var	meth int
 	for i,v := range methods {
