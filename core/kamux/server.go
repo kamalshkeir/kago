@@ -89,6 +89,13 @@ func (router *Router) Run() {
 	}
 }
 
+var subdomains = map[string]string{}
+
+func (router *Router) Proxy(domain string, url string) {
+	subdomains[domain]=url
+}
+
+
 // RunTLS start the server TLS
 func (router *Router) RunTLS(certFile string, keyFile string) {
 	if settings.MODE != "barebone" {
@@ -106,7 +113,16 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 	router.UseMiddlewares(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Host != settings.Config.Host  || r.TLS == nil {
-				http.Redirect(w, r, "https://"+settings.Config.Host+":"+settings.Config.Port+r.RequestURI, http.StatusSeeOther)
+				if len(subdomains) > 0 {
+					if v,ok := subdomains[r.Host];ok {
+						http.Redirect(w, r, v+r.RequestURI, http.StatusPermanentRedirect)
+					} else {
+						http.Redirect(w, r, "https://"+settings.Config.Host+":"+settings.Config.Port+r.RequestURI, http.StatusPermanentRedirect)
+					}
+				} else {
+					http.Redirect(w, r, "https://"+settings.Config.Host+":"+settings.Config.Port+r.RequestURI, http.StatusPermanentRedirect)
+				}
+				
 			} else {
 				next.ServeHTTP(w,r)
 			}
