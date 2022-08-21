@@ -112,7 +112,11 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 			router.AddLocalTemplates(settings.TEMPLATE_DIR)
 		}
 	}
-	
+	for domain,ip := range subdomains {
+		u,_ := url.Parse(ip)
+		router.GET(domain,func(c *Context) {httputil.NewSingleHostReverseProxy(u).ServeHTTP(c.ResponseWriter,c.Request)})
+	}
+
 	/* 	router.UseMiddlewares(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Host != settings.Config.Host  || r.TLS == nil {
@@ -126,19 +130,6 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 	router.initServer()
 	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
-	go func() {
-		if len(subdomains) > 0 {
-			m := http.NewServeMux()
-			for domain,ip := range subdomains {
-				u,_ := url.Parse(ip)
-				m.Handle(domain,httputil.NewSingleHostReverseProxy(u))
-			}
-			err := http.ListenAndServe(settings.Config.Host+":80",m)
-			if err != http.ErrServerClosed {
-				logger.Error("Unable to shutdown the proxy : ", err)
-			} 
-		}
-	}()
 	if err := router.Server.ListenAndServeTLS(certFile, keyFile); err != http.ErrServerClosed {
 		logger.Error("Unable to shutdown the server : ", err)
 	} else {
