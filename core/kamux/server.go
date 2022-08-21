@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -91,12 +89,6 @@ func (router *Router) Run() {
 	}
 }
 
-var subdomains = map[string]string{}
-
-func (router *Router) Proxy(domain string, url string) {
-	subdomains[domain]=url
-}
-
 
 // RunTLS start the server TLS
 func (router *Router) RunTLS(certFile string, keyFile string) {
@@ -111,10 +103,6 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 			//local
 			router.AddLocalTemplates(settings.TEMPLATE_DIR)
 		}
-	}
-	for domain,ip := range subdomains {
-		u,_ := url.Parse(ip)
-		router.GET(domain,func(c *Context) {httputil.NewSingleHostReverseProxy(u).ServeHTTP(c.ResponseWriter,c.Request)})
 	}
 
 	/* 	router.UseMiddlewares(func(next http.Handler) http.Handler {
