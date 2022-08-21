@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -110,19 +112,17 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 			router.AddLocalTemplates(settings.TEMPLATE_DIR)
 		}
 	}
+	if len(subdomains) > 0 {
+		for domain,ip := range subdomains {
+			u,_ := url.Parse(ip)
+			http.Handle(domain,httputil.NewSingleHostReverseProxy(u))
+		}
+	}
+	
 	router.UseMiddlewares(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.Host != settings.Config.Host  || r.TLS == nil {
-				if len(subdomains) > 0 {
-					if v,ok := subdomains[r.Host];ok {
-						http.Redirect(w, r, v+r.RequestURI, http.StatusPermanentRedirect)
-					} else {
-						http.Redirect(w, r, "https://"+settings.Config.Host+":"+settings.Config.Port+r.RequestURI, http.StatusPermanentRedirect)
-					}
-				} else {
-					http.Redirect(w, r, "https://"+settings.Config.Host+":"+settings.Config.Port+r.RequestURI, http.StatusPermanentRedirect)
-				}
-				
+				http.Redirect(w, r, "https://"+settings.Config.Host+":"+settings.Config.Port+r.RequestURI, http.StatusPermanentRedirect)
 			} else {
 				next.ServeHTTP(w,r)
 			}
