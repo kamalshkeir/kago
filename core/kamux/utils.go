@@ -118,7 +118,7 @@ func getTagsAndPrint() {
 
 	logger.Printfs("yl%s", logger.Ascii7)
 	logger.Printfs("%s", "-------⚡🚀 http://"+host+":"+port+" 🚀⚡-------")
-	if host == "0.0.0.0" || len(strings.Split(host,".")) < 4 {
+	if host == "0.0.0.0" || (len(strings.Split(host,".")) < 4 && host != "localhost") {
 		pIp := utils.GetPrivateIp()
 		logger.Printfs("HOST IP 0.0.0.0 --> %s", pIp)
 	}

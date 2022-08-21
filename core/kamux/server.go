@@ -72,8 +72,9 @@ func (router *Router) Run() {
 		if settings.Config.Embed.Templates {
 			router.AddEmbededTemplates(Templates, settings.TEMPLATE_DIR)
 		} else {
-			//local
-			router.AddLocalTemplates(settings.TEMPLATE_DIR)
+			if _,err := os.Stat(settings.TEMPLATE_DIR);err == nil {
+				router.AddLocalTemplates(settings.TEMPLATE_DIR)
+			}
 		}
 	}
 	
@@ -100,20 +101,12 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 		if settings.Config.Embed.Templates {
 			router.AddEmbededTemplates(Templates, settings.TEMPLATE_DIR)
 		} else {
-			//local
-			router.AddLocalTemplates(settings.TEMPLATE_DIR)
+			if _,err := os.Stat(settings.TEMPLATE_DIR);err == nil { 
+				router.AddLocalTemplates(settings.TEMPLATE_DIR)
+			}
 		}
 	}
 
-	/* 	router.UseMiddlewares(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Host != settings.Config.Host  || r.TLS == nil {
-				http.Redirect(w, r, "https://"+settings.Config.Host+":"+settings.Config.Port+r.RequestURI, http.StatusPermanentRedirect)
-			} else {
-				next.ServeHTTP(w,r)
-			}
-		})
-	}) */
 	// init server
 	router.initServer()
 	// graceful Shutdown server + db if exist
