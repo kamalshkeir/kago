@@ -132,7 +132,19 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 	router.initServer()
 	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
-	
+	go func() {
+		if len(subdomains) > 0 {
+			m := http.NewServeMux()
+			for domain,ip := range subdomains {
+				u,_ := url.Parse(ip)
+				m.Handle(domain,httputil.NewSingleHostReverseProxy(u))
+			}
+			err := http.ListenAndServe(settings.Config.Host+":80",m)
+			if err != http.ErrServerClosed {
+				logger.Error("Unable to shutdown the proxy : ", err)
+			} 
+		}
+	}()
 	if err := router.Server.ListenAndServeTLS(certFile, keyFile); err != http.ErrServerClosed {
 		logger.Error("Unable to shutdown the server : ", err)
 	} else {
