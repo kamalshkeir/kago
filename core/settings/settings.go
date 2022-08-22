@@ -13,7 +13,6 @@ var STATIC_DIR= "assets/static"
 var TEMPLATE_DIR= "assets/templates"
 var MEDIA_DIR = "media"
 var Languages = []string{}
-var Proxy=false
 
 type GlobalConfig struct {
 	Host  string `env:"HOST|localhost"`

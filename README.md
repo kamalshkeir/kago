@@ -157,7 +157,7 @@ go run main.go shell
 #### 3- you can change port and host by putting Env Vars 'HOST' and 'PORT' or using flags:
 ```zsh
 # default: -h localhost -p 9313
-go run main.go -h kamalshkeir.dev -p 443 // production
+go run main.go -h kamalshkeir.dev -p 443 --cert cerkey.pem --key privkey.pem // production
 ```
 ## That's it, you can visit /admin
 

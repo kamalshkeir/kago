@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/logger"
-	"github.com/kamalshkeir/kago/core/utils/reverseproxy"
 	"golang.org/x/net/websocket"
 )
 
@@ -92,14 +90,6 @@ func (router *Router) Run() {
 	}
 }
 
-
-var proxies = map[string]string{}
-
-func (router *Router) Proxy(from string, to string) {
-	proxies[from]=to
-}
-
-
 // RunTLS start the server TLS
 func (router *Router) RunTLS(certFile string, keyFile string) {
 	if settings.MODE != "barebone" {
@@ -119,58 +109,17 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 		settings.Config.Cert=certFile
 		settings.Config.Key=keyFile
 	}
-
 	
 	// init server
 	router.initServer()
 	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
-	if settings.Config.Cert != "" && settings.Config.Key != "" && settings.Proxy {
-		// proxy
-		go func() {
-			logger.Info("running proxy on:","https://"+settings.Config.Host)
-			http.ListenAndServeTLS(settings.Config.Host+":"+settings.Config.Port,settings.Config.Cert,settings.Config.Key,http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {				
-				if !utils.StringContains(r.Host,"localhost:9313","127.0.0.1:9313","0.0.0.0:9313") {
-					for dom,urll := range proxies {
-						if strings.Contains(r.Host,dom) {
-							logger.Info("sending",dom,"to",urll)
-							path,err := url.Parse(urll)
-							if err != nil {
-								fmt.Println(err)
-								return
-							}
-							proxy := reverseproxy.NewReverseProxy(path)
-							proxy.ServeHTTP(w,r)
-							return
-						}
-					}
-				} 
-				path,err := url.Parse("http://localhost:9313")
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-				proxy := reverseproxy.NewReverseProxy(path)
-				proxy.ServeHTTP(w,r)
-			}))
-		}()
-	}
 
-	if settings.Proxy {
-		router.Server.Addr="localhost:9313"
-		if err := router.Server.ListenAndServe(); err != http.ErrServerClosed {
-			logger.Error("Unable to shutdown the server : ", err)
-		} else {
-			fmt.Printf(logger.Green, "Server Off !")
-		}
+	if err := router.Server.ListenAndServeTLS(settings.Config.Cert,settings.Config.Key); err != http.ErrServerClosed {
+		logger.Error("Unable to shutdown the server : ", err)
 	} else {
-		if err := router.Server.ListenAndServeTLS(settings.Config.Cert,settings.Config.Key); err != http.ErrServerClosed {
-			logger.Error("Unable to shutdown the server : ", err)
-		} else {
-			fmt.Printf(logger.Green, "Server Off !")
-		}
+		fmt.Printf(logger.Green, "Server Off !")
 	}
-	
 }
 
 // ServeHTTP serveHTTP by handling methods,pattern,and params
@@ -230,7 +179,6 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	router.DefaultRoute(c)
 }
-
 
 // Graceful Shutdown
 func (router *Router) gracefulShutdown() {

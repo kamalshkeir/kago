@@ -91,10 +91,9 @@ func getTagsAndPrint() {
 	profiler := flag.Bool("profiler", false, "set settings.Config.Profiler for pprof  /debug/pprof")
 	cert := flag.String("cert","","certfile")
 	key := flag.String("key","","keyfile")
-	proxy := flag.Bool("proxy",false,"proxy on/off")
 	flag.Parse()
 
-	settings.Proxy = *proxy
+	
 	settings.Config.Logs = *logs
 	settings.Config.Monitoring = *monitoring
 	settings.Config.Docs = *docs
