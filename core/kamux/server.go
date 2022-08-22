@@ -23,7 +23,7 @@ var (
 
 
 var midwrs []func(http.Handler) http.Handler
-
+var CORSDebug=false
 // InitServer init the server with midws,
 func (router *Router) initServer() {
 	port := settings.Config.Port
@@ -243,8 +243,15 @@ func checkSameSite(c Context) bool {
 	privateIp := ""
 	origin := c.Request.Header.Get("Origin")
 	if origin == "" {
+		if CORSDebug {
+			logger.Info("origin empty for",c.Request.RemoteAddr)
+			logger.Info("HOST:",settings.Config.Host)
+			logger.Info("PORT:",settings.Config.Port)
+			logger.Info("DOMAIN:",settings.Config.Domain)
+		}
 		return false
 	}
+	
 	host := settings.Config.Host
 	if host == "" || host == "localhost" || host == "127.0.0.1" {
 		if strings.Contains(origin, "localhost") {
@@ -260,6 +267,12 @@ func checkSameSite(c Context) bool {
 		port = ":" + port
 	}
 
+	if CORSDebug {
+		logger.Info("ORIGIN:",c.Request.RemoteAddr,"is:",origin)
+		logger.Info("HOST:",host)
+		logger.Info("PORT:",port)
+		logger.Info("DOMAIN:",settings.Config.Domain)
+	}
 	if settings.Config.Domain != ""  && strings.Contains(origin,settings.Config.Domain) {
 		return true
 	}
