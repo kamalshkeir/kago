@@ -40,9 +40,12 @@ func NewReverseProxy(target *url.URL) *ReverseProxy {
 
 		req.Header.Add("X-Forwarded-Host", req.Host)
 		req.Header.Add("X-Origin-Host", target.Host)
-		if _, ok := req.Header["User-Agent"]; !ok {
-			req.Header.Set("User-Agent", "")
-		}
+		req.Header.Add("Access-Control-Allow-Origin", "*")
+		req.Header.Add("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD")
+		req.Header.Add("Access-Control-Allow-Headers", "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range")
+		req.Header.Add("Access-Control-Max-Age", "1728000")
+		req.Header.Add("Access-Control-Max-Age", "1728000")
+		
 	}
 
 	return &ReverseProxy{Director: director}
