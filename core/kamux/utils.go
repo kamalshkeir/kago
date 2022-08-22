@@ -95,13 +95,27 @@ func getTagsAndPrint() {
 	flag.Parse()
 
 	
-	settings.Config.Logs = *logs
-	settings.Config.Monitoring = *monitoring
-	settings.Config.Docs = *docs
-	settings.Config.Profiler = *profiler
-	settings.Config.Cert = *cert
-	settings.Config.Key = *key
-	settings.Config.Domain = *domain
+	if *logs {
+		settings.Config.Logs = *logs
+	}
+	if *monitoring {
+		settings.Config.Monitoring = *monitoring
+	}
+	if *docs {
+		settings.Config.Docs = *docs
+	}
+	if *profiler {
+		settings.Config.Profiler = *profiler
+	}
+	if *cert != "" {
+		settings.Config.Cert = *cert
+	}
+	if *key != "" {
+		settings.Config.Key = *key
+	}
+	if *domain != "" {
+		settings.Config.Domain = *domain
+	}
 	if *p != "9313" {
 		settings.Config.Port = *p
 	}
