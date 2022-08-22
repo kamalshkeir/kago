@@ -89,12 +89,18 @@ func getTagsAndPrint() {
 	monitoring := flag.Bool("monitoring", false, "set settings.Config.Monitoring for prometheus and grafana /metrics")
 	docs := flag.Bool("docs", false, "set settings.Config.Docs for prometheus and grafana /docs")
 	profiler := flag.Bool("profiler", false, "set settings.Config.Profiler for pprof  /debug/pprof")
+	cert := flag.String("cert","","certfile")
+	key := flag.String("key","","keyfile")
+	proxy := flag.Bool("proxy",false,"proxy on/off")
 	flag.Parse()
 
+	settings.Proxy = *proxy
 	settings.Config.Logs = *logs
 	settings.Config.Monitoring = *monitoring
 	settings.Config.Docs = *docs
 	settings.Config.Profiler = *profiler
+	settings.Config.Cert = *cert
+	settings.Config.Key = *key
 	if *p != "9313" {
 		settings.Config.Port = *p
 	}

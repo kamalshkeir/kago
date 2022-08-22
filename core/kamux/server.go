@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/logger"
+	"github.com/kamalshkeir/kago/core/utils/reverseproxy"
 	"golang.org/x/net/websocket"
 )
 
@@ -91,6 +93,13 @@ func (router *Router) Run() {
 }
 
 
+var proxies = map[string]string{}
+
+func (router *Router) Proxy(from string, to string) {
+	proxies[from]=to
+}
+
+
 // RunTLS start the server TLS
 func (router *Router) RunTLS(certFile string, keyFile string) {
 	if settings.MODE != "barebone" {
@@ -106,16 +115,54 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 			}
 		}
 	}
+	if certFile != "" && keyFile != "" {
+		settings.Config.Cert=certFile
+		settings.Config.Key=keyFile
+	}
 
+	
 	// init server
 	router.initServer()
 	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
-	if err := router.Server.ListenAndServeTLS(certFile, keyFile); err != http.ErrServerClosed {
-		logger.Error("Unable to shutdown the server : ", err)
-	} else {
-		fmt.Printf(logger.Green, "Server Off !")
+	if settings.Config.Cert != "" && settings.Config.Key != "" && settings.Proxy {
+		// proxy
+		go func() {
+			http.ListenAndServeTLS(settings.Config.Host+":443",settings.Config.Cert,settings.Config.Key,http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if utils.StringContains(r.Host,"localhost:9313","127.0.0.1:9313","0.0.0.0:9313") {
+					router.Server.Handler.ServeHTTP(w,r)
+				} else {
+					for dom,urll := range proxies {
+						if strings.Contains(r.Host,dom) {
+							path,err := url.Parse(urll)
+							if err != nil {
+								fmt.Println(err)
+								return
+							}
+							proxy := reverseproxy.NewReverseProxy(path)
+							proxy.ServeHTTP(w,r)
+						}
+					}
+				}
+			}))
+		}()
 	}
+
+	if settings.Proxy {
+		router.Server.Addr="localhost:9313"
+		if err := router.Server.ListenAndServe(); err != http.ErrServerClosed {
+			logger.Error("Unable to shutdown the server : ", err)
+		} else {
+			fmt.Printf(logger.Green, "Server Off !")
+		}
+	} else {
+		if err := router.Server.ListenAndServeTLS(settings.Config.Cert,settings.Config.Key); err != http.ErrServerClosed {
+			logger.Error("Unable to shutdown the server : ", err)
+		} else {
+			fmt.Printf(logger.Green, "Server Off !")
+		}
+	}
+	
 }
 
 // ServeHTTP serveHTTP by handling methods,pattern,and params
@@ -269,7 +316,8 @@ func checkSameSite(c Context) bool {
 		}
 	}
 
-	if utils.StringContains(origin, host, "localhost"+port, "127.0.0.1"+port) || foundInPrivateIps {
+	sp := strings.Split("host",".")
+	if utils.StringContains(origin, host, "localhost"+port, "127.0.0.1"+port) || foundInPrivateIps || (len(sp)<4 && host != "localhost" && host != "127.0.0.1") {
 		return true
 	} else {
 		return false
