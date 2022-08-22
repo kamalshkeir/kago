@@ -261,7 +261,10 @@ func checkSameSite(c Context) bool {
 	}
 
 	foundInPrivateIps := false
-	if host != "localhost" && host != "127.0.0.1"{
+	if (host != "localhost" && host != "127.0.0.1") || settings.Config.Domain != "" {
+		if origin == settings.Config.Domain || strings.Contains(origin,settings.Config.Domain) {
+			return true
+		}
 		privateIp = utils.GetPrivateIp()
 		if strings.Contains(origin,host) {
 			foundInPrivateIps = true
@@ -353,10 +356,15 @@ func handleHttp(c *Context, rt Route) {
 			return
 		} else {
 			// cross origin
-			if len(rt.AllowedOrigines) == 0 {
+			if len(rt.AllowedOrigines) == 0  {
 				c.Status(http.StatusBadRequest).Text("no cross origin not allowed")
 				return
 			} else {
+				if rt.AllowedOrigines[0] == "*" {
+					rt.Handler(c)
+					return
+				}
+
 				allowed := false
 				for _, dom := range rt.AllowedOrigines {
 					if strings.Contains(c.Request.Header.Get("Origin"), dom) {

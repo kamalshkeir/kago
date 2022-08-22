@@ -91,6 +91,7 @@ func getTagsAndPrint() {
 	profiler := flag.Bool("profiler", false, "set settings.Config.Profiler for pprof  /debug/pprof")
 	cert := flag.String("cert","","certfile")
 	key := flag.String("key","","keyfile")
+	domain := flag.String("domain","","domain name used for cors in production")
 	flag.Parse()
 
 	
@@ -100,6 +101,7 @@ func getTagsAndPrint() {
 	settings.Config.Profiler = *profiler
 	settings.Config.Cert = *cert
 	settings.Config.Key = *key
+	settings.Config.Domain = *domain
 	if *p != "9313" {
 		settings.Config.Port = *p
 	}
