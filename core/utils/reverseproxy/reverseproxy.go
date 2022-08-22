@@ -40,13 +40,6 @@ func NewReverseProxy(target *url.URL) *ReverseProxy {
 
 		req.Header.Add("X-Forwarded-Host", req.Host)
 		req.Header.Add("X-Origin-Host", target.Host)
-		req.Header.Add("Access-Control-Allow-Origin", "*")
-		req.Header.Add("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD")
-		req.Header.Add("Access-Control-Allow-Headers", "origin, authorization, accept")
-		req.Header.Add("Access-Control-Max-Age", "1728000")
-		req.Header.Add("Access-Control-Max-Age", "1728000")
-		req.Header.Add("Access-Control-Allow-Credentials","true")
-		
 	}
 
 	return &ReverseProxy{Director: director}
@@ -70,6 +63,12 @@ func copyHeader(dst, src http.Header) {
 			dst.Add(k, v)
 		}
 	}
+	dst.Add("Access-Control-Allow-Origin", "*")
+	dst.Add("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS,HEAD")
+	dst.Add("Access-Control-Allow-Headers", "origin, authorization, accept")
+	dst.Add("Access-Control-Max-Age", "1728000")
+	dst.Add("Access-Control-Max-Age", "1728000")
+	dst.Add("Access-Control-Allow-Credentials","true")
 }
 
 
