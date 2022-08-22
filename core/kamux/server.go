@@ -128,16 +128,10 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 	if settings.Config.Cert != "" && settings.Config.Key != "" && settings.Proxy {
 		// proxy
 		go func() {
+			logger.Info("running proxy on:","https://"+settings.Config.Host)
 			http.ListenAndServeTLS(settings.Config.Host+":"+settings.Config.Port,settings.Config.Cert,settings.Config.Key,http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				if utils.StringContains(r.Host,"localhost:9313","127.0.0.1:9313","0.0.0.0:9313") {
-					path,err := url.Parse("http://localhost:9313")
-					if err != nil {
-						fmt.Println(err)
-						return
-					}
-					proxy := reverseproxy.NewReverseProxy(path)
-					proxy.ServeHTTP(w,r)
-				} else {
+				logger.Info("host:",r.Host)
+				if !utils.StringContains(r.Host,"localhost:9313","127.0.0.1:9313","0.0.0.0:9313") {
 					for dom,urll := range proxies {
 						if strings.Contains(r.Host,dom) {
 							path,err := url.Parse(urll)
@@ -149,6 +143,14 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 							proxy.ServeHTTP(w,r)
 						}
 					}
+				} else {
+					path,err := url.Parse("http://localhost:9313")
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
+					proxy := reverseproxy.NewReverseProxy(path)
+					proxy.ServeHTTP(w,r)
 				}
 			}))
 		}()
