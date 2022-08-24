@@ -2,6 +2,7 @@ package kamux
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"net/http"
 	"os"
@@ -12,6 +13,7 @@ import (
 	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/logger"
+	"golang.org/x/crypto/acme/autocert"
 	"golang.org/x/net/websocket"
 )
 
@@ -52,6 +54,38 @@ func (router *Router) initServer() {
 		ReadTimeout:  ReadTimeout,
 		WriteTimeout: WriteTimeout,
 		IdleTimeout:  IdleTimeout,
+	}
+	router.Server = &server
+}
+
+func (router *Router) autoServer(tlsconf *tls.Config) {
+	port := settings.Config.Port
+	var handler http.Handler
+	if len(midwrs) != 0 {
+		handler = midwrs[0](router)
+		for i := 1; i < len(midwrs); i++ {
+			handler = midwrs[i](handler)
+		}
+	} else {
+		handler = router
+	}
+	host := settings.Config.Host
+
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	
+	if port == "" {
+		port = "9313"
+	}
+	// Setup Server
+	server := http.Server{
+		Addr:         host + ":" + port,
+		Handler:      handler,
+		ReadTimeout:  ReadTimeout,
+		WriteTimeout: WriteTimeout,
+		IdleTimeout:  IdleTimeout,
+		TLSConfig: tlsconf,
 	}
 	router.Server = &server
 }
@@ -112,6 +146,51 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 	
 	// init server
 	router.initServer()
+	// graceful Shutdown server + db if exist
+	go router.gracefulShutdown()
+
+	if err := router.Server.ListenAndServeTLS(settings.Config.Cert,settings.Config.Key); err != http.ErrServerClosed {
+		logger.Error("Unable to shutdown the server : ", err)
+	} else {
+		fmt.Printf(logger.Green, "Server Off !")
+	}
+}
+
+// AutoTLS start the server TLS
+func (router *Router) AutoTLS() {
+	if settings.MODE != "barebone" {
+		// init templates and assets
+		initTemplatesAndAssets(router)
+	} else {
+		router.initDefaultUrls()
+		if settings.Config.Embed.Templates {
+			router.AddEmbededTemplates(Templates, settings.TEMPLATE_DIR)
+		} else {
+			if _,err := os.Stat(settings.TEMPLATE_DIR);err == nil { 
+				router.AddLocalTemplates(settings.TEMPLATE_DIR)
+			}
+		}
+	}
+	if len(strings.Split(settings.Config.Host,".")) == 2 && settings.Config.Cert == ""{
+		m := &autocert.Manager{
+			Prompt:     autocert.AcceptTOS,
+			Cache:      autocert.DirCache("certs"),
+			HostPolicy: autocert.HostWhitelist(settings.Config.Host, fmt.Sprintf("www.%s", settings.Config.Host)),
+		}
+		router.autoServer(m.TLSConfig())
+	} else if settings.Config.Domain != "" && settings.Config.Cert == ""{
+		m := &autocert.Manager{
+			Prompt:     autocert.AcceptTOS,
+			Cache:      autocert.DirCache("certs"),
+			HostPolicy: autocert.HostWhitelist(settings.Config.Domain, fmt.Sprintf("www.%s", settings.Config.Domain)),
+		}
+		router.autoServer(m.TLSConfig())
+	} else {
+		// init server
+		router.initServer()
+	}
+	
+	
 	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
 
