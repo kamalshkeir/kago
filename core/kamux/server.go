@@ -184,7 +184,9 @@ func (router *Router) createAndHandleServerCerts() bool {
 				domainsToCertify = append(domainsToCertify, domains[4:],domains)
 			} else if domains != host && len(sp) == 2{
 				domainsToCertify = append(domainsToCertify, domains,"www."+domains)
-			} 
+			}  else if domains != host && len(sp) == 3 {
+				domainsToCertify = append(domainsToCertify, domains)
+			}
 
 			err := checkDomain(host)
 			if err == nil {
