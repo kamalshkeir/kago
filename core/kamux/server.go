@@ -119,7 +119,6 @@ func (router *Router) Run() {
 	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
 
-	logger.Printfs("grrunning TLS:",tls)
 	if tls {
 		if err := router.Server.ListenAndServeTLS(settings.Config.Cert,settings.Config.Key); err != http.ErrServerClosed {
 			logger.Error("Unable to shutdown the server : ", err)
@@ -180,15 +179,16 @@ func (router *Router) createAndHandleServerCerts() bool {
 				domainsToCertify = append(domainsToCertify, k,"www."+k)
 			}
 		} else {
-			if strings.HasPrefix(domains,"www.") && domains != host {
+			sp := strings.Split(domains,".")
+			if strings.HasPrefix(domains,"www.") && domains != host && len(sp) == 3 {
 				domainsToCertify = append(domainsToCertify, domains[4:],domains)
-			} else if domains != host {
+			} else if domains != host && len(sp) == 2{
 				domainsToCertify = append(domainsToCertify, domains,"www."+domains)
-			} else {
-				err := checkDomain(host)
-				if err == nil {
-					domainsToCertify = append(domainsToCertify, host)
-				}
+			} 
+
+			err := checkDomain(host)
+			if err == nil {
+				domainsToCertify = append(domainsToCertify, host)
 			}
 		} 
 	} 
