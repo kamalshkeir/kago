@@ -392,6 +392,14 @@ func checkSameSite(c Context) bool {
 		}
 		return false
 	}
+
+	if len(Origines) > 0 {
+		for _,o := range Origines {
+			if strings.Contains(origin,o) || o == "*" {
+				return true
+			}
+		}
+	}
 	
 	host := settings.Config.Host
 	if host == "" || host == "localhost" || host == "127.0.0.1" {
@@ -407,9 +415,13 @@ func checkSameSite(c Context) bool {
 	if port != "" {
 		port = ":" + port
 	}
+	privateIp = utils.GetPrivateIp()
+	if utils.StringContains(c.Request.RemoteAddr,host,"localhost","127.0.0.1",privateIp) {
+		return true
+	}
 
 	if CORSDebug {
-		logger.Info("ORIGIN:",c.Request.RemoteAddr,"is:",origin)
+		logger.Info("ORIGIN of remote ",c.Request.RemoteAddr,"is:",origin)
 		logger.Info("HOST:",host)
 		logger.Info("PORT:",port)
 		logger.Info("DOMAINS:",settings.Config.Domains)
@@ -432,7 +444,6 @@ func checkSameSite(c Context) bool {
 
 	foundInPrivateIps := false
 	if (host != "localhost" && host != "127.0.0.1"){		
-		privateIp = utils.GetPrivateIp()
 		if strings.Contains(origin,host) {
 			foundInPrivateIps = true
 		} else if strings.Contains(origin, privateIp) {

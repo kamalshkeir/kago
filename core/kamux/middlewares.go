@@ -190,11 +190,23 @@ var CSRF = func(handler http.Handler) http.Handler {
 	})
 }
 
-var CORS = func(next http.Handler) http.Handler {
+
+var corsAdded = false
+var Origines = []string{}
+func (router *Router) AllowOrigines(origines ...string) {
+	if !corsAdded {
+		midwrs = append(midwrs, cors)
+		corsAdded=true
+	}
+	Origines = append(Origines, origines...)
+
+}
+
+var cors = func(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Set headers
-		w.Header().Set("Access-Control-Allow-Headers:", "*")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers:", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "*")
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)

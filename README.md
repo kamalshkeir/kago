@@ -287,7 +287,7 @@ func main() {
     // Creates a KaGo router
 	app := kago.New()
 
-    // You can add GLOBAL middlewares easily  (GZIP,CORS,CSRF,LIMITER,RECOVERY)
+    // You can add GLOBAL middlewares easily  (GZIP,CSRF,LIMITER,RECOVERY)
 	app.UseMiddlewares(kamux.GZIP)
 
 	// OR middleware for single handler (Auth,Admin,BasicAuth)
@@ -624,7 +624,6 @@ func main() {
 	app := New()
 	app.UseMiddlewares(
 		kamux.GZIP,
-		kamux.CORS,
 		kamux.CSRF,
 		kamux.LIMITER,
 		kamux.RECOVERY,
@@ -646,9 +645,10 @@ func main() {
 
 	// CORS
 	// this is how to use CORS, it's applied globaly , but defined by the handler, all methods except GET of course
+	app.AllowOrigines(origines ...string) // allow origines global, can be "*" to allow all
 	app.POST(pattern string, handler kamux.Handler, allowed_origines ...string)
 	app.POST("/users/post",func(c *kamux.Context) {
-		// handle request here for domain.com and domain2.com and same origin
+		// allow origine for domain.com and domain2.com and same origin
 	},"domain.com","domain2.com")
 
 	// CSRF
