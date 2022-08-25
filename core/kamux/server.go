@@ -116,12 +116,10 @@ func (router *Router) Run() {
 
 	tls := router.createAndHandleServerCerts()
 	
-	// init server
-	router.initServer()
 	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
 
-
+	logger.Printfs("grrunning TLS:",tls)
 	if tls {
 		if err := router.Server.ListenAndServeTLS(settings.Config.Cert,settings.Config.Key); err != http.ErrServerClosed {
 			logger.Error("Unable to shutdown the server : ", err)
