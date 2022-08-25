@@ -34,7 +34,7 @@ KaGo is a high-level web framework, that encourages clean and rapid development.
 You can literally get up and running using two lines of code, easier than Django and with a compiled language performance.
 
 Kago offer you :
-- <strong>HOT :</strong>  [Auto Generate Letsencrypt Certificates](#run-https-in-production-using-appruntls) and keep them up to date (auto renew 1 month before expire), so no need for crons
+- <strong>HOT :</strong>  [Auto Generate Letsencrypt Certificates](#run-https-letsencrypt-in-production-using-env-vars-and-tags) and keep them up to date (auto renew 1 month before expire), so no need for crons
 - <strong>NEW :</strong>  [BareBone Mode](#barebone--router-only-no-assets-cloned) Without admin dashboard
 - <strong>NEW :</strong>  [ORM Insensitive Unique Indexes](#available-tags-by-struct-field-type-tags-are-separated-by)
 - <strong>NEW :</strong>  ORM handle coakroachdb in addition to sqlite,postgres and mysql
@@ -162,7 +162,7 @@ go run main.go # default: -h localhost -p 9313
 ```
 ## That's it, you can visit /admin
 
-# Run HTTPS in production using app.RunTLS() :
+# Run HTTPS letsencrypt in production using env vars and tags :
 
 ##### if you have already certificates
 

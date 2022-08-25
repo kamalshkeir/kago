@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/settings"
@@ -112,65 +113,55 @@ func (router *Router) Run() {
 			}
 		}
 	}
+
+	tls := router.createAndHandleServerCerts()
 	
 	// init server
 	router.initServer()
 	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
 
-	if err := router.Server.ListenAndServe(); err != http.ErrServerClosed {
-		logger.Error("Unable to shutdown the server : ", err)
-	} else {
-		fmt.Printf(logger.Green, "Server Off !")
-	}
-}
 
-// RunTLS start the server TLS
-func (router *Router) RunTLS(certAndKeyFiles ...string) {
-	if settings.MODE != "barebone" {
-		// init templates and assets
-		initTemplatesAndAssets(router)
-	} else {
-		router.initDefaultUrls()
-		if settings.Config.Embed.Templates {
-			router.AddEmbededTemplates(Templates, settings.TEMPLATE_DIR)
+	if tls {
+		if err := router.Server.ListenAndServeTLS(settings.Config.Cert,settings.Config.Key); err != http.ErrServerClosed {
+			logger.Error("Unable to shutdown the server : ", err)
 		} else {
-			if _,err := os.Stat(settings.TEMPLATE_DIR);err == nil { 
-				router.AddLocalTemplates(settings.TEMPLATE_DIR)
-			}
+			fmt.Printf(logger.Green, "Server Off !")
+		}
+	} else {
+		if err := router.Server.ListenAndServe(); err != http.ErrServerClosed {
+			logger.Error("Unable to shutdown the server : ", err)
+		} else {
+			fmt.Printf(logger.Green, "Server Off !")
 		}
 	}
-	if len(certAndKeyFiles) > 0 && certAndKeyFiles[0] != "" && certAndKeyFiles[1] != ""{
-		settings.Config.Cert=certAndKeyFiles[0]
-		settings.Config.Key=certAndKeyFiles[1]
-	} 
-
-	router.createAndHandleServerCerts()
-	
-	// graceful Shutdown server + db if exist
-	go router.gracefulShutdown()
-
-	if err := router.Server.ListenAndServeTLS(settings.Config.Cert,settings.Config.Key); err != http.ErrServerClosed {
-		logger.Error("Unable to shutdown the server : ", err)
-	} else {
-		fmt.Printf(logger.Green, "Server Off !")
-	}
 }
 
 
-func (router *Router) createAndHandleServerCerts() {
+func (router *Router) createAndHandleServerCerts() bool {
 	host := settings.Config.Host
 	domains := settings.Config.Domains
 	cert := settings.Config.Cert
 	key := settings.Config.Key
 	domainsToCertify := []string{}
 
-	if strings.Contains(host,",") {
-		logger.Error("host must be without comma ','")
-		os.Exit(0)
-	}
-
-	if domains != "" {
+	if (cert != "" && key != "") || domains == "" {
+		router.initServer()
+		return false
+	} else if domains == "" && cert == "" && key == "" {
+		err := checkDomain(host)
+		if err != nil {
+			router.initServer()
+			return false
+		} else {
+			// cree un nouveau single domain for host
+			if strings.HasPrefix(host,"www.") {
+				domainsToCertify = append(domainsToCertify, host[4:],host)
+			} else {
+				domainsToCertify = append(domainsToCertify, host,"www."+host)
+			}
+		}
+	} else if domains != "" {
 		if strings.Contains(domains,",") {
 			// plusieurs domaine
 			mmap := map[string]uint8{}
@@ -180,29 +171,31 @@ func (router *Router) createAndHandleServerCerts() {
 					continue
 				} 
 				mmap[d]=uint8(i)
-			}		
+			}					
+			if _,ok := mmap[host];!ok {
+				err := checkDomain(host)
+				if err == nil {
+					domainsToCertify = append(domainsToCertify, host)
+				}
+			}
 			for k := range mmap {
 				domainsToCertify = append(domainsToCertify, k,"www."+k)
 			}
 		} else {
-			if strings.HasPrefix(domains,"www.") {
+			if strings.HasPrefix(domains,"www.") && domains != host {
 				domainsToCertify = append(domainsToCertify, domains[4:],domains)
-			} else {
+			} else if domains != host {
 				domainsToCertify = append(domainsToCertify, domains,"www."+domains)
+			} else {
+				err := checkDomain(host)
+				if err == nil {
+					domainsToCertify = append(domainsToCertify, host)
+				}
 			}
 		} 
-	} else {			
-		// cree un nouveau single domain for host
-		if strings.HasPrefix(host,"www.") {
-			domainsToCertify = append(domainsToCertify, host[4:],host)
-		} else {
-			domainsToCertify = append(domainsToCertify, host,"www."+host)
-		}
-	}
+	} 
 
-	if cert != "" && key != "" {
-		router.initServer()
-	} else if len(domainsToCertify) > 0{
+	if len(domainsToCertify) > 0{
 		m := &autocert.Manager{
 			Prompt:     autocert.AcceptTOS,
 			Cache:      autocert.DirCache("certs"),
@@ -211,8 +204,57 @@ func (router *Router) createAndHandleServerCerts() {
 		router.autoServer(m.TLSConfig())
 		logger.Printfs("grAuto certified domains: %v",domainsToCertify)
 	}
+	return true
 }
 
+
+func checkDomain(name string) error {
+	switch {
+	case len(name) == 0:
+		return nil 
+	case len(name) > 255:
+		return fmt.Errorf("cookie domain: name length is %d, can't exceed 255", len(name))
+	}
+	var l int
+	for i := 0; i < len(name); i++ {
+		b := name[i]
+		if b == '.' {
+			switch {
+			case i == l:
+				return fmt.Errorf("cookie domain: invalid character '%c' at offset %d: label can't begin with a period", b, i)
+			case i-l > 63:
+				return fmt.Errorf("cookie domain: byte length of label '%s' is %d, can't exceed 63", name[l:i], i-l)
+			case name[l] == '-':
+				return fmt.Errorf("cookie domain: label '%s' at offset %d begins with a hyphen", name[l:i], l)
+			case name[i-1] == '-':
+				return fmt.Errorf("cookie domain: label '%s' at offset %d ends with a hyphen", name[l:i], l)
+			}
+			l = i + 1
+			continue
+		}
+		if !(b >= 'a' && b <= 'z' || b >= '0' && b <= '9' || b == '-' || b >= 'A' && b <= 'Z') {
+			// show the printable unicode character starting at byte offset i
+			c, _ := utf8.DecodeRuneInString(name[i:])
+			if c == utf8.RuneError {
+				return fmt.Errorf("cookie domain: invalid rune at offset %d", i)
+			}
+			return fmt.Errorf("cookie domain: invalid character '%c' at offset %d", c, i)
+		}
+	}
+	switch {
+	case l == len(name):
+		return fmt.Errorf("cookie domain: missing top level domain, domain can't end with a period")
+	case len(name)-l > 63:
+		return fmt.Errorf("cookie domain: byte length of top level domain '%s' is %d, can't exceed 63", name[l:], len(name)-l)
+	case name[l] == '-':
+		return fmt.Errorf("cookie domain: top level domain '%s' at offset %d begins with a hyphen", name[l:], l)
+	case name[len(name)-1] == '-':
+		return fmt.Errorf("cookie domain: top level domain '%s' at offset %d ends with a hyphen", name[l:], l)
+	case name[l] >= '0' && name[l] <= '9':
+		return fmt.Errorf("cookie domain: top level domain '%s' at offset %d begins with a digit", name[l:], l)
+	}
+	return nil
+}
 
 // ServeHTTP serveHTTP by handling methods,pattern,and params
 func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
