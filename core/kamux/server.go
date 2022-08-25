@@ -142,12 +142,12 @@ func (router *Router) createAndHandleServerCerts() bool {
 	key := settings.Config.Key
 	domainsToCertify := []string{}
 
-	if (cert != "" && key != "") || domains == "" {
+	if (cert != "" && key != "") || domains == "" || host == "localhost" || host == "127.0.0.1" {
 		router.initServer()
 		return false
 	} else if domains == "" && cert == "" && key == "" {
 		err := checkDomain(host)
-		if err != nil {
+		if err != nil || host == "localhost" || host == "127.0.0.1" {
 			router.initServer()
 			return false
 		} else {
