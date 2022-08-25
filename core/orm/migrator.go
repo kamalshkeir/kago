@@ -579,6 +579,7 @@ func handleMigrationString(mi *migrationInput) {
 			case "unique":
 				unique = " UNIQUE"
 			case "iunique":
+				unique = " UNIQUE"
 				(*mi.uindexes)[mi.fName] = "I"+mi.fName
 			case "default":
 				defaultt = " DEFAULT ''"
