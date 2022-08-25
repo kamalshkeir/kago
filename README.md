@@ -34,6 +34,7 @@ KaGo is a high-level web framework, that encourages clean and rapid development.
 You can literally get up and running using two lines of code, easier than Django and with a compiled language performance.
 
 Kago offer you :
+- <strong>HOT :</strong>  [Auto Generate Letsencrypt Certificates](#run-https-in-production-using-appruntls) and keep them up to date (auto renew 1 month before expire), so no need for crons
 - <strong>NEW :</strong>  [BareBone Mode](#barebone--router-only-no-assets-cloned) Without admin dashboard
 - <strong>NEW :</strong>  [ORM Insensitive Unique Indexes](#available-tags-by-struct-field-type-tags-are-separated-by)
 - <strong>NEW :</strong>  ORM handle coakroachdb in addition to sqlite,postgres and mysql
@@ -154,12 +155,49 @@ go run main.go shell
 -> createsuperuser
 ```
 
-#### 3- you can change port and host by putting Env Vars 'HOST' and 'PORT' or using flags:
+#### 3- Run the server:
 ```zsh
-# default: -h localhost -p 9313
-go run main.go -h kamalshkeir.dev -p 443 --cert cerkey.pem --key privkey.pem // production
+# run local:
+go run main.go # default: -h localhost -p 9313
 ```
 ## That's it, you can visit /admin
+
+# Run HTTPS in production using app.RunTLS() :
+
+##### if you have already certificates
+
+```sh
+go run main.go -h example.com -p 443 --cert cerkey.pem --key privkey.pem
+```
+
+##### if not, make sure you have AAAA records setted on your hosting provider then:
+
+```sh
+go run main.go -h example.com -p 443 
+# this will generate 2 certificates from letsencrypt example.com and www.example.com to directory ./certs
+```
+##### to add more domains, you can:
+
+```sh
+go run main.go -h example.com -p 443 -domains example.com, a.example.com, b.example.com,... 
+# again no need for www. for subdomain , handled automatically
+```
+
+
+```zsh
+# finaly remember, you can set all these values from ENV too:
+HOST       -h
+PORT       -p
+DOMAINS    -domains
+CERT 	   -cert
+KEY 	   -key
+PROFILER   -profiler
+DOCS       -docs
+LOGS       -logs
+MONITORING -monitoring
+```
+
+
 
 ---
 

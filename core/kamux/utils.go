@@ -83,15 +83,15 @@ func (r *Router) Embed(staticDir *embed.FS, templateDir *embed.FS) {
 
 
 func getTagsAndPrint() {
-	h := flag.String("h", "localhost", "overwrite host")
-	p := flag.String("p", "9313", "overwrite port number")
+	h := flag.String("h", "localhost", "Host can be ip or domain name")
+	p := flag.String("p", "9313", "Port")
 	logs := flag.Bool("logs", false, "overwrite settings.Config.Logs for router /logs")
 	monitoring := flag.Bool("monitoring", false, "set settings.Config.Monitoring for prometheus and grafana /metrics")
 	docs := flag.Bool("docs", false, "set settings.Config.Docs for prometheus and grafana /docs")
 	profiler := flag.Bool("profiler", false, "set settings.Config.Profiler for pprof  /debug/pprof")
 	cert := flag.String("cert","","certfile")
 	key := flag.String("key","","keyfile")
-	domain := flag.String("domain","","domain name used for cors in production")
+	domains := flag.String("domains","","domains separated by comma, no www(added automaticaly) to certificates letsencrypt when auto generated")
 	flag.Parse()
 
 	
@@ -113,8 +113,8 @@ func getTagsAndPrint() {
 	if *key != "" {
 		settings.Config.Key = *key
 	}
-	if *domain != "" {
-		settings.Config.Domain = *domain
+	if *domains != "" {
+		settings.Config.Domains = *domains
 	}
 	if *p != "9313" {
 		settings.Config.Port = *p

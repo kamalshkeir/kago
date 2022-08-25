@@ -18,14 +18,15 @@ import (
 )
 
 var (
+	CORSDebug=false
 	ReadTimeout=  5 * time.Second
 	WriteTimeout= 20 * time.Second
 	IdleTimeout= 20 * time.Second
+	midwrs []func(http.Handler) http.Handler
 )
 
 
-var midwrs []func(http.Handler) http.Handler
-var CORSDebug=false
+
 // InitServer init the server with midws,
 func (router *Router) initServer() {
 	port := settings.Config.Port
@@ -125,7 +126,7 @@ func (router *Router) Run() {
 }
 
 // RunTLS start the server TLS
-func (router *Router) RunTLS(certFile string, keyFile string) {
+func (router *Router) RunTLS(certAndKeyFiles ...string) {
 	if settings.MODE != "barebone" {
 		// init templates and assets
 		initTemplatesAndAssets(router)
@@ -139,13 +140,13 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 			}
 		}
 	}
-	if certFile != "" && keyFile != "" {
-		settings.Config.Cert=certFile
-		settings.Config.Key=keyFile
-	}
+	if len(certAndKeyFiles) > 0 && certAndKeyFiles[0] != "" && certAndKeyFiles[1] != ""{
+		settings.Config.Cert=certAndKeyFiles[0]
+		settings.Config.Key=certAndKeyFiles[1]
+	} 
+
+	router.createAndHandleServerCerts()
 	
-	// init server
-	router.initServer()
 	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
 
@@ -156,50 +157,62 @@ func (router *Router) RunTLS(certFile string, keyFile string) {
 	}
 }
 
-// AutoTLS start the server TLS
-func (router *Router) AutoTLS() {
-	if settings.MODE != "barebone" {
-		// init templates and assets
-		initTemplatesAndAssets(router)
-	} else {
-		router.initDefaultUrls()
-		if settings.Config.Embed.Templates {
-			router.AddEmbededTemplates(Templates, settings.TEMPLATE_DIR)
-		} else {
-			if _,err := os.Stat(settings.TEMPLATE_DIR);err == nil { 
-				router.AddLocalTemplates(settings.TEMPLATE_DIR)
+
+func (router *Router) createAndHandleServerCerts() {
+	host := settings.Config.Host
+	domains := settings.Config.Domains
+	cert := settings.Config.Cert
+	key := settings.Config.Key
+	domainsToCertify := []string{}
+
+	if strings.Contains(host,",") {
+		logger.Error("host must be without comma ','")
+		os.Exit(0)
+	}
+
+	if domains != "" {
+		if strings.Contains(domains,",") {
+			// plusieurs domaine
+			mmap := map[string]uint8{}
+			sp := strings.Split(domains,",")
+			for i,d := range sp {
+				if d == host || strings.HasPrefix(d,"www.") {
+					continue
+				} 
+				mmap[d]=uint8(i)
+			}		
+			for k := range mmap {
+				domainsToCertify = append(domainsToCertify, k,"www."+k)
 			}
+		} else {
+			if strings.HasPrefix(domains,"www.") {
+				domainsToCertify = append(domainsToCertify, domains[4:],domains)
+			} else {
+				domainsToCertify = append(domainsToCertify, domains,"www."+domains)
+			}
+		} 
+	} else {			
+		// cree un nouveau single domain for host
+		if strings.HasPrefix(host,"www.") {
+			domainsToCertify = append(domainsToCertify, host[4:],host)
+		} else {
+			domainsToCertify = append(domainsToCertify, host,"www."+host)
 		}
 	}
-	if len(strings.Split(settings.Config.Host,".")) == 2 && settings.Config.Cert == ""{
-		m := &autocert.Manager{
-			Prompt:     autocert.AcceptTOS,
-			Cache:      autocert.DirCache("certs"),
-			HostPolicy: autocert.HostWhitelist(settings.Config.Host, fmt.Sprintf("www.%s", settings.Config.Host)),
-		}
-		router.autoServer(m.TLSConfig())
-	} else if settings.Config.Domain != "" && settings.Config.Cert == ""{
-		m := &autocert.Manager{
-			Prompt:     autocert.AcceptTOS,
-			Cache:      autocert.DirCache("certs"),
-			HostPolicy: autocert.HostWhitelist(settings.Config.Domain, fmt.Sprintf("www.%s", settings.Config.Domain)),
-		}
-		router.autoServer(m.TLSConfig())
-	} else {
-		// init server
+
+	if cert != "" && key != "" {
 		router.initServer()
-	}
-	
-	
-	// graceful Shutdown server + db if exist
-	go router.gracefulShutdown()
-
-	if err := router.Server.ListenAndServeTLS(settings.Config.Cert,settings.Config.Key); err != http.ErrServerClosed {
-		logger.Error("Unable to shutdown the server : ", err)
-	} else {
-		fmt.Printf(logger.Green, "Server Off !")
+	} else if len(domainsToCertify) > 0{
+		m := &autocert.Manager{
+			Prompt:     autocert.AcceptTOS,
+			Cache:      autocert.DirCache("certs"),
+			HostPolicy: autocert.HostWhitelist(domainsToCertify...),
+		}
+		router.autoServer(m.TLSConfig())
+		logger.Printfs("grAuto certified domains: %v",domainsToCertify)
 	}
 }
+
 
 // ServeHTTP serveHTTP by handling methods,pattern,and params
 func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -326,7 +339,7 @@ func checkSameSite(c Context) bool {
 			logger.Info("origin empty for",c.Request.RemoteAddr)
 			logger.Info("HOST:",settings.Config.Host)
 			logger.Info("PORT:",settings.Config.Port)
-			logger.Info("DOMAIN:",settings.Config.Domain)
+			logger.Info("DOMAINS:",settings.Config.Domains)
 		}
 		return false
 	}
@@ -350,10 +363,22 @@ func checkSameSite(c Context) bool {
 		logger.Info("ORIGIN:",c.Request.RemoteAddr,"is:",origin)
 		logger.Info("HOST:",host)
 		logger.Info("PORT:",port)
-		logger.Info("DOMAIN:",settings.Config.Domain)
+		logger.Info("DOMAINS:",settings.Config.Domains)
 	}
-	if settings.Config.Domain != ""  && strings.Contains(origin,settings.Config.Domain) {
-		return true
+
+	if settings.Config.Domains != "" {
+		if strings.Contains(settings.Config.Domains,",") {
+			sp := strings.Split(settings.Config.Domains,",")
+			for _,s := range sp {
+				if strings.Contains(origin,s) {
+					return true
+				}
+			}
+		} else {
+			if strings.Contains(origin,settings.Config.Domains) {
+				return true
+			} 
+		}
 	}
 
 	foundInPrivateIps := false

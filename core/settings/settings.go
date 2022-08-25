@@ -38,5 +38,5 @@ type GlobalConfig struct {
 	Monitoring bool `env:"MONITORING|false"`
 	Cert 	   string `env:"CERT|"`
 	Key 	   string `env:"KEY|"`
-	Domain 	   string `env:"DOMAIN|"`
+	Domains    string `env:"DOMAINS|"`
 }
