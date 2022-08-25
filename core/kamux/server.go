@@ -190,7 +190,14 @@ func (router *Router) createAndHandleServerCerts() bool {
 
 			err := checkDomain(host)
 			if err == nil {
-				domainsToCertify = append(domainsToCertify, host)
+				sp := strings.Split(host,".")
+				if len(sp) == 2 {
+					domainsToCertify = append(domainsToCertify, host,"www."+host)
+				} else if len(sp) == 3 && sp[0] == "www" {
+					domainsToCertify = append(domainsToCertify, host[4:],host)
+				} else {
+					domainsToCertify = append(domainsToCertify, host)
+				}
 			}
 		} 
 	} 
