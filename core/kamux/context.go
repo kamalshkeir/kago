@@ -145,6 +145,7 @@ func (c *Context) Html(template_name string, data map[string]any) {
 
 // StreamResponse send SSE Streaming Response
 func (c *Context) StreamResponse(response string) error {
+	c.SetHeader("Content-Type", "text/event-stream")
 	b := strings.Builder{}
 	b.WriteString("data: ")
 	b.WriteString(response)

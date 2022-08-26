@@ -565,7 +565,6 @@ func handleHttp(c *Context, rt Route) {
 func sseHeaders(c *Context) {
 	c.SetHeader("Access-Control-Allow-Origin", "*")
 	c.SetHeader("Access-Control-Allow-Headers", "Content-Type")
-	c.SetHeader("Content-Type", "text/event-stream")
 	c.SetHeader("Cache-Control", "no-cache")
 	c.SetHeader("Connection", "keep-alive")
 }
