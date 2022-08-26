@@ -77,8 +77,14 @@ var Static embed.FS
 
 // GetEmbeded get embeded files and make them global
 func (r *Router) Embed(staticDir *embed.FS, templateDir *embed.FS) {
-	Static = *staticDir
-	Templates = *templateDir
+	if staticDir != nil && templateDir != nil {
+		settings.Config.Embed.Static=true
+		settings.Config.Embed.Templates=true
+		Static = *staticDir
+		Templates = *templateDir
+	} else {
+		logger.Error("cannot embed static and templates:",staticDir,templateDir)
+	}
 }
 
 

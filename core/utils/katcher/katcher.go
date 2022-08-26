@@ -124,6 +124,14 @@ func Watch(every time.Duration,root string, dirs ...string) {
 	var err error
 	var lastScan time.Time
 
+	if len(dirs) > 0 {
+		for _,d := range dirs {
+			logger.Printfs("grwatching",root+"/"+d)
+		}
+	} else {
+		logger.Printfs("grwatching",root)
+	}
+
 	for {
 		if !changesDetected(lastScan,root,dirs...) {
 			time.Sleep(every)

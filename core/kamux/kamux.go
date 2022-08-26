@@ -9,6 +9,7 @@ import (
 	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/shell"
+	"github.com/kamalshkeir/kago/core/utils/envloader"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 	"golang.org/x/net/websocket"
 )
@@ -73,6 +74,9 @@ func New() *Router {
 	// load Envs and Init Settings Config
 	if _, err := os.Stat(".env"); !os.IsNotExist(err) {
 		app.LoadEnv(".env")
+	} else {
+		err := envloader.FillStruct(settings.Config)
+		logger.CheckError(err)
 	}
 
 	// after load env to override struct values

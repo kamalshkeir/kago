@@ -1355,13 +1355,6 @@ docker exec -it grafana grafana-cli admin reset-admin-password newpass
 ---
 
 # Build single binary with all static and html files
-```sh
-#you nedd to set at .env to true: 
-EMBED_STATIC=true
-EMBED_TEMPLATES=true
-```
-# Then
-
 ```go
 //go:embed assets/static
 var Static embed.FS
