@@ -165,7 +165,7 @@ var CSRF = func(handler http.Handler) http.Handler {
 		// generate token
 		if r.Method == "GET" {
 			token := r.Header.Get("X-CSRF-Token")
-			if token == "" || !csrf.VerifyToken(token, toSendToken) {
+			if token == "" {
 				http.SetCookie(w, &http.Cookie{
 					Name:     "csrf_token",
 					Value:    toSendToken,
