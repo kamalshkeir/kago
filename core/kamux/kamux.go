@@ -154,32 +154,26 @@ func (router *Router) GET(pattern string, handler Handler) {
 // HandlerFunc support standard library http.HandlerFunc
 func (router *Router) HandlerFunc(method string, pattern string, handler http.HandlerFunc, allowed ...string) {
 	var	meth int
+	mm := []int{}
 	for i,v := range methods {
 		if strings.EqualFold(v,method) {
 			meth=i
+		} else {
+			if v != "WS" && v != "SSE" {
+				mm = append(mm, i)
+			}
+		} 
+	}
+	
+
+	switch method {
+	case "*","all","ALL":
+		for _,smethod := range mm {
+			router.handle(smethod,pattern,func(c *Context) {handler.ServeHTTP(c.ResponseWriter,c.Request)},nil,allowed)
 		}
+	default:
+		router.handle(meth,pattern,func(c *Context) {handler.ServeHTTP(c.ResponseWriter,c.Request)},nil,allowed)
 	}
-	re := regexp.MustCompile(adaptParams(pattern))
-	route := Route{Method: methods[meth], Pattern: re, Handler: func(c *Context) {handler.ServeHTTP(c.ResponseWriter,c.Request)}, WsHandler: nil, Clients: nil, AllowedOrigines: []string{}}
-	if len(allowed) > 0 && meth != GET && meth != HEAD && meth != OPTIONS {
-		route.AllowedOrigines = append(route.AllowedOrigines, allowed...)
-	}
-	if meth == WS {
-		route.Clients = map[string]*websocket.Conn{}
-	}
-	if _, ok := router.Routes[meth]; !ok {
-		router.Routes[meth] = []Route{}
-	}
-	if len(router.Routes[meth]) == 0 {
-		router.Routes[meth] = append(router.Routes[meth], route)
-		return
-	}
-	for i, rt := range router.Routes[meth] {
-		if rt.Pattern.String() == re.String() {
-			router.Routes[meth] = append(router.Routes[meth][:i], router.Routes[meth][i+1:]...)
-		}
-	}
-	router.Routes[meth] = append(router.Routes[meth], route)
 }
 
 // POST handle POST to a route

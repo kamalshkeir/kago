@@ -303,6 +303,9 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 					for i, name := range rt.Pattern.SubexpNames()[1:] {
 						c.Params[name] = paramsValues[i]
 					}
+					var key utils.ContextKey = "params"
+					ctx := context.WithValue(c.Request.Context(), key, c.Params)
+					c.Request=r.WithContext(ctx)
 				}
 				if rt.WsHandler != nil {
 					// WS
@@ -343,6 +346,15 @@ func (router *Router) gracefulShutdown() {
 	}
 }
 
+func ParamsHandleFunc(r *http.Request) (map[string]string,bool) {
+	const key utils.ContextKey = "params"
+	params, ok := r.Context().Value(key).(map[string]string)
+	if ok {
+		return params,true
+	}
+	return nil,false
+}
+
 func adaptParams(url string) string {
 	if strings.Contains(url, ":") {
 		urlElements := strings.Split(url, "/")
@@ -370,7 +382,11 @@ func adaptParams(url string) string {
 				}
 			}
 		}
-		return "^/" + strings.Join(urlElements, "/") + "(|/)?$"
+		join := strings.Join(urlElements, "/")
+		if !strings.HasSuffix(join,"*") {
+			join += "(|/)?$"
+		}
+		return "^/" + join 
 	}
 
 	if url[len(url)-1] == '*' {
