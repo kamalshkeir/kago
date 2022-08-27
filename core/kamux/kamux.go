@@ -176,6 +176,31 @@ func (router *Router) HandlerFunc(method string, pattern string, handler http.Ha
 	}
 }
 
+// HandlerFunc support standard library http.HandlerFunc
+func (router *Router) Handle(method string, pattern string, handler Handler, allowed ...string) {
+	var	meth int
+	mm := []int{}
+	for i,v := range methods {
+		if strings.EqualFold(v,method) {
+			meth=i
+		} else {
+			if v != "WS" && v != "SSE" {
+				mm = append(mm, i)
+			}
+		} 
+	}
+	
+
+	switch method {
+	case "*","all","ALL":
+		for _,smethod := range mm {
+			router.handle(smethod,pattern,handler,nil,allowed)
+		}
+	default:
+		router.handle(meth,pattern,handler,nil,allowed)
+	}
+}
+
 // POST handle POST to a route
 func (router *Router) POST(pattern string, handler Handler, allowed_origines ...string) {
 	router.handle(POST, pattern, handler, nil, allowed_origines)

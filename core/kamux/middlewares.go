@@ -205,7 +205,8 @@ func (router *Router) AllowOrigines(origines ...string) {
 var cors = func(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Set headers
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		o := strings.Join(Origines,",")
+		w.Header().Set("Access-Control-Allow-Origin", o)
 		w.Header().Set("Access-Control-Allow-Headers:", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "*")
 		if r.Method == "OPTIONS" {

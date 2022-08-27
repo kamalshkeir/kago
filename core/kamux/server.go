@@ -265,6 +265,7 @@ func checkDomain(name string) error {
 
 // ServeHTTP serveHTTP by handling methods,pattern,and params
 func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	const key utils.ContextKey = "params"
 	c := &Context{Request: r, ResponseWriter: w, Params: map[string]string{}}
 	var allRoutes []Route
 	switch r.Method {
@@ -301,9 +302,10 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 				paramsValues := matches[1:]
 				if names := rt.Pattern.SubexpNames(); len(names) > 0 {
 					for i, name := range rt.Pattern.SubexpNames()[1:] {
-						c.Params[name] = paramsValues[i]
-					}
-					var key utils.ContextKey = "params"
+						if name != "" {
+							c.Params[name] = paramsValues[i]
+						}
+					}				
 					ctx := context.WithValue(c.Request.Context(), key, c.Params)
 					c.Request=r.WithContext(ctx)
 				}
@@ -399,13 +401,13 @@ func adaptParams(url string) string {
 func checkSameSite(c Context) bool {
 	privateIp := ""
 	origin := c.Request.Header.Get("Origin")
+	if CORSDebug {
+		logger.Info("ORIGIN",origin)
+		logger.Info("HOST:",settings.Config.Host)
+		logger.Info("PORT:",settings.Config.Port)
+		logger.Info("DOMAINS:",settings.Config.Domains)
+	}
 	if origin == "" {
-		if CORSDebug {
-			logger.Info("origin empty for",c.Request.RemoteAddr)
-			logger.Info("HOST:",settings.Config.Host)
-			logger.Info("PORT:",settings.Config.Port)
-			logger.Info("DOMAINS:",settings.Config.Domains)
-		}
 		return false
 	}
 
@@ -579,7 +581,8 @@ func handleHttp(c *Context, rt Route) {
 }
 
 func sseHeaders(c *Context) {
-	c.SetHeader("Access-Control-Allow-Origin", "*")
+	o := strings.Join(Origines,",")
+	c.SetHeader("Access-Control-Allow-Origin", o)
 	c.SetHeader("Access-Control-Allow-Headers", "Content-Type")
 	c.SetHeader("Cache-Control", "no-cache")
 	c.SetHeader("Connection", "keep-alive")

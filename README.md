@@ -87,12 +87,20 @@ func main() {
 	app := kago.New() // router + admin + database + shell
 
 	// using an adapter for go std http handlerfunc and getting param param1 of type int (regex validated)
-	app.HandlerFunc("GET","/test/param1:int/*",func(w http.ResponseWriter, r *http.Request) {
+	app.HandlerFunc("*","/test/param1:int/*",func(w http.ResponseWriter, r *http.Request) {
 		params,ok := kamux.ParamsHandleFunc(r)
 		if ok {
 			...
 		}
 		w.Write([]byte("ok"))
+	})
+
+	// handle any method kamux Handler 
+	app.Handle("*","/:test",func(c *kamux.Context) {
+		logger.Success(c.Params)
+		c.Json(kamux.M{
+			"message":"message here",
+		})
 	})
 
 	// using kago handler
