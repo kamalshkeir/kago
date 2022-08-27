@@ -155,27 +155,22 @@ var BasicAuth = func(next Handler, user, pass string) Handler {
 }
 
 var CSRF = func(handler http.Handler) http.Handler {
-	// generate token
 	tokBytes := make([]byte, 64)
 	_, err := io.ReadFull(rand.Reader, tokBytes)
 	logger.CheckError(err)
 
 	massToken := csrf.MaskToken(tokBytes)
 	toSendToken := base64.StdEncoding.EncodeToString(massToken)
-
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// generate token
 		if r.Method == "GET" {
-			token := r.Header.Get("X-CSRF-Token")
-			if token == "" {
-				http.SetCookie(w, &http.Cookie{
-					Name:     "csrf_token",
-					Value:    toSendToken,
-					Path:     "/",
-					Expires:  time.Now().Add(1 * time.Hour),
-					Secure:   true,
-					SameSite: http.SameSiteStrictMode,
-				})
-			}
+			http.SetCookie(w, &http.Cookie{
+				Name:     "csrf_token",
+				Value:    toSendToken,
+				Path:     "/",
+				Expires:  time.Now().Add(10 * time.Minute),
+				SameSite: http.SameSiteStrictMode,
+			})
 		} else if r.Method == "POST" {
 			token := r.Header.Get("X-CSRF-Token")
 			if !csrf.VerifyToken(token, toSendToken) {
@@ -185,6 +180,18 @@ var CSRF = func(handler http.Handler) http.Handler {
 				})
 				return
 			}
+			_, err := io.ReadFull(rand.Reader, tokBytes)
+			logger.CheckError(err)
+
+			massToken = csrf.MaskToken(tokBytes)
+			toSendToken = base64.StdEncoding.EncodeToString(massToken)
+			http.SetCookie(w, &http.Cookie{
+				Name:     "csrf_token",
+				Value:    toSendToken,
+				Path:     "/",
+				Expires:  time.Now(),
+				SameSite: http.SameSiteStrictMode,
+			})
 		}
 		handler.ServeHTTP(w, r)
 	})
