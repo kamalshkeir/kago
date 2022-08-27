@@ -204,12 +204,12 @@ MONITORING -monitoring
 
 ## Watcher / auto-reloader 
 ```shell
-go install github.com/kamalshkeir/kago/cmd/kago
+go install github.com/kamalshkeir/kago/cmd/katcher
 ```
 Then you can run:
 ```shell
-kago --root C:\Path\To\Your\Folder (will watch all files at root)
-kago --root C:\Path\To\Your\Folder --watch assets/templates,assets/static (will watch only templates and assets folder)
+katcher --root ${PWD} (will watch all files at root)
+katcher --root ${PWD} --watch assets/templates,assets/static (will watch only '${PWD}/templates' and '${PWD}/assets' dirs)
 ```
 
 
@@ -757,7 +757,8 @@ orm.CreateUser(email,password string,isAdmin int, dbName ...string) error // pas
 *  	notnull
 *  	unique
 *   iunique // insensitive unique
-*  	index
+*  	index, +index, index+ (INDEX ascending)
+*  	index-, -index (INDEX descending)
 *  	default (DEFAULT '')
 ```
 </td>
@@ -767,7 +768,7 @@ orm.CreateUser(email,password string,isAdmin int, dbName ...string) error // pas
 * 	default:'any' (DEFAULT 'any')
 *	mindex:...
 * 	uindex:username,Iemail // CREATE UNIQUE INDEX ON users (username,LOWER(email)) 
-// index email is lower because of 'I' meaning Insensitive for email
+	// 	email is lower because of 'I' meaning Insensitive for email
 * 	fk:...
 * 	size:50  (VARCHAR(50))
 * 	check:...
@@ -794,7 +795,8 @@ orm.CreateUser(email,password string,isAdmin int, dbName ...string) error // pas
 *   -  			 (To Ignore a field)
 *   autoinc, pk  (PRIMARY KEY)
 *   notnull      (NOT NULL)
-*   index        (CREATE INDEX ON COLUMN)
+*  	index, +index, index+ (CREATE INDEX ON COLUMN)
+*  	index-, -index(CREATE INDEX DESC ON COLUMN)     
 *   unique 		 (CREATE UNIQUE INDEX ON COLUMN) 
 *   default		 (DEFAULT 0)
 ```
@@ -832,7 +834,8 @@ Available 'on_delete' and 'on_update' options: cascade,(donothing,noaction),(set
 <td>
  
 ```
-*   index
+*  	index, +index, index+ (CREATE INDEX ON COLUMN)
+*  	index-, -index(CREATE INDEX DESC ON COLUMN)  
 *   default (DEFAULT 0)
 ```
 </td>
@@ -860,6 +863,8 @@ Available 'on_delete' and 'on_update' options: cascade,(donothing,noaction),(set
 <td>
  
 ```
+*  	index, +index, index+ (CREATE INDEX ON COLUMN)
+*  	index-, -index(CREATE INDEX DESC ON COLUMN)  
 *   now (NOT NULL and defaulted to current timestamp)
 *   update (NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP)
 ```
@@ -888,7 +893,8 @@ Available 'on_delete' and 'on_update' options: cascade,(donothing,noaction),(set
  
 ```
 *   notnull
-*   index
+*  	index, +index, index+ (CREATE INDEX ON COLUMN)
+*  	index-, -index(CREATE INDEX DESC ON COLUMN)  
 *   unique
 *   default
 ```

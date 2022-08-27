@@ -126,10 +126,10 @@ func Watch(every time.Duration,root string, dirs ...string) {
 
 	if len(dirs) > 0 {
 		for _,d := range dirs {
-			logger.Printfs("grwatching",root+"/"+d)
+			logger.Printfs("grwatching %s",root+"/"+d)
 		}
 	} else {
-		logger.Printfs("grwatching",root)
+		logger.Printfs("grwatching %s",root)
 	}
 
 	for {

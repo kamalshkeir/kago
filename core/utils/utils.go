@@ -412,6 +412,16 @@ func Difference[T comparable](slice1 []T, slice2 []T) []T {
 	return diff
 }
 
+func SliceRemove[T comparable](slice *[]T,elemsToRemove ...T) {
+	for i,elem := range *slice {
+		for _,e := range elemsToRemove {
+			if e == elem {
+				*slice = append((*slice)[:i],(*slice)[i+1:]...)
+			}
+		}
+	}
+}
+
 func randomizeStringSlice(slice []string) []string {
 	mrand.Seed(time.Now().UnixNano())
 	mrand.Shuffle(len(slice), func(i, j int) {

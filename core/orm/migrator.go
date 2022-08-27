@@ -24,12 +24,12 @@ func Migrate() error {
 
 func checkUpdatedAtTrigger(dialect,tableName,col,pk string) map[string][]string {
 	triggers := map[string][]string{}
-	t := "(datetime('now','localtime'))"
+	t := "datetime('now','localtime')"
 	if dialect == "sqlite" {
 		st:="CREATE TRIGGER "
 		st+=tableName+"_update_trig AFTER UPDATE ON "+tableName
 		st+=" BEGIN update "+tableName+ " SET "+ col + " = " +  t 
-		st+=" WHERE " + pk + " = " + "NEW."+pk+";"
+		st+=" WHERE " + col + " = " + "NEW."+col+";"
 		st+="End;"
 		triggers[col]=[]string{st}
 	} else if dialect == "postgres" {	
@@ -55,6 +55,7 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 	mFieldName_Tags := map[string][]string{}
 	cols := []string{}
 	pk := ""
+	
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		fname := typeOfT.Field(i).Name
@@ -67,12 +68,21 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 			for i,tag := range tags {
 				if tag == "autoinc" || tag == "pk" {
 					pk = fname
-				}
+				} else if fname == "id" {
+					pk = fname
+				} 
 				tags[i] = strings.TrimSpace(tags[i])
 			}
 			mFieldName_Tags[fname] = tags
 		}
 	}
+	if pk == "" {
+		cols = append([]string{"id"},cols...)
+		mFieldName_Type["id"]="uint"
+		mFieldName_Tags["id"]=[]string{"pk"}
+		pk="id"
+	}
+	
 	res := map[string]string{}
 	fkeys := []string{}
 	indexes := []string{}
@@ -182,7 +192,8 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 			if len(indexes) > 1 {
 				logger.Error(mi.fName, "cannot have more than 1 index")
 			} else {
-				statIndexes = fmt.Sprintf("CREATE INDEX idx_%s_%s ON %s (%s)", tableName, indexes[0], tableName, indexes[0])
+				ff := strings.ReplaceAll(indexes[0],"DESC","")
+				statIndexes = fmt.Sprintf("CREATE INDEX idx_%s_%s ON %s (%s)", tableName, ff, tableName, indexes[0])
 			}
 		}
 		mstatIndexes := ""
@@ -191,7 +202,8 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 				logger.Error(mi.fName, "cannot have more than 1 multiple indexes")
 			} else {
 				for k, v := range *mi.mindexes {
-					mstatIndexes = fmt.Sprintf("CREATE INDEX idx_%s_%s ON %s (%s)", tableName, k, tableName, k+","+v)
+					ff := strings.ReplaceAll(k,"DESC","")
+					mstatIndexes = fmt.Sprintf("CREATE INDEX idx_%s_%s ON %s (%s)", tableName, ff, tableName, k+","+v)
 				}
 			}
 		}
@@ -347,8 +359,10 @@ func handleMigrationInt(mi *migrationInput) {
 				}
 			case "notnull":
 				notnull = "NOT NULL"
-			case "index":
+			case "index","+index","index+":
 				*mi.indexes = append(*mi.indexes, mi.fName)
+			case "-index","index-":
+				*mi.indexes = append(*mi.indexes, mi.fName+" DESC")
 			case "unique":
 				unique = " UNIQUE"
 			case "default":
@@ -546,8 +560,10 @@ func handleMigrationBool(mi *migrationInput) {
 			}
 		} else {
 			switch tag {
-			case "index":
+			case "index","+index","index+":
 				*mi.indexes = append(*mi.indexes, mi.fName)
+			case "-index","index-":
+				*mi.indexes = append(*mi.indexes, mi.fName+" DESC")
 			case "default":
 				defaultt = " DEFAULT 0"
 			default:
@@ -574,8 +590,10 @@ func handleMigrationString(mi *migrationInput) {
 				text = "TEXT"
 			case "notnull":
 				notnull = " NOT NULL"
-			case "index":
+			case "index","+index","index+":
 				*mi.indexes = append(*mi.indexes, mi.fName)
+			case "-index","index-":
+				*mi.indexes = append(*mi.indexes, mi.fName+" DESC")
 			case "unique":
 				unique = " UNIQUE"
 			case "iunique":
@@ -714,8 +732,10 @@ func handleMigrationFloat(mi *migrationInput) {
 			switch tag {
 			case "notnull":
 				mtags["notnull"] = " NOT NULL"
-			case "index":
+			case "index","+index","index+":
 				*mi.indexes = append(*mi.indexes, mi.fName)
+			case "-index","index-":
+				*mi.indexes = append(*mi.indexes, mi.fName+" DESC")
 			case "unique":
 				(*mi.uindexes)[mi.fName] = " UNIQUE"
 			case "default":
@@ -867,6 +887,10 @@ func handleMigrationTime(mi *migrationInput) {
 				default:
 					logger.Error("not handled Time for ", mi.fName, mi.fType)
 				}
+			case "index","+index","index+":
+				*mi.indexes = append(*mi.indexes, mi.fName)
+			case "-index","index-":
+				*mi.indexes = append(*mi.indexes, mi.fName+" DESC")
 			default:
 				logger.Error(tag, "tag not handled for time")
 			}
@@ -924,6 +948,18 @@ func handleMigrationTime(mi *migrationInput) {
 					check += " AND " + strings.TrimSpace(sp[1])
 				} else {
 					check += sp[1]
+				}
+			case "mindex":
+				if v, ok := (*mi.mindexes)[mi.fName]; ok {
+					if v == "" {
+						(*mi.mindexes)[mi.fName] = sp[1]
+					} else if strings.Contains(sp[1], ",") {
+						(*mi.mindexes)[mi.fName] += "," + sp[1]
+					} else {
+						logger.Error("mindex not working for", mi.fName, sp[1])
+					}
+				} else {
+					(*mi.mindexes)[mi.fName] = sp[1]
 				}
 			default:
 				logger.Error("case", sp[0], "not handled for time")

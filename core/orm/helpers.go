@@ -51,15 +51,21 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 	}
 	pk := ""
 	for col, tags := range ftags {
-		for _, tag := range tags {
-			if tag == "autoinc" || tag == "pk" {
-				pk = col
-				break
-			}
+		if utils.SliceContains(tags,"autoinc","pk") {
+			pk = col
+			break
 		}
 	}
 
 	diff := utils.Difference(fields, cols)
+	if pk == "" {
+		pk="id"
+		ftypes["id"]="int"
+		if !utils.SliceContains(fields,"id") {
+			fields = append([]string{"id"},fields...)
+		} 
+		utils.SliceRemove(&diff,"id")
+	}
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -71,7 +77,7 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 	go func() {
 		defer wg.Done()
 		// rename field
-		handleRename(to_table_name, fields, cols, diff, db, ftags)
+		handleRename(to_table_name, fields, cols, diff, db, ftags,pk)
 	}()
 	wg.Wait()
 	
@@ -82,6 +88,7 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 		}
 	}
 	
+
 	if !tFound {
 		db.Tables = append(db.Tables, TableEntity{
 			Name:       to_table_name,
@@ -98,7 +105,7 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []string, db *DatabaseEntity, ftypes map[string]string, ftags map[string][]string,pk string) {
 	if len(cols) > len(fields) { // extra column db
 		for _, d := range diff {
-			if v, ok := ftags[d]; ok && v[0] == "-" {
+			if v, ok := ftags[d]; ok && v[0] == "-" || d == pk {
 				continue
 			}
 			fmt.Println(" ")
@@ -202,8 +209,10 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 							}
 							cls := strings.Join(fields, ",")
 							_, err = conn.Exec("INSERT INTO " + temp + " SELECT " + cls + " FROM " + to_table_name)
-							if logger.CheckError(err) {
-								return
+							if err != nil {
+								if !utils.SliceContains(fields,"id") {
+
+								}
 							}
 							_, err = Table(to_table_name).Database(db.Name).Drop()
 							if logger.CheckError(err) {
@@ -224,7 +233,7 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 		}
 	} else if len(cols) < len(fields) { // missing column db
 		for _, d := range diff {
-			if v, ok := ftags[d]; ok && v[0] == "-" {
+			if v, ok := ftags[d]; ok && v[0] == "-" || d == pk {
 				continue
 			}
 			fmt.Println(" ")
@@ -508,7 +517,8 @@ func handleIndexes(to_table_name,colName string,indexes []string,mi *migrationIn
 		if len(indexes) > 1 {
 			logger.Error(mi.fName, "cannot have more than 1 index")
 		} else {
-			statIndexes = fmt.Sprintf("CREATE INDEX idx_%s_%s ON %s (%s)", to_table_name, colName, to_table_name, indexes[0])
+			ff := strings.ReplaceAll(colName,"DESC","")
+			statIndexes = fmt.Sprintf("CREATE INDEX idx_%s_%s ON %s (%s)", to_table_name, ff, to_table_name, indexes[0])
 		}
 	}
 
@@ -517,7 +527,8 @@ func handleIndexes(to_table_name,colName string,indexes []string,mi *migrationIn
 			logger.Error(mi.fName, "cannot have more than 1 multiple indexes")
 		} else {
 			if v, ok := (*mi.mindexes)[mi.fName]; ok {
-				mstatIndexes = fmt.Sprintf("CREATE INDEX idx_%s_%s ON %s (%s)", to_table_name, colName, to_table_name, colName+","+v)
+				ff := strings.ReplaceAll(colName,"DESC","")
+				mstatIndexes = fmt.Sprintf("CREATE INDEX idx_%s_%s ON %s (%s)", to_table_name, ff, to_table_name, colName+","+v)
 			}
 		}
 	}
@@ -544,13 +555,13 @@ func handleIndexes(to_table_name,colName string,indexes []string,mi *migrationIn
 }
 
 // handleRename handle sync with db when renaming fields struct
-func handleRename(to_table_name string, fields, cols, diff []string, db *DatabaseEntity, ftags map[string][]string) {
+func handleRename(to_table_name string, fields, cols, diff []string, db *DatabaseEntity, ftags map[string][]string,pk string) {
 	// rename field
 	old := []string{}
 	new := []string{}
 	if len(fields) == len(cols) && len(diff)%2 == 0 && len(diff) > 0 {
 		for _, d := range diff {
-			if v, ok := ftags[d]; ok && v[0] == "-" {
+			if v, ok := ftags[d]; ok && v[0] == "-" || d == pk {
 				continue
 			}
 			if !utils.SliceContains(cols, d) { // d is new

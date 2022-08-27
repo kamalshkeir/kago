@@ -6,6 +6,7 @@ import (
 )
 
 var mTopicBus = map[string]any{}
+var mTopicType = map[string]any{}
 
 type Bus[T any] struct {
 	Topic string
@@ -14,6 +15,16 @@ type Bus[T any] struct {
 }
 
 func Subscribe[T any](topic string, fn func(data T)) {
+	if typ,ok := mTopicType[topic];ok {
+		switch typ.(type) {
+		case T:
+		default:
+			fmt.Printf("Subscribe on %s: expected data type to be %T got %T \n",topic,typ,*new(T))
+			return
+		}
+	} else {
+		mTopicType[topic]=*new(T)
+	}
 	var b *Bus[T]
 	if topicbus, ok := mTopicBus[topic]; ok {
 		if bb, ok := topicbus.(*Bus[T]); ok {
@@ -48,7 +59,7 @@ func Publish[T any](topic string, data T) {
 		if bb, ok := topicbus.(*Bus[T]); ok {
 			b = bb
 		} else {
-			fmt.Printf("eventbus SendTo topic doesn't match data type of bus: want %T got %T\n", topicbus, bb)
+			fmt.Printf("Publish on %s doesn't match data type: want %T got %T\n",topic, mTopicType[topic], *new(T))
 			return
 		}
 	} else {
