@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/kamalshkeir/kago/core/admin/models"
@@ -17,6 +18,7 @@ import (
 	"github.com/kamalshkeir/kago/core/orm"
 	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/encryption/encryptor"
+	"github.com/kamalshkeir/kago/core/utils/eventbus"
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
@@ -146,7 +148,23 @@ var BasicAuth = func(next Handler, user, pass string) Handler {
 	}
 }
 
+var oncc sync.Once
 var Csrf = func(handler Handler) Handler {
+	oncc.Do(func() {
+		if !csrf.Used {
+			i := time.Now()
+			eventbus.Subscribe("csrf-clean",func(data string) {
+				if data != "" {
+					csrf.Csrf_tokens.Delete(data)
+				}
+				if time.Since(i) > time.Hour {
+					csrf.Csrf_tokens.Flush()
+					i=time.Now()
+				}
+			})
+			csrf.Used=true
+		}
+	})
 	return func(c *Context) {
 		switch c.Method {
 		case "GET":

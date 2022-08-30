@@ -3,6 +3,7 @@ package csrf
 import (
 	"encoding/json"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/kamalshkeir/kago/core/utils"
@@ -11,21 +12,12 @@ import (
 	"github.com/kamalshkeir/kago/core/utils/safemap"
 )
 
-func init() {
-	i := time.Now()
-	eventbus.Subscribe("csrf-clean",func(data string) {
-		if data != "" {
-			Csrf_tokens.Delete(data)
-		}
-		if time.Since(i) > time.Hour {
-			Csrf_tokens.Flush()
-		}
-	})
-}
-
+var Used bool
 var Csrf_rand = utils.GenerateRandomString(10)
 var CSRF_CLEAN_EVERY= 20*time.Minute
 var CSRF_TIMEOUT_RETRY = 4
+var Csrf_tokens = safemap.New[string,Token]()
+var onc sync.Once
 
 type Token struct {
 	Used  bool
@@ -35,11 +27,23 @@ type Token struct {
 	Created time.Time
 }
 
-var Csrf_tokens = safemap.New[string,Token]()
-
 var CSRF = func(handler http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		
+	onc.Do(func() {
+		if !Used {
+			i := time.Now()
+			eventbus.Subscribe("csrf-clean",func(data string) {
+				if data != "" {
+					Csrf_tokens.Delete(data)
+				}
+				if time.Since(i) > time.Hour {
+					Csrf_tokens.Flush()
+					i=time.Now()
+				}
+			})
+			Used=true
+		}
+	})
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {		
 		switch r.Method {
 		case "GET":
 			token := r.Header.Get("X-CSRF-Token")
