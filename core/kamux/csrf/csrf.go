@@ -1,78 +1,109 @@
 package csrf
 
 import (
-	"crypto/rand"
-	"crypto/subtle"
-	"encoding/base64"
-	"io"
+	"encoding/json"
+	"net/http"
+	"time"
+
+	"github.com/kamalshkeir/kago/core/utils"
+	"github.com/kamalshkeir/kago/core/utils/encryption/encryptor"
+	"github.com/kamalshkeir/kago/core/utils/eventbus"
+	"github.com/kamalshkeir/kago/core/utils/safemap"
 )
 
-const tokenLength = 64
-
-func VerifyToken(realToken, sentToken string) bool {
-	r, err := base64.StdEncoding.DecodeString(realToken)
-	if err != nil {
-		return false
-	}
-	if len(r) == 2*tokenLength {
-		r = unmaskToken(r)
-	}
-	s, err := base64.StdEncoding.DecodeString(sentToken)
-	if err != nil {
-		return false
-	}
-	if len(s) == 2*tokenLength {
-		s = unmaskToken(s)
-	}
-	return tokensEqual(r, s)
+func init() {
+	i := time.Now()
+	eventbus.Subscribe("csrf-clean",func(data string) {
+		if data != "" {
+			Csrf_tokens.Delete(data)
+		}
+		if time.Since(i) > time.Hour {
+			Csrf_tokens.Flush()
+		}
+	})
 }
 
-func tokensEqual(realToken, sentToken []byte) bool {
-	return len(realToken) == tokenLength &&
-		len(sentToken) == tokenLength &&
-		subtle.ConstantTimeCompare(realToken, sentToken) == 1
+var Csrf_rand = utils.GenerateRandomString(10)
+var CSRF_CLEAN_EVERY= 20*time.Minute
+var CSRF_TIMEOUT_RETRY = 4
+
+type Token struct {
+	Used  bool
+	Retry int
+	Value string
+	Remote string
+	Created time.Time
 }
 
-func oneTimePad(data, key []byte) {
-	n := len(data)
-	if n != len(key) {
-		panic("Lengths of slices are not equal")
-	}
+var Csrf_tokens = safemap.New[string,Token]()
 
-	for i := 0; i < n; i++ {
-		data[i] ^= key[i]
-	}
+var CSRF = func(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		
+		switch r.Method {
+		case "GET":
+			token := r.Header.Get("X-CSRF-Token")
+			tok,ok := Csrf_tokens.Get(token)
+
+			if token == "" || !ok || token != tok.Value || tok.Retry > CSRF_TIMEOUT_RETRY {
+				t,_ := encryptor.Encrypt(Csrf_rand)
+				Csrf_tokens.Set(t,Token{
+					Value: t,
+					Used: false,
+					Retry: 0,
+					Remote: r.UserAgent(),
+					Created: time.Now(),
+				})
+				http.SetCookie(w, &http.Cookie{
+					Name:     "csrf_token",
+					Value:    t,
+					Path:     "/",
+					Expires:  time.Now().Add(5*time.Minute),
+					SameSite: http.SameSiteStrictMode,
+				})
+			} else {
+				if token != tok.Value {
+					http.SetCookie(w, &http.Cookie{
+						Name:     "csrf_token",
+						Value:    tok.Value,
+						Path:     "/",
+						Expires:  time.Now().Add(5*time.Minute),
+						SameSite: http.SameSiteStrictMode,
+					})
+				}
+			}
+
+			handler.ServeHTTP(w, r)
+			return	
+			 
+		case "POST","PATCH","PUT","UPDATE","DELETE":
+			token := r.Header.Get("X-CSRF-Token")			
+			tok,ok := Csrf_tokens.Get(token)
+			if !ok || token == "" || tok.Used || tok.Retry > CSRF_TIMEOUT_RETRY || time.Since(tok.Created) > CSRF_CLEAN_EVERY || r.UserAgent() != tok.Remote {
+				eventbus.Publish("csrf-clean",tok.Value)
+				w.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(w).Encode(map[string]any{
+					"error": "CSRF not allowed",
+				})
+				return		
+			}
+			
+		
+			Csrf_tokens.Set(tok.Value,Token{
+				Value: tok.Value,
+				Used: true,
+				Retry: tok.Retry+1,
+				Remote: r.UserAgent(),
+				Created: tok.Created,
+			})
+			handler.ServeHTTP(w, r)
+			return
+		default:
+			handler.ServeHTTP(w, r)
+		}
+	})
 }
 
-func MaskToken(data []byte) []byte {
-	if len(data) != tokenLength {
-		return nil
-	}
 
-	// tokenLength*2 == len(enckey + token)
-	result := make([]byte, 2*tokenLength)
-	// the first half of the result is the OTP
-	// the second half is the masked token itself
-	key := result[:tokenLength]
-	token := result[tokenLength:]
-	copy(token, data)
 
-	// generate the random token
-	if _, err := io.ReadFull(rand.Reader, key); err != nil {
-		panic(err)
-	}
 
-	oneTimePad(token, key)
-	return result
-}
-func unmaskToken(data []byte) []byte {
-	if len(data) != tokenLength*2 {
-		return nil
-	}
-
-	key := data[:tokenLength]
-	token := data[tokenLength:]
-	oneTimePad(token, key)
-
-	return token
-}

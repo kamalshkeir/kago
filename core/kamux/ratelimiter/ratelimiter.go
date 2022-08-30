@@ -1,10 +1,47 @@
 package ratelimiter
 
 import (
+	"net/http"
 	"sync"
+	"time"
 
 	"golang.org/x/time/rate"
 )
+
+
+
+
+
+var banned = sync.Map{}
+var LIMITER_TOKENS = 50
+var LIMITER_TIMEOUT = 5 * time.Minute
+var LIMITER = func(next http.Handler) http.Handler {
+	var limiter = rate.NewLimiter(1, LIMITER_TOKENS)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		v, ok := banned.Load(r.RemoteAddr)
+		if ok {
+			if time.Since(v.(time.Time)) > LIMITER_TIMEOUT {
+				banned.Delete(r.RemoteAddr)
+			} else {
+				w.WriteHeader(http.StatusTooManyRequests)
+				w.Write([]byte("<h1>YOU DID TOO MANY REQUEST, YOU HAVE BEEN BANNED FOR 5 MINUTES </h1>"))
+				banned.Store(r.RemoteAddr, time.Now())
+				return
+			}
+		}
+		if !limiter.Allow() {
+			w.WriteHeader(http.StatusTooManyRequests)
+			w.Write([]byte("<h1>YOU DID TOO MANY REQUEST, YOU HAVE BEEN BANNED FOR 5 MINUTES </h1>"))
+			banned.Store(r.RemoteAddr, time.Now())
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+
+
+
 
 type IPRateLimiter struct {
 	ips map[string]*rate.Limiter

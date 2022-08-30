@@ -2,30 +2,22 @@ package kamux
 
 import (
 	"context"
-	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
-	"encoding/base64"
 	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/kamalshkeir/kago/core/admin/models"
 	"github.com/kamalshkeir/kago/core/kamux/csrf"
 	"github.com/kamalshkeir/kago/core/kamux/gzip"
 	"github.com/kamalshkeir/kago/core/kamux/logs"
+	"github.com/kamalshkeir/kago/core/kamux/ratelimiter"
 	"github.com/kamalshkeir/kago/core/orm"
-	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/encryption/encryptor"
-	"github.com/kamalshkeir/kago/core/utils/eventbus"
 	"github.com/kamalshkeir/kago/core/utils/logger"
-
-	"golang.org/x/time/rate"
 )
 
 
@@ -154,51 +146,65 @@ var BasicAuth = func(next Handler, user, pass string) Handler {
 	}
 }
 
-var CSRF = func(handler http.Handler) http.Handler {
-	tokBytes := make([]byte, 64)
-	_, err := io.ReadFull(rand.Reader, tokBytes)
-	logger.CheckError(err)
+var Csrf = func(handler Handler) Handler {
+	return func(c *Context) {
+		switch c.Method {
+		case "GET":
+			token := c.Request.Header.Get("X-CSRF-Token")
+			tok,ok := csrf.Csrf_tokens.Get(token)
 
-	massToken := csrf.MaskToken(tokBytes)
-	toSendToken := base64.StdEncoding.EncodeToString(massToken)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// generate token
-		if r.Method == "GET" {
-			token := r.Header.Get("X-CSRF-Token")
-			if token == "" {
-				http.SetCookie(w, &http.Cookie{
+			if token == "" || !ok || token != tok.Value || tok.Retry > csrf.CSRF_TIMEOUT_RETRY{
+				t,_ := encryptor.Encrypt(csrf.Csrf_rand)
+				csrf.Csrf_tokens.Set(t,csrf.Token{
+					Value: t,
+					Used: false,
+					Retry: 0,
+					Remote: c.Request.UserAgent(),
+					Created: time.Now(),
+				})
+				http.SetCookie(c.ResponseWriter, &http.Cookie{
 					Name:     "csrf_token",
-					Value:    toSendToken,
+					Value:    t,
 					Path:     "/",
-					Expires:  time.Now().Add(10 * time.Minute),
+					Expires:  time.Now().Add(csrf.CSRF_CLEAN_EVERY),
 					SameSite: http.SameSiteStrictMode,
 				})
-			}		
-		} else if r.Method == "POST" {
-			token := r.Header.Get("X-CSRF-Token")
-			if !csrf.VerifyToken(token, toSendToken) {
-				w.WriteHeader(http.StatusBadRequest)
-				json.NewEncoder(w).Encode(map[string]interface{}{
+			} else {
+				if token != tok.Value {
+					http.SetCookie(c.ResponseWriter, &http.Cookie{
+						Name:     "csrf_token",
+						Value:    tok.Value,
+						Path:     "/",
+						Expires:  time.Now().Add(csrf.CSRF_CLEAN_EVERY),
+						SameSite: http.SameSiteStrictMode,
+					})
+				}
+			}
+		case "POST","PATCH","PUT","UPDATE","DELETE":
+			token := c.Request.Header.Get("X-CSRF-Token")			
+			tok,ok := csrf.Csrf_tokens.Get(token)
+			if !ok || token == "" || tok.Used || tok.Retry > csrf.CSRF_TIMEOUT_RETRY || time.Since(tok.Created) > csrf.CSRF_CLEAN_EVERY || c.Request.UserAgent() != tok.Remote {
+				c.ResponseWriter.WriteHeader(http.StatusBadRequest)
+				json.NewEncoder(c.ResponseWriter).Encode(map[string]any{
 					"error": "CSRF not allowed",
 				})
-				return
+				return	
+				
 			}
-			_, err := io.ReadFull(rand.Reader, tokBytes)
-			logger.CheckError(err)
-
-			massToken = csrf.MaskToken(tokBytes)
-			toSendToken = base64.StdEncoding.EncodeToString(massToken)
-			http.SetCookie(w, &http.Cookie{
-				Name:     "csrf_token",
-				Value:    toSendToken,
-				Path:     "/",
-				Expires:  time.Now(),
-				SameSite: http.SameSiteStrictMode,
+			csrf.Csrf_tokens.Set(tok.Value,csrf.Token{
+				Value: tok.Value,
+				Used: true,
+				Retry: tok.Retry+1,
+				Remote: c.Request.UserAgent(),
+				Created: tok.Created,
 			})
 		}
-		handler.ServeHTTP(w, r)
-	})
+		handler(c)
+	}
 }
+
+
+
 
 
 var corsAdded = false
@@ -209,7 +215,6 @@ func (router *Router) AllowOrigines(origines ...string) {
 		corsAdded=true
 	}
 	Origines = append(Origines, origines...)
-
 }
 
 var cors = func(next http.Handler) http.Handler {
@@ -228,57 +233,6 @@ var cors = func(next http.Handler) http.Handler {
 	})
 }
 
-var GZIP = func(handler http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.URL.Path, "metrics") {
-			handler.ServeHTTP(w, r)
-			return
-		}
-		//check if connection is ws
-		for _, header := range r.Header["Upgrade"] {
-			if header == "websocket" {
-				// connection is ws
-				handler.ServeHTTP(w, r)
-				return
-			}
-		}
-		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
-			gwriter := gzip.NewWrappedResponseWriter(w)
-			defer gwriter.Flush()
-			gwriter.Header().Set("Content-Encoding", "gzip")
-			handler.ServeHTTP(gwriter, r)
-			return
-		}
-		handler.ServeHTTP(w, r)
-	})
-}
-
-var banned = sync.Map{}
-var LIMITER_TOKENS = 50
-var LIMITER_TIMEOUT = 5 * time.Minute
-var LIMITER = func(next http.Handler) http.Handler {
-	var limiter = rate.NewLimiter(1, LIMITER_TOKENS)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		v, ok := banned.Load(r.RemoteAddr)
-		if ok {
-			if time.Since(v.(time.Time)) > LIMITER_TIMEOUT {
-				banned.Delete(r.RemoteAddr)
-			} else {
-				w.WriteHeader(http.StatusTooManyRequests)
-				w.Write([]byte("<h1>YOU DID TOO MANY REQUEST, YOU HAVE BEEN BANNED FOR 5 MINUTES </h1>"))
-				banned.Store(r.RemoteAddr, time.Now())
-				return
-			}
-		}
-		if !limiter.Allow() {
-			w.WriteHeader(http.StatusTooManyRequests)
-			w.Write([]byte("<h1>YOU DID TOO MANY REQUEST, YOU HAVE BEEN BANNED FOR 5 MINUTES </h1>"))
-			banned.Store(r.RemoteAddr, time.Now())
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
 
 var RECOVERY = func(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -298,40 +252,14 @@ var RECOVERY = func(next http.Handler) http.Handler {
 	})
 }
 
-var LOGS = func(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if utils.StringContains(r.URL.Path, "metrics", "sw.js", "favicon", "/static/", "/sse/", "/ws/", "/wss/") {
-			h.ServeHTTP(w, r)
-			return
-		}
-		//check if connection is ws
-		for _, header := range r.Header["Upgrade"] {
-			if header == "websocket" {
-				// connection is ws
-				h.ServeHTTP(w, r)
-				return
-			}
-		}
-		recorder := &logs.StatusRecorder{
-			ResponseWriter: w,
-			Status:         200,
-		}
-		t := time.Now()
-		h.ServeHTTP(recorder, r)
-		res := fmt.Sprintf("[%s] --> '%s' --> [%d]  from: %s ---------- Took: %v", r.Method, r.URL.Path, recorder.Status, r.RemoteAddr, time.Since(t))
 
-		if recorder.Status >= 200 && recorder.Status < 400 {
-			fmt.Printf(logger.Green, res)
-		} else if recorder.Status >= 400 || recorder.Status < 200 {
-			fmt.Printf(logger.Red, res)
-		} else {
-			fmt.Printf(logger.Yellow, res)
-		}
-		if settings.Config.Logs {
-			logger.StreamLogs = append(logger.StreamLogs, res)
-			eventbus.Publish("internal-logs", map[string]string{})
-		}
-	})
-}
+
+
+var CSRF=csrf.CSRF
+var GZIP = gzip.GZIP
+var LIMITER = ratelimiter.LIMITER
+var LOGS = logs.LOGS
+
+
 
 

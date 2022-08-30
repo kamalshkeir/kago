@@ -12,8 +12,10 @@ import (
 	"golang.org/x/crypto/scrypt"
 )
 
+var keyEnv string
+
 func Encrypt(data string) (string, error) {
-	keyEnv := settings.Secret
+	keyEnv = settings.Secret
 	if keyEnv == "" {
 		keyEnv = utils.GenerateRandomString(19)
 		settings.Secret = keyEnv
@@ -45,10 +47,8 @@ func Encrypt(data string) (string, error) {
 }
 
 func Decrypt(data string) (string, error) {
-	keyEnv := settings.Secret
 	if keyEnv == "" {
-		keyEnv = utils.GenerateRandomString(19)
-		settings.Secret = keyEnv
+		return "",errors.New("no secret given, set SECRET in env file")
 	}
 	var salt []byte
 	dataByte, _ := hex.DecodeString(data)

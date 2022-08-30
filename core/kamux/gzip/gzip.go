@@ -6,7 +6,35 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strings"
 )
+
+
+var GZIP = func(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.Contains(r.URL.Path, "metrics") {
+			handler.ServeHTTP(w, r)
+			return
+		}
+		//check if connection is ws
+		for _, header := range r.Header["Upgrade"] {
+			if header == "websocket" {
+				// connection is ws
+				handler.ServeHTTP(w, r)
+				return
+			}
+		}
+		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			gwriter := NewWrappedResponseWriter(w)
+			defer gwriter.Flush()
+			gwriter.Header().Set("Content-Encoding", "gzip")
+			handler.ServeHTTP(gwriter, r)
+			return
+		}
+		handler.ServeHTTP(w, r)
+	})
+}
+
 
 type WrappedResponseWriter struct {
 	w       http.ResponseWriter
