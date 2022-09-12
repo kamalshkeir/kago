@@ -34,8 +34,8 @@ KaGo is a high-level web framework, that encourages clean and rapid development.
 You can literally get up and running using two lines of code, easier than Django and with a compiled language performance.
 
 Kago offer you :
-- <strong>HOT :</strong>  [Auto Generate Letsencrypt Certificates](#run-https-letsencrypt-in-production-using-env-vars-and-tags) and keep them up to date (auto renew 1 month before expire), so no need for crons
-- <strong>NEW :</strong>  [BareBone Mode](#barebone--router-only-no-assets-cloned) Without admin dashboard
+- <strong>NEW :</strong>  [Auto SSL Letsencrypt Certificates](#run-https-letsencrypt-in-production-using-env-vars-and-tags) and keep them up to date (auto renew 1 month before expire)
+- <strong>NEW :</strong>  [BareBone Mode](#barebone--router-only-no-assets-cloned) Router Only
 - <strong>NEW :</strong>  [ORM Insensitive Unique Indexes](#available-tags-by-struct-field-type-tags-are-separated-by)
 - <strong>NEW :</strong>  ORM handle coakroachdb in addition to sqlite,postgres and mysql
 - <strong>NEW :</strong>  Admin Update can update all fields in the same time, and delete files from media when data deleted from admin dashboard
@@ -68,13 +68,13 @@ Join our  [discussions here](https://github.com/kamalshkeir/kago/discussions/1)
 # Installation
 
 ```sh
-$ go get -u github.com/kamalshkeir/kago
+go get -u github.com/kamalshkeir/kago
 ```
 
 ---
 
 # Quick start
-##### New : Router + Admin + Database + Shell
+##### Router + Admin + Database + Shell
 
 ```go
 package main
@@ -85,29 +85,6 @@ import (
 
 func main() {
 	app := kago.New() // router + admin + database + shell
-
-	// using an adapter for go std http handlerfunc and getting param param1 of type int (regex validated)
-	app.HandlerFunc("*","/test/param1:int/*",func(w http.ResponseWriter, r *http.Request) {
-		params,ok := kamux.ParamsHandleFunc(r)
-		if ok {
-			...
-		}
-		w.Write([]byte("ok"))
-	})
-
-	// handle any method kamux Handler 
-	app.Handle("*","/:test",func(c *kamux.Context) {
-		logger.Success(c.Params)
-		c.Json(kamux.M{
-			"message":"message here",
-		})
-	})
-
-	// using kago handler
-	app.GET("/any/(hello|world)",func(c *kamux.Context) { // handle GET /any/hello and /any/world
-		c.Text("hello world")
-	})
-	
 	app.Run()
 }
 ```
@@ -120,37 +97,8 @@ import (
 	"github.com/kamalshkeir/kago"
 )
 
-//go:embed assets/templates
-var Templates embed.FS
-//go:embed assets/static
-var Static embed.FS
-
 func main() {
 	app := kago.BareBone() // router only
-
-	//settings.STATIC_DIR="static" --> to serve at /static (optional)
-	//settings.TEMPLATE_DIR="templates" --> templates inside this folder are used with c.Html
-
-	app.GET("/test/id:int",func(c *kamux.Context) {
-		id,ok := c.Params["id"]
-		if !ok {
-			...
-			return
-		}
-		c.Html("index.html",kamux.M{
-			"id":id,
-		})
-	})
-
-	// you can add static and templates folder 
-	app.ServeLocalDir("/path/to/static","static") // serve local /path/to/static folder at /static/*
-	app.AddLocalTemplates("/path/to/templates1") // templates inside this folder are used with c.Html
-	app.AddLocalTemplates("/path/to/templates2")
-
-	// you can serve also embeded templates and static
-	router.ServeEmbededDir("/path/to/static", Static, "static") // serve embeded assets/static folder at endpoint /static/*
-	router.AddEmbededTemplates(Templates,"/path/to/templates")
-
 	app.Run()
 }
 ```
@@ -168,11 +116,13 @@ go run main.go shell
 ```
 
 #### 3- Run the server:
-```zsh
-# run local:
+```shell
+# run localy:
 go run main.go # default: -h localhost -p 9313
 ```
 ## That's it, you can visit /admin
+
+--- 
 
 # Run HTTPS letsencrypt in production using env vars and tags :
 
@@ -182,7 +132,7 @@ go run main.go # default: -h localhost -p 9313
 go run main.go -h example.com -p 443 --cert cerkey.pem --key privkey.pem
 ```
 
-##### if not, make sure you have AAAA records setted on your hosting provider then:
+##### Autocerts (certs generated and renewed automatically) :
 
 ```sh
 go run main.go -h example.com -p 443 
@@ -197,16 +147,16 @@ go run main.go -h example.com -p 443 -domains example.com, a.example.com, b.exam
 
 
 ```zsh
-# finaly remember, you can set all these values from ENV too:
-HOST       -h
-PORT       -p
-DOMAINS    -domains
-CERT 	   -cert
-KEY 	   -key
-PROFILER   -profiler
-DOCS       -docs
-LOGS       -logs
-MONITORING -monitoring
+# most important tags and env vars that you can override:
+HOST         -h            DEFAULT: "localhost"
+PORT         -p			   DEFAULT: "443"
+DOMAINS      -domains	   DEFAULT: ""
+CERT 	     -cert         DEFAULT: ""
+KEY 	     -key          DEFAULT: ""
+PROFILER     -profiler     DEFAULT: false
+DOCS         -docs         DEFAULT: false
+LOGS         -logs         DEFAULT: false
+MONITORING   -monitoring   DEFAULT: false
 ```
 
 
@@ -215,15 +165,18 @@ MONITORING -monitoring
 
 
 ## Watcher / auto-reloader 
+### install
 ```shell
 go install github.com/kamalshkeir/kago/cmd/katcher
 ```
+### or get the binary from releases
 Then you can run:
 ```shell
 katcher --root ${PWD} (will watch all files at root)
-katcher --root ${PWD} --watch assets/templates,assets/static (will watch only '${PWD}/templates' and '${PWD}/assets' dirs)
+katcher --root ${PWD} --watch assets/templates,assets/static (will watch only '${PWD}/assets/templates' and '${PWD}/assets/static' folders)
 ```
 
+---
 
 # Generated Admin Dashboard
 ##### an easy way to create your own theme, is to modify files inside assets , upload the assets folder into a repo and set these 2 values:
@@ -302,7 +255,38 @@ func main() {
     // You can add GLOBAL middlewares easily  (GZIP,CSRF,LIMITER,RECOVERY)
 	app.UseMiddlewares(kamux.GZIP)
 
-	// OR middleware for single handler (Auth,Admin,BasicAuth)
+	// this is an adapter for go std http handlerfunc, example of getting param param1 of type int (regex validated)
+	app.HandlerFunc("*","/test/param1:int/*",func(w http.ResponseWriter, r *http.Request) {
+		params,ok := kamux.ParamsHandleFunc(r)
+		if ok {
+			...
+		}
+		w.Write([]byte("ok"))
+	})
+	app.HandlerFunc("GET","/",func(w http.ResponseWriter, r *http.Request) { // using net/http handlerFunc
+		w.Write([]byte("hello world"))
+	})
+
+	// handle any method kamux Handler 
+	app.Handle("*","/any/:test",func(c *kamux.Context) {
+		logger.Success(c.Params["test"])
+		c.Json(kamux.M{
+			"message":"message here",
+		})
+	})
+	app.Handle("GET","/any2/:test",func(c *kamux.Context) {
+		logger.Success(c.Params)
+		c.Json(kamux.M{
+			"message":"message here",
+		})
+	})
+
+	// handle GET /any/hello and /any/world
+	app.GET("/any/(hello|world)",func(c *kamux.Context) { 
+		c.Text("hello world")
+	})
+
+	// middlewares for single handler (Auth,Admin,BasicAuth)
 	// Auth check if user is authenticated and pass to c.Html '.User' and '.Request' accessible in all templates
 	app.GET("/",kamux.Auth(IndexHandler))
 	app.POST("/somePost", posting)
@@ -312,24 +296,20 @@ func main() {
 	app.HEAD("/someDelete", head)
 	app.OPTIONS("/someDelete", options)
 
-	app.HandlerFunc("GET","/",func(w http.ResponseWriter, r *http.Request) { // using net/http handlerFunc
-		w.Write([]byte("hello world"))
-	})
 
 	app.Run()
 }
 
 var IndexHandler = func(c *kamux.Context) {
-    if param1,ok := c.Params["param1"];ok {
-        c.Json(kamux.M{ // Status default to 200, so no need for it
-            "param1":param1,
-        }) // send json
-    } else {
-		// P.S:
+	if param1,ok := c.Params["param1"];ok {
+		c.Json(kamux.M{ // Status default to 200, so no need to add it
+			"param1":param1,
+		}) // send json
+	} else {
 		c.Status(400).Json(kamux.M{
-            "error":"message",
-        }) // send json
-    }
+			"error":"message",
+		}) // send json with status code 400
+	}
 }
 ```
 
@@ -626,6 +606,32 @@ app.ServeLocalDir(dirPath, webPath string)
 app.ServeEmbededDir(pathLocalDir string, embeded embed.FS, webPath string)
 app.AddLocalTemplates(pathToDir string) error
 app.AddEmbededTemplates(template_embed embed.FS,rootDir string) error
+
+// examples:
+// initial static and templates 
+//settings.STATIC_DIR="static" --> to serve at /static (optional)
+//settings.TEMPLATE_DIR="templates" --> templates inside this folder are used with c.Html
+
+app.GET("/test/id:int",func(c *kamux.Context) {
+	id,ok := c.Params["id"]
+	if !ok {
+		...
+		return
+	}
+	c.Html("index.html",kamux.M{
+		"id":id,
+	})
+})
+
+// you can add static and templates folders
+app.ServeLocalDir("/path/to/static","static") // serve local /path/to/static folder at /static/*
+app.AddLocalTemplates("/path/to/templates1") // templates inside this folder are used with c.Html
+app.AddLocalTemplates("/path/to/templates2")
+
+// you can serve also add embeded templates and static folders
+router.ServeEmbededDir("/path/to/static", Static, "static") // serve embeded assets/static folder at endpoint /static/*
+router.AddEmbededTemplates(Templates,"/path/to/templates")
+
 ```
 ---
 # Middlewares
@@ -737,22 +743,21 @@ orm.CreateUser(email,password string,isAdmin int, dbName ...string) error // pas
 ---
 
 # Migrations
-## using the shell, you can migrate a .sql file ```go run main.go shell```
+### using the shell, you can migrate a .sql file ```go run main.go shell```
 
-## OR
-## you can migrate from a struct using [Auto Migrate](#automigrate-usage)
+### OR
+### you can migrate from a struct using [Auto Migrate](#automigrate-usage)
 
-## when kago app executed, all models registered using AutoMigrate will be synchronized with the database so if you add a field to you struct or add a column to your table, you will have a prompt proposing migration
+### when kago app executed, all models registered using AutoMigrate will be synchronized with the database so if you add a field to you struct or add a column to your table, you will have a prompt proposing migration
 
-## execute AutoMigrate and don't think about it, it will handle all synchronisations between your project structs types like in the example Bookmark below
+### execute AutoMigrate and don't think about it, it will handle all synchronisations between your project structs types like in the example Bookmark below
 
-## For instance you can add foreign keys column to your table by adding extra field to your struct and restart your app, you can also remove foreign keys. 
+### For instance you can add foreign keys column to your table by adding extra field to your struct and restart your app, you can also remove foreign keys. 
 
-## If you need to change a tag, remove the field, restart, put the new one with the new tag, restart again, that's it 
+### If you need to change a tag, remove the field, restart, put the new one with the new tag, restart again, that's it 
 
 ---
-### Available Tags by struct field type :
-###### tags are separated by ';'
+### Available Tags by struct field type and [Examples](#automigrate-usage) :
 ---
 
 #String Field:
@@ -934,7 +939,18 @@ Available 'on_delete' and 'on_update' options: cascade,(donothing,noaction),(set
 
 orm.AutoMigrate[T comparable](tableName string, dbName ...string) error 
 
-//Example:
+//Examples:
+// this is the actual user model used initialy
+type User struct {
+	Id        int       `json:"id,omitempty" orm:"pk"`
+	Uuid      string    `json:"uuid,omitempty" orm:"size:40"`
+	Email     string    `json:"email,omitempty" orm:"size:50;iunique"`
+	Password  string    `json:"password,omitempty" orm:"size:150"`
+	IsAdmin   bool      `json:"is_admin,omitempty" orm:"default:false"`
+	Image     string    `json:"image,omitempty" orm:"size:100;default:''"`
+	CreatedAt time.Time `json:"created_at,omitempty" orm:"now"`
+}
+
 type Bookmark struct {
 	Id      uint   `orm:"pk"`
 	UserId  int    `orm:"fk:users.id:cascade:setnull"` // options cascade,(donothing,noaction),(setnull,null),(setdefault,default)
@@ -944,6 +960,10 @@ type Bookmark struct {
 	UpdatedAt time.Time `orm:"update"` // will update when model updated, handled by triggers for sqlite, coakroach and postgres, and builtin mysql
 	CreatedAt time.Time `orm:"now"` // now is default to current timestamp and of type TEXT for sqlite
 }
+
+
+// TO DEBUG , or to see queries executed on migrations, set orm.DEBUG=true
+
 
 // To migrate/connect/sync with database:
 err := orm.AutoMigrate[Bookmark]("bookmarks")
@@ -975,7 +995,7 @@ CREATE TABLE IF NOT EXISTS bookmarks (
 
 
 
-# Queries and Sql Builder
+# Queries and Sql Builder (handle multiple database)
 #### to query, insert, update and delete using structs:
 ```go
 orm.Model[T comparable]() *Builder[T] // starter
@@ -1300,17 +1320,23 @@ hash.ComparePasswordToHash(password, hash string) (bool, error)
 
 ---
 
-# Eventbus Internal
+# Eventbus Internal handle any data using generics, just make sure you are using same type for the same topic
 ```go
-eventbus.Subscribe("any_topic",func(data map[string]string) {
+eventbus.Subscribe("any_topic",func(data map[string]any) {
 	...
 })
 
-eventbus.Publish("any_topic", map[string]string{
+eventbus.Subscribe("any_topic222",func(data int) {
+	...
+})
+
+eventbus.Publish("any_topic", map[string]any{
 	"type":     "update",
 	"table":    b.tableName,
 	"database": b.database,
 })
+
+eventbus.Publish("any_topic222", 222)
 ```
 
 ---
@@ -1329,6 +1355,7 @@ will enable:
 go run main.go --profiler
 
 will enable:
+	- /debug/pprof
 	- /debug/pprof/profile
 	- /debug/pprof/heap
 	- /debug/pprof/trace
