@@ -31,13 +31,13 @@
 <br>
 KaGo is a high-level web framework, that encourages clean and rapid development.
 
-You can literally get up and running using two lines of code, easier than Django and with a compiled language performance.
+You can stop searching for the best framework, and start a new project using 2 lines of code, run a high performance server with Admin Dashboard, interactive shell, easy and very powerful ORM using generics, AutoSSL and many more...
 
-Kago offer you :
-- <strong>NEW :</strong>  [Auto SSL Letsencrypt Certificates](#run-https-letsencrypt-in-production-using-env-vars-and-tags) and keep them up to date (auto renew 1 month before expire)
+Quick List of latest features :
+- <strong>NEW :</strong>  [Auto SSL Letsencrypt Certificates](#if-you-have-already-certificates) and keep them up to date (auto renew 1 month before expire)
 - <strong>NEW :</strong>  [BareBone Mode](#barebone--router-only-no-assets-cloned) Router Only
 - <strong>NEW :</strong>  [ORM Insensitive Unique Indexes](#available-tags-by-struct-field-type-tags-are-separated-by)
-- <strong>NEW :</strong>  ORM handle coakroachdb in addition to sqlite,postgres and mysql
+- <strong>NEW :</strong>  ORM handle coakroachdb in addition to sqlite,postgres and mysql (performance better than GORM)
 - <strong>NEW :</strong>  Admin Update can update all fields in the same time, and delete files from media when data deleted from admin dashboard
 - <strong>NEW :</strong> [Watcher/Auto-Reloader](#watcher--auto-reloader)
 - <strong>NEW :</strong> [orm.AutoMigrate](#automigrate-usage) will handle all your migrations from a struct model, if you remove a field from the migrated struct, you will be prompted to do the migration, it can handle foreign_keys, checks, indexes,...
@@ -49,18 +49,13 @@ Kago offer you :
 - OpenApi [docs](#openapi-documentation-ready-if-enabled-using-flags-or-settings-vars) at `/docs` running with flag `go run main.go --docs` with dedicated package docs to help you manipulate docs.json file
 - AES encryption for authentication sessions using package encryptor
 - Argon2 hashing using package hash
-- [EnvLoader](#env-loader) using package envloader directly load to struct
+- [EnvLoader](#env-loader) the fastest package envloader to load directly env to struct
 - [Internal Eventbus](#eventbus-internal) using go routines and channels (very powerful), use cases are endless
 - [Monitoring Prometheus/grafana](#grafana-with-prometheus-monitoring) `/metrics` running with flag `go run main.go --monitoring`
 - [Profiler golang official](#pprof-official-golang-profiling-tools) debug pprof `/debug/pprof/(heap|profile\trace)` running with flag `go run main.go --profiler`
 - [Embed](#build-single-binary-with-all-static-and-html-files) your application static and template files
 - Ready to use Progressive Web App Support (pure js, without workbox)
 
-
-Many features will be added in the future, like:
-- AutoMigration from struct (DONE)
-- the possibility to choose a theme and create your own (DONE)
-- automatic backups
 
 Join our  [discussions here](https://github.com/kamalshkeir/kago/discussions/1)
 
