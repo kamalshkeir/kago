@@ -78,15 +78,14 @@ var Static embed.FS
 // GetEmbeded get embeded files and make them global
 func (r *Router) Embed(staticDir *embed.FS, templateDir *embed.FS) {
 	if staticDir != nil && templateDir != nil {
-		settings.Config.Embed.Static=true
-		settings.Config.Embed.Templates=true
+		settings.Config.Embed.Static = true
+		settings.Config.Embed.Templates = true
 		Static = *staticDir
 		Templates = *templateDir
 	} else {
-		logger.Error("cannot embed static and templates:",staticDir,templateDir)
+		logger.Error("cannot embed static and templates:", staticDir, templateDir)
 	}
 }
-
 
 func getTagsAndPrint() {
 	h := flag.String("h", "localhost", "Host can be ip or domain name")
@@ -95,12 +94,11 @@ func getTagsAndPrint() {
 	monitoring := flag.Bool("monitoring", false, "set settings.Config.Monitoring for prometheus and grafana /metrics")
 	docs := flag.Bool("docs", false, "set settings.Config.Docs for prometheus and grafana /docs")
 	profiler := flag.Bool("profiler", false, "set settings.Config.Profiler for pprof  /debug/pprof")
-	cert := flag.String("cert","","certfile")
-	key := flag.String("key","","keyfile")
-	domains := flag.String("domains","","domains separated by comma, no www(added automaticaly) to certificates letsencrypt when auto generated")
+	cert := flag.String("cert", "", "certfile")
+	key := flag.String("key", "", "keyfile")
+	domains := flag.String("domains", "", "domains separated by comma, no www(added automaticaly) to certificates letsencrypt when auto generated")
 	flag.Parse()
 
-	
 	if *logs {
 		settings.Config.Logs = *logs
 	}
@@ -139,13 +137,10 @@ func getTagsAndPrint() {
 		settings.Config.Port = "9313"
 		port = "9313"
 	}
-	
-
-	
 
 	logger.Printfs("yl%s", logger.Ascii7)
 	logger.Printfs("%s", "-------⚡🚀 http://"+host+":"+port+" 🚀⚡-------")
-	if host == "0.0.0.0" || (len(strings.Split(host,".")) < 4 && host != "localhost") {
+	if host == "0.0.0.0" || (len(strings.Split(host, ".")) < 4 && host != "localhost") {
 		pIp := utils.GetPrivateIp()
 		logger.Printfs("HOST IP 0.0.0.0 --> %s", pIp)
 	}

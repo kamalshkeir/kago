@@ -19,14 +19,12 @@ import (
 )
 
 var (
-	CORSDebug=false
-	ReadTimeout=  5 * time.Second
-	WriteTimeout= 20 * time.Second
-	IdleTimeout= 20 * time.Second
-	midwrs []func(http.Handler) http.Handler
+	CORSDebug    = false
+	ReadTimeout  = 5 * time.Second
+	WriteTimeout = 20 * time.Second
+	IdleTimeout  = 20 * time.Second
+	midwrs       []func(http.Handler) http.Handler
 )
-
-
 
 // InitServer init the server with midws,
 func (router *Router) initServer() {
@@ -45,7 +43,7 @@ func (router *Router) initServer() {
 	if host == "" {
 		host = "127.0.0.1"
 	}
-	
+
 	if port == "" {
 		port = "9313"
 	}
@@ -57,22 +55,21 @@ func (router *Router) initServer() {
 		WriteTimeout: WriteTimeout,
 		IdleTimeout:  IdleTimeout,
 		TLSConfig: &tls.Config{
-			MinVersion: tls.VersionTLS12,
+			MinVersion:               tls.VersionTLS12,
 			PreferServerCipherSuites: true,
 			CurvePreferences: []tls.CurveID{
 				tls.CurveP256,
-				tls.X25519, 
+				tls.X25519,
 			},
 			CipherSuites: []uint16{
 				tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
 				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-				tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305, 
-				tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,   
+				tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
+				tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
 				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
 				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
 			},
 		},
-		
 	}
 	router.Server = &server
 }
@@ -93,7 +90,7 @@ func (router *Router) autoServer(tlsconf *tls.Config) {
 	if host == "" {
 		host = "127.0.0.1"
 	}
-	
+
 	if port == "" {
 		port = "9313"
 	}
@@ -104,7 +101,7 @@ func (router *Router) autoServer(tlsconf *tls.Config) {
 		ReadTimeout:  ReadTimeout,
 		WriteTimeout: WriteTimeout,
 		IdleTimeout:  IdleTimeout,
-		TLSConfig: tlsconf,
+		TLSConfig:    tlsconf,
 	}
 	router.Server = &server
 }
@@ -113,7 +110,6 @@ func (router *Router) autoServer(tlsconf *tls.Config) {
 func (router *Router) UseMiddlewares(midws ...func(http.Handler) http.Handler) {
 	midwrs = append(midwrs, midws...)
 }
-
 
 // Run start the server
 func (router *Router) Run() {
@@ -125,19 +121,19 @@ func (router *Router) Run() {
 		if settings.Config.Embed.Templates {
 			router.AddEmbededTemplates(Templates, settings.TEMPLATE_DIR)
 		} else {
-			if _,err := os.Stat(settings.TEMPLATE_DIR);err == nil {
+			if _, err := os.Stat(settings.TEMPLATE_DIR); err == nil {
 				router.AddLocalTemplates(settings.TEMPLATE_DIR)
 			}
 		}
 	}
 
 	tls := router.createAndHandleServerCerts()
-	
+
 	// graceful Shutdown server + db if exist
 	go router.gracefulShutdown()
 
 	if tls {
-		if err := router.Server.ListenAndServeTLS(settings.Config.Cert,settings.Config.Key); err != http.ErrServerClosed {
+		if err := router.Server.ListenAndServeTLS(settings.Config.Cert, settings.Config.Key); err != http.ErrServerClosed {
 			logger.Error("Unable to shutdown the server : ", err)
 		} else {
 			fmt.Printf(logger.Green, "Server Off !")
@@ -150,7 +146,6 @@ func (router *Router) Run() {
 		}
 	}
 }
-
 
 func (router *Router) createAndHandleServerCerts() bool {
 	host := settings.Config.Host
@@ -169,73 +164,72 @@ func (router *Router) createAndHandleServerCerts() bool {
 			return false
 		} else {
 			// cree un nouveau single domain for host
-			if strings.HasPrefix(host,"www.") {
-				domainsToCertify = append(domainsToCertify, host[4:],host)
+			if strings.HasPrefix(host, "www.") {
+				domainsToCertify = append(domainsToCertify, host[4:], host)
 			} else {
-				domainsToCertify = append(domainsToCertify, host,"www."+host)
+				domainsToCertify = append(domainsToCertify, host, "www."+host)
 			}
 		}
 	} else if domains != "" {
-		if strings.Contains(domains,",") {
+		if strings.Contains(domains, ",") {
 			// plusieurs domaine
 			mmap := map[string]uint8{}
-			sp := strings.Split(domains,",")
-			for i,d := range sp {
-				if d == host || strings.HasPrefix(d,"www.") {
+			sp := strings.Split(domains, ",")
+			for i, d := range sp {
+				if d == host || strings.HasPrefix(d, "www.") {
 					continue
-				} 
-				mmap[d]=uint8(i)
-			}					
-			if _,ok := mmap[host];!ok {
+				}
+				mmap[d] = uint8(i)
+			}
+			if _, ok := mmap[host]; !ok {
 				err := checkDomain(host)
 				if err == nil {
 					domainsToCertify = append(domainsToCertify, host)
 				}
 			}
 			for k := range mmap {
-				domainsToCertify = append(domainsToCertify, k,"www."+k)
+				domainsToCertify = append(domainsToCertify, k, "www."+k)
 			}
 		} else {
-			sp := strings.Split(domains,".")
-			if strings.HasPrefix(domains,"www.") && domains != host && len(sp) == 3 {
-				domainsToCertify = append(domainsToCertify, domains[4:],domains)
-			} else if domains != host && len(sp) == 2{
-				domainsToCertify = append(domainsToCertify, domains,"www."+domains)
-			}  else if domains != host && len(sp) == 3 {
+			sp := strings.Split(domains, ".")
+			if strings.HasPrefix(domains, "www.") && domains != host && len(sp) == 3 {
+				domainsToCertify = append(domainsToCertify, domains[4:], domains)
+			} else if domains != host && len(sp) == 2 {
+				domainsToCertify = append(domainsToCertify, domains, "www."+domains)
+			} else if domains != host && len(sp) == 3 {
 				domainsToCertify = append(domainsToCertify, domains)
 			}
 
 			err := checkDomain(host)
 			if err == nil {
-				sp := strings.Split(host,".")
+				sp := strings.Split(host, ".")
 				if len(sp) == 2 {
-					domainsToCertify = append(domainsToCertify, host,"www."+host)
+					domainsToCertify = append(domainsToCertify, host, "www."+host)
 				} else if len(sp) == 3 && sp[0] == "www" {
-					domainsToCertify = append(domainsToCertify, host[4:],host)
+					domainsToCertify = append(domainsToCertify, host[4:], host)
 				} else {
 					domainsToCertify = append(domainsToCertify, host)
 				}
 			}
-		} 
-	} 
+		}
+	}
 
-	if len(domainsToCertify) > 0{
+	if len(domainsToCertify) > 0 {
 		m := &autocert.Manager{
 			Prompt:     autocert.AcceptTOS,
 			Cache:      autocert.DirCache("certs"),
 			HostPolicy: autocert.HostWhitelist(domainsToCertify...),
 		}
 		router.autoServer(m.TLSConfig())
-		logger.Printfs("grAuto certified domains: %v",domainsToCertify)
+		logger.Printfs("grAuto certified domains: %v", domainsToCertify)
 	}
 	return true
 }
 
-
 func checkDomain(name string) error {
 	switch {
 	case len(name) == 0:
-		return nil 
+		return nil
 	case len(name) > 255:
 		return fmt.Errorf("cookie domain: name length is %d, can't exceed 255", len(name))
 	}
@@ -322,9 +316,9 @@ func (router *Router) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 						if name != "" {
 							c.Params[name] = paramsValues[i]
 						}
-					}				
+					}
 					ctx := context.WithValue(c.Request.Context(), key, c.Params)
-					c.Request=r.WithContext(ctx)
+					c.Request = r.WithContext(ctx)
 				}
 				if rt.WsHandler != nil {
 					// WS
@@ -365,13 +359,13 @@ func (router *Router) gracefulShutdown() {
 	}
 }
 
-func ParamsHandleFunc(r *http.Request) (map[string]string,bool) {
+func ParamsHandleFunc(r *http.Request) (map[string]string, bool) {
 	const key utils.ContextKey = "params"
 	params, ok := r.Context().Value(key).(map[string]string)
 	if ok {
-		return params,true
+		return params, true
 	}
-	return nil,false
+	return nil, false
 }
 
 func adaptParams(url string) string {
@@ -402,10 +396,10 @@ func adaptParams(url string) string {
 			}
 		}
 		join := strings.Join(urlElements, "/")
-		if !strings.HasSuffix(join,"*") {
+		if !strings.HasSuffix(join, "*") {
 			join += "(|/)?$"
 		}
-		return "^/" + join 
+		return "^/" + join
 	}
 
 	if url[len(url)-1] == '*' {
@@ -419,23 +413,23 @@ func checkSameSite(c Context) bool {
 	privateIp := ""
 	origin := c.Request.Header.Get("Origin")
 	if CORSDebug {
-		logger.Info("ORIGIN",origin)
-		logger.Info("HOST:",settings.Config.Host)
-		logger.Info("PORT:",settings.Config.Port)
-		logger.Info("DOMAINS:",settings.Config.Domains)
+		logger.Info("ORIGIN", origin)
+		logger.Info("HOST:", settings.Config.Host)
+		logger.Info("PORT:", settings.Config.Port)
+		logger.Info("DOMAINS:", settings.Config.Domains)
 	}
 	if origin == "" {
 		return false
 	}
 
 	if len(Origines) > 0 {
-		for _,o := range Origines {
-			if strings.Contains(origin,o) || o == "*" {
+		for _, o := range Origines {
+			if strings.Contains(origin, o) || o == "*" {
 				return true
 			}
 		}
 	}
-	
+
 	host := settings.Config.Host
 	if host == "" || host == "localhost" || host == "127.0.0.1" {
 		if strings.Contains(origin, "localhost") {
@@ -451,45 +445,45 @@ func checkSameSite(c Context) bool {
 		port = ":" + port
 	}
 	privateIp = utils.GetPrivateIp()
-	if utils.StringContains(c.Request.RemoteAddr,host,"localhost","127.0.0.1",privateIp) {
+	if utils.StringContains(c.Request.RemoteAddr, host, "localhost", "127.0.0.1", privateIp) {
 		return true
 	}
 
 	if CORSDebug {
-		logger.Info("ORIGIN of remote ",c.Request.RemoteAddr,"is:",origin)
-		logger.Info("HOST:",host)
-		logger.Info("PORT:",port)
-		logger.Info("DOMAINS:",settings.Config.Domains)
+		logger.Info("ORIGIN of remote ", c.Request.RemoteAddr, "is:", origin)
+		logger.Info("HOST:", host)
+		logger.Info("PORT:", port)
+		logger.Info("DOMAINS:", settings.Config.Domains)
 	}
 
 	if settings.Config.Domains != "" {
-		if strings.Contains(settings.Config.Domains,",") {
-			sp := strings.Split(settings.Config.Domains,",")
-			for _,s := range sp {
-				if strings.Contains(origin,s) {
+		if strings.Contains(settings.Config.Domains, ",") {
+			sp := strings.Split(settings.Config.Domains, ",")
+			for _, s := range sp {
+				if strings.Contains(origin, s) {
 					return true
 				}
 			}
 		} else {
-			if strings.Contains(origin,settings.Config.Domains) {
+			if strings.Contains(origin, settings.Config.Domains) {
 				return true
-			} 
+			}
 		}
 	}
 
 	foundInPrivateIps := false
-	if (host != "localhost" && host != "127.0.0.1"){		
-		if strings.Contains(origin,host) {
+	if host != "localhost" && host != "127.0.0.1" {
+		if strings.Contains(origin, host) {
 			foundInPrivateIps = true
 		} else if strings.Contains(origin, privateIp) {
 			foundInPrivateIps = true
 		} else {
-			logger.Info("origin:",origin,"not equal to privateIp:",privateIp+port)
+			logger.Info("origin:", origin, "not equal to privateIp:", privateIp+port)
 		}
 	}
 
-	sp := strings.Split("host",".")
-	if utils.StringContains(origin, host, "localhost"+port, "127.0.0.1"+port) || foundInPrivateIps || (len(sp)<4 && host != "localhost" && host != "127.0.0.1") {
+	sp := strings.Split("host", ".")
+	if utils.StringContains(origin, host, "localhost"+port, "127.0.0.1"+port) || foundInPrivateIps || (len(sp) < 4 && host != "localhost" && host != "127.0.0.1") {
 		return true
 	} else {
 		return false
@@ -558,7 +552,7 @@ func handleHttp(c *Context, rt Route) {
 		sseHeaders(c)
 		rt.Handler(c)
 		return
-	case "HEAD","OPTIONS":
+	case "HEAD", "OPTIONS":
 		rt.Handler(c)
 		return
 	default:
@@ -569,7 +563,7 @@ func handleHttp(c *Context, rt Route) {
 			return
 		} else {
 			// cross origin
-			if len(rt.AllowedOrigines) == 0  {
+			if len(rt.AllowedOrigines) == 0 {
 				c.Status(http.StatusBadRequest).Text("cross origin not allowed")
 				return
 			} else {
@@ -594,11 +588,11 @@ func handleHttp(c *Context, rt Route) {
 			}
 		}
 	}
-	
+
 }
 
 func sseHeaders(c *Context) {
-	o := strings.Join(Origines,",")
+	o := strings.Join(Origines, ",")
 	c.SetHeader("Access-Control-Allow-Origin", o)
 	c.SetHeader("Access-Control-Allow-Headers", "Content-Type")
 	c.SetHeader("Cache-Control", "no-cache")

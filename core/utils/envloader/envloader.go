@@ -80,10 +80,10 @@ func fillStructFromEnv(s reflect.Value) error {
 				required = true
 			}
 			if osv := os.Getenv(strings.TrimSpace(tag)); osv != "" {
-				strct.SetFieldValue(s.Field(i),osv)
+				strct.SetFieldValue(s.Field(i), osv)
 			} else {
 				if !required {
-					strct.SetFieldValue(s.Field(i),defau)
+					strct.SetFieldValue(s.Field(i), defau)
 				} else {
 					errored = append(errored, t)
 				}
@@ -106,5 +106,3 @@ func fillStructFromEnv(s reflect.Value) error {
 	}
 	return nil
 }
-
-

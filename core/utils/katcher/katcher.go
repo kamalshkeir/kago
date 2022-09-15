@@ -12,7 +12,7 @@ import (
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
-func changesDetected(since time.Time,root string,dirs ...string) bool {
+func changesDetected(since time.Time, root string, dirs ...string) bool {
 	var changed bool
 	var err error
 	if len(dirs) == 0 {
@@ -29,7 +29,7 @@ func changesDetected(since time.Time,root string,dirs ...string) bool {
 			return nil
 		})
 	} else {
-		for _,d := range dirs {
+		for _, d := range dirs {
 			err = filepath.Walk(root+"/"+d, func(path string, info os.FileInfo, err error) error {
 				if err != nil {
 					return err
@@ -44,7 +44,9 @@ func changesDetected(since time.Time,root string,dirs ...string) bool {
 			})
 		}
 	}
-	if err != nil {return false}
+	if err != nil {
+		return false
+	}
 	return changed
 }
 
@@ -102,38 +104,38 @@ func Start(before []BuildFunc, run LaunchFunc, after []BuildFunc) (func(), error
 	return stop, nil
 }
 
-func Watch(every time.Duration,root string, dirs ...string) {
+func Watch(every time.Duration, root string, dirs ...string) {
 	if every == 0 {
 		every = 500 * time.Millisecond
 	}
 	root = filepath.ToSlash(root)
 
-	ssp := strings.Split(root,"/")
+	ssp := strings.Split(root, "/")
 	projName := ssp[len(ssp)-1]
 	if projName == "" {
 		projName = ssp[len(ssp)-2]
 		if projName == "" {
-			logger.Error(projName,"is empty")
+			logger.Error(projName, "is empty")
 			return
 		}
 	}
 	if runtime.GOOS == "windows" {
-		projName+=".exe"
+		projName += ".exe"
 	}
 	var stop func()
 	var err error
 	var lastScan time.Time
 
 	if len(dirs) > 0 {
-		for _,d := range dirs {
-			logger.Printfs("grwatching %s",root+"/"+d)
+		for _, d := range dirs {
+			logger.Printfs("grwatching %s", root+"/"+d)
 		}
 	} else {
-		logger.Printfs("grwatching %s",root)
+		logger.Printfs("grwatching %s", root)
 	}
 
 	for {
-		if !changesDetected(lastScan,root,dirs...) {
+		if !changesDetected(lastScan, root, dirs...) {
 			time.Sleep(every)
 			continue
 		}
@@ -148,7 +150,7 @@ func Watch(every time.Duration,root string, dirs ...string) {
 			nil,
 		)
 		if err != nil {
-			logger.Printfs("error katcher:",err)
+			logger.Printfs("error katcher:", err)
 		}
 		lastScan = time.Now()
 		time.Sleep(every)

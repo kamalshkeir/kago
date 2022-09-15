@@ -69,8 +69,8 @@ func InitDB() error {
 			settings.Config.Db.Name = "db"
 		}
 	}
-	if strings.HasPrefix(settings.Config.Db.Type,"cockroach") {
-		settings.Config.Db.Type=POSTGRES
+	if strings.HasPrefix(settings.Config.Db.Type, "cockroach") {
+		settings.Config.Db.Type = POSTGRES
 	}
 
 	switch settings.Config.Db.Type {
@@ -140,8 +140,8 @@ func InitDB() error {
 
 func NewDatabaseFromDSN(dbType, dbName string, dbDSN ...string) error {
 	var dsn string
-	if strings.HasPrefix(dbType,"cockroach") {
-		dbType=POSTGRES
+	if strings.HasPrefix(dbType, "cockroach") {
+		dbType = POSTGRES
 	}
 	switch dbType {
 	case POSTGRES:
@@ -213,8 +213,8 @@ func NewDatabaseFromDSN(dbType, dbName string, dbDSN ...string) error {
 }
 
 func NewDatabaseFromConnection(dbType, dbName string, conn *sql.DB) error {
-	if strings.HasPrefix(dbType,"cockroach") {
-		dbType=POSTGRES
+	if strings.HasPrefix(dbType, "cockroach") {
+		dbType = POSTGRES
 	}
 	err := conn.Ping()
 	if logger.CheckError(err) {

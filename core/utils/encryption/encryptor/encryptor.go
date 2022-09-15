@@ -48,14 +48,14 @@ func Encrypt(data string) (string, error) {
 
 func Decrypt(data string) (string, error) {
 	if keyEnv == "" {
-		return "",errors.New("no secret given, set SECRET in env file")
+		return "", errors.New("no secret given, set SECRET in env file")
 	}
 	var salt []byte
 	dataByte, _ := hex.DecodeString(data)
 	if len(dataByte) > 32 {
 		salt, dataByte = dataByte[len(dataByte)-32:], dataByte[:len(dataByte)-32]
 	} else {
-		return "",errors.New("bad token")
+		return "", errors.New("bad token")
 	}
 
 	key, _, err := deriveKey([]byte(keyEnv), salt)

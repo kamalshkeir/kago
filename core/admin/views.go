@@ -232,12 +232,11 @@ var CreateModelView = func(c *kamux.Context) {
 		logger.Error("Parse error = ", parseErr)
 	}
 	data := c.Request.Form
-	
-	defer func ()  {
+
+	defer func() {
 		err := c.Request.MultipartForm.RemoveAll()
 		logger.CheckError(err)
 	}()
-
 
 	model := data["table"][0]
 
@@ -262,7 +261,7 @@ var CreateModelView = func(c *kamux.Context) {
 		}
 
 	}
-	
+
 	_, err := orm.Table(model).Insert(
 		strings.Join(fields, ","),
 		values,
@@ -350,29 +349,29 @@ var UpdateRowPost = func(c *kamux.Context) {
 	ignored := []string{idString, "uuid", "file", "image", "photo", "img", "fichier", "row_id", "table"}
 	toUpdate := map[string]any{}
 	for key, val := range data {
-		if !utils.SliceContains(ignored,key) {
+		if !utils.SliceContains(ignored, key) {
 			if modelDB[key] == val[0] {
 				// no changes for bool
 				continue
 			}
-			toUpdate[key]=val[0]
-		} 
+			toUpdate[key] = val[0]
+		}
 	}
 
 	s := ""
 	values := []any{}
 	if len(toUpdate) > 0 {
-		for col,v := range toUpdate {
+		for col, v := range toUpdate {
 			if s == "" {
 				s += col + "= ?"
 			} else {
-				s += ","+col + "= ?"
+				s += "," + col + "= ?"
 			}
-			values = append(values, v) 
+			values = append(values, v)
 		}
 	}
 	if s != "" {
-		_, err := orm.Table(data["table"][0]).Where(idString+" = ?", id).Set(s,values...)
+		_, err := orm.Table(data["table"][0]).Where(idString+" = ?", id).Set(s, values...)
 		if err != nil {
 			c.Status(http.StatusBadRequest).Json(map[string]any{
 				"error": err.Error(),
@@ -386,7 +385,7 @@ var UpdateRowPost = func(c *kamux.Context) {
 			if s == "" {
 				s += f
 			} else {
-				s += ","+f
+				s += "," + f
 			}
 		}
 	}
@@ -395,12 +394,12 @@ var UpdateRowPost = func(c *kamux.Context) {
 			if s == "" {
 				s += k
 			} else {
-				s += ","+k
+				s += "," + k
 			}
 		}
 	}
 	c.Json(map[string]string{
-		"success":s+" updated successfully",
+		"success": s + " updated successfully",
 	})
 }
 
@@ -527,7 +526,7 @@ var ImportView = func(c *kamux.Context) {
 
 var ManifestView = func(c *kamux.Context) {
 	if settings.Config.Embed.Static {
-		f, err := kamux.Static.ReadFile(settings.STATIC_DIR+"/manifest.json")
+		f, err := kamux.Static.ReadFile(settings.STATIC_DIR + "/manifest.json")
 		if err != nil {
 			logger.Error("cannot embed manifest.json from static", err)
 			return
@@ -540,7 +539,7 @@ var ManifestView = func(c *kamux.Context) {
 
 var ServiceWorkerView = func(c *kamux.Context) {
 	if settings.Config.Embed.Static {
-		f, err := kamux.Static.ReadFile(settings.STATIC_DIR+"/sw.js")
+		f, err := kamux.Static.ReadFile(settings.STATIC_DIR + "/sw.js")
 		if err != nil {
 			logger.Error("cannot embed sw.js from static", err)
 			return

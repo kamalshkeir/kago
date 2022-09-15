@@ -9,7 +9,7 @@ import (
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
-var path = settings.STATIC_DIR+"/docs/docs.json"
+var path = settings.STATIC_DIR + "/docs/docs.json"
 
 func New() *Docs {
 	// read the file

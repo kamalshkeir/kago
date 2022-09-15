@@ -15,15 +15,15 @@ type Bus[T any] struct {
 }
 
 func Subscribe[T any](topic string, fn func(data T)) {
-	if typ,ok := mTopicType[topic];ok {
+	if typ, ok := mTopicType[topic]; ok {
 		switch typ.(type) {
 		case T:
 		default:
-			fmt.Printf("Subscribe on %s: expected data type to be %T got %T \n",topic,typ,*new(T))
+			fmt.Printf("Subscribe on %s: expected data type to be %T got %T \n", topic, typ, *new(T))
 			return
 		}
 	} else {
-		mTopicType[topic]=*new(T)
+		mTopicType[topic] = *new(T)
 	}
 	var b *Bus[T]
 	if topicbus, ok := mTopicBus[topic]; ok {
@@ -59,7 +59,7 @@ func Publish[T any](topic string, data T) {
 		if bb, ok := topicbus.(*Bus[T]); ok {
 			b = bb
 		} else {
-			fmt.Printf("Publish on %s doesn't match data type: want %T got %T\n",topic, mTopicType[topic], *new(T))
+			fmt.Printf("Publish on %s doesn't match data type: want %T got %T\n", topic, mTopicType[topic], *new(T))
 			return
 		}
 	} else {

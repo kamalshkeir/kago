@@ -8,10 +8,6 @@ import (
 	"golang.org/x/time/rate"
 )
 
-
-
-
-
 var banned = sync.Map{}
 var LIMITER_TOKENS = 50
 var LIMITER_TIMEOUT = 5 * time.Minute
@@ -38,10 +34,6 @@ var LIMITER = func(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
-
-
-
-
 
 type IPRateLimiter struct {
 	ips map[string]*rate.Limiter

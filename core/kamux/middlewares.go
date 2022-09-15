@@ -22,8 +22,6 @@ import (
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
-
-
 var SESSION_ENCRYPTION = true
 
 // AuthMiddleware can be added to any handler to get user cookie authentication and pass it to handler and templates
@@ -153,31 +151,31 @@ var Csrf = func(handler Handler) Handler {
 	oncc.Do(func() {
 		if !csrf.Used {
 			i := time.Now()
-			eventbus.Subscribe("csrf-clean",func(data string) {
+			eventbus.Subscribe("csrf-clean", func(data string) {
 				if data != "" {
 					csrf.Csrf_tokens.Delete(data)
 				}
 				if time.Since(i) > time.Hour {
 					csrf.Csrf_tokens.Flush()
-					i=time.Now()
+					i = time.Now()
 				}
 			})
-			csrf.Used=true
+			csrf.Used = true
 		}
 	})
 	return func(c *Context) {
 		switch c.Method {
 		case "GET":
 			token := c.Request.Header.Get("X-CSRF-Token")
-			tok,ok := csrf.Csrf_tokens.Get(token)
+			tok, ok := csrf.Csrf_tokens.Get(token)
 
-			if token == "" || !ok || token != tok.Value || tok.Retry > csrf.CSRF_TIMEOUT_RETRY{
-				t,_ := encryptor.Encrypt(csrf.Csrf_rand)
-				csrf.Csrf_tokens.Set(t,csrf.Token{
-					Value: t,
-					Used: false,
-					Retry: 0,
-					Remote: c.Request.UserAgent(),
+			if token == "" || !ok || token != tok.Value || tok.Retry > csrf.CSRF_TIMEOUT_RETRY {
+				t, _ := encryptor.Encrypt(csrf.Csrf_rand)
+				csrf.Csrf_tokens.Set(t, csrf.Token{
+					Value:   t,
+					Used:    false,
+					Retry:   0,
+					Remote:  c.Request.UserAgent(),
 					Created: time.Now(),
 				})
 				http.SetCookie(c.ResponseWriter, &http.Cookie{
@@ -198,22 +196,22 @@ var Csrf = func(handler Handler) Handler {
 					})
 				}
 			}
-		case "POST","PATCH","PUT","UPDATE","DELETE":
-			token := c.Request.Header.Get("X-CSRF-Token")			
-			tok,ok := csrf.Csrf_tokens.Get(token)
+		case "POST", "PATCH", "PUT", "UPDATE", "DELETE":
+			token := c.Request.Header.Get("X-CSRF-Token")
+			tok, ok := csrf.Csrf_tokens.Get(token)
 			if !ok || token == "" || tok.Used || tok.Retry > csrf.CSRF_TIMEOUT_RETRY || time.Since(tok.Created) > csrf.CSRF_CLEAN_EVERY || c.Request.UserAgent() != tok.Remote {
 				c.ResponseWriter.WriteHeader(http.StatusBadRequest)
 				json.NewEncoder(c.ResponseWriter).Encode(map[string]any{
 					"error": "CSRF not allowed",
 				})
-				return	
-				
+				return
+
 			}
-			csrf.Csrf_tokens.Set(tok.Value,csrf.Token{
-				Value: tok.Value,
-				Used: true,
-				Retry: tok.Retry+1,
-				Remote: c.Request.UserAgent(),
+			csrf.Csrf_tokens.Set(tok.Value, csrf.Token{
+				Value:   tok.Value,
+				Used:    true,
+				Retry:   tok.Retry + 1,
+				Remote:  c.Request.UserAgent(),
 				Created: tok.Created,
 			})
 		}
@@ -221,16 +219,13 @@ var Csrf = func(handler Handler) Handler {
 	}
 }
 
-
-
-
-
 var corsAdded = false
 var Origines = []string{}
+
 func (router *Router) AllowOrigines(origines ...string) {
 	if !corsAdded {
 		midwrs = append(midwrs, cors)
-		corsAdded=true
+		corsAdded = true
 	}
 	Origines = append(Origines, origines...)
 }
@@ -238,7 +233,7 @@ func (router *Router) AllowOrigines(origines ...string) {
 var cors = func(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Set headers
-		o := strings.Join(Origines,",")
+		o := strings.Join(Origines, ",")
 		w.Header().Set("Access-Control-Allow-Origin", o)
 		w.Header().Set("Access-Control-Allow-Headers:", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "*")
@@ -250,7 +245,6 @@ var cors = func(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 	})
 }
-
 
 var RECOVERY = func(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -270,14 +264,7 @@ var RECOVERY = func(next http.Handler) http.Handler {
 	})
 }
 
-
-
-
-var CSRF=csrf.CSRF
+var CSRF = csrf.CSRF
 var GZIP = gzip.GZIP
 var LIMITER = ratelimiter.LIMITER
 var LOGS = logs.LOGS
-
-
-
-

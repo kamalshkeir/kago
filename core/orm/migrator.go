@@ -22,25 +22,25 @@ func Migrate() error {
 	return nil
 }
 
-func checkUpdatedAtTrigger(dialect,tableName,col,pk string) map[string][]string {
+func checkUpdatedAtTrigger(dialect, tableName, col, pk string) map[string][]string {
 	triggers := map[string][]string{}
 	t := "datetime('now','localtime')"
 	if dialect == "sqlite" {
-		st:="CREATE TRIGGER "
-		st+=tableName+"_update_trig AFTER UPDATE ON "+tableName
-		st+=" BEGIN update "+tableName+ " SET "+ col + " = " +  t 
-		st+=" WHERE " + col + " = " + "NEW."+col+";"
-		st+="End;"
-		triggers[col]=[]string{st}
-	} else if dialect == "postgres" {	
-		st:="CREATE OR REPLACE FUNCTION updated_at_trig() RETURNS trigger AS $$"
-		st+=" BEGIN NEW."+col+" = now();RETURN NEW;"
-		st+="END;$$ LANGUAGE plpgsql;"
-		triggers[col]=[]string{st}
-		trigCreate := "CREATE OR REPLACE TRIGGER "+tableName+"_update_trig"
-		trigCreate += " BEFORE UPDATE ON public."+tableName
+		st := "CREATE TRIGGER "
+		st += tableName + "_update_trig AFTER UPDATE ON " + tableName
+		st += " BEGIN update " + tableName + " SET " + col + " = " + t
+		st += " WHERE " + col + " = " + "NEW." + col + ";"
+		st += "End;"
+		triggers[col] = []string{st}
+	} else if dialect == "postgres" {
+		st := "CREATE OR REPLACE FUNCTION updated_at_trig() RETURNS trigger AS $$"
+		st += " BEGIN NEW." + col + " = now();RETURN NEW;"
+		st += "END;$$ LANGUAGE plpgsql;"
+		triggers[col] = []string{st}
+		trigCreate := "CREATE OR REPLACE TRIGGER " + tableName + "_update_trig"
+		trigCreate += " BEFORE UPDATE ON public." + tableName
 		trigCreate += " FOR EACH ROW EXECUTE PROCEDURE updated_at_trig();"
-		triggers[col]=append(triggers[col], trigCreate)
+		triggers[col] = append(triggers[col], trigCreate)
 	} else {
 		return nil
 	}
@@ -55,7 +55,7 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 	mFieldName_Tags := map[string][]string{}
 	cols := []string{}
 	pk := ""
-	
+
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		fname := typeOfT.Field(i).Name
@@ -65,24 +65,24 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 		mFieldName_Type[fname] = ftype.Name()
 		if ftag, ok := typeOfT.Field(i).Tag.Lookup("orm"); ok {
 			tags := strings.Split(ftag, ";")
-			for i,tag := range tags {
+			for i, tag := range tags {
 				if tag == "autoinc" || tag == "pk" {
 					pk = fname
 				} else if fname == "id" {
 					pk = fname
-				} 
+				}
 				tags[i] = strings.TrimSpace(tags[i])
 			}
 			mFieldName_Tags[fname] = tags
 		}
 	}
 	if pk == "" {
-		cols = append([]string{"id"},cols...)
-		mFieldName_Type["id"]="uint"
-		mFieldName_Tags["id"]=[]string{"pk"}
-		pk="id"
+		cols = append([]string{"id"}, cols...)
+		mFieldName_Type["id"] = "uint"
+		mFieldName_Tags["id"] = []string{"pk"}
+		pk = "id"
 	}
-	
+
 	res := map[string]string{}
 	fkeys := []string{}
 	indexes := []string{}
@@ -92,7 +92,7 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 	for _, fName := range cols {
 		if ty, ok := mFieldName_Type[fName]; ok {
 			mi = &migrationInput{
-				table: tableName,
+				table:    tableName,
 				dialect:  dialect,
 				fName:    fName,
 				fType:    ty,
@@ -122,7 +122,7 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 	statement := prepareCreateStatement(tableName, res, fkeys, cols, db, mFieldName_Tags)
 	var triggers map[string][]string
 	tbFound := false
-	
+
 	// check if table in memory
 	for _, t := range db.Tables {
 		if t.Name == tableName {
@@ -143,12 +143,12 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 		for col, tags := range mFieldName_Tags {
 			for _, tag := range tags {
 				if tag == "update" {
-					triggers = checkUpdatedAtTrigger(db.Dialect,tableName,col,pk)	
+					triggers = checkUpdatedAtTrigger(db.Dialect, tableName, col, pk)
 				}
 			}
 		}
 	}
-	
+
 	if !tbFound {
 		db.Tables = append(db.Tables, TableEntity{
 			Name:       tableName,
@@ -174,14 +174,14 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 	}
 	if !strings.HasSuffix(tableName, "_temp") {
 		if len(triggers) > 0 {
-			for _,stats := range triggers {
-				for _,st := range stats {
+			for _, stats := range triggers {
+				for _, st := range stats {
 					if Debug {
-						logger.Printfs("trigger updated_at %s: %s",tableName, st)
+						logger.Printfs("trigger updated_at %s: %s", tableName, st)
 					}
-					err := Exec(db.Name,st)
+					err := Exec(db.Name, st)
 					if logger.CheckError(err) {
-						logger.Printfs("rdtrigger updated_at %s: %s",tableName, st)
+						logger.Printfs("rdtrigger updated_at %s: %s", tableName, st)
 						return err
 					}
 				}
@@ -192,7 +192,7 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 			if len(indexes) > 1 {
 				logger.Error(mi.fName, "cannot have more than 1 index")
 			} else {
-				ff := strings.ReplaceAll(indexes[0],"DESC","")
+				ff := strings.ReplaceAll(indexes[0], "DESC", "")
 				statIndexes = fmt.Sprintf("CREATE INDEX idx_%s_%s ON %s (%s)", tableName, ff, tableName, indexes[0])
 			}
 		}
@@ -202,21 +202,21 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 				logger.Error(mi.fName, "cannot have more than 1 multiple indexes")
 			} else {
 				for k, v := range *mi.mindexes {
-					ff := strings.ReplaceAll(k,"DESC","")
+					ff := strings.ReplaceAll(k, "DESC", "")
 					mstatIndexes = fmt.Sprintf("CREATE INDEX idx_%s_%s ON %s (%s)", tableName, ff, tableName, k+","+v)
 				}
 			}
 		}
 		ustatIndexes := []string{}
 		for col, tagValue := range *mi.uindexes {
-			sp := strings.Split(tagValue,",")
+			sp := strings.Split(tagValue, ",")
 			for i := range sp {
 				if sp[i][0] == 'I' {
-					sp[i] = "LOWER("+sp[i][1:]+")"
+					sp[i] = "LOWER(" + sp[i][1:] + ")"
 				}
 			}
-			res := strings.Join(sp,",")
-			ustatIndexes = append(ustatIndexes, fmt.Sprintf("CREATE UNIQUE INDEX idx_%s_%s ON %s (%s)", tableName, col, tableName, res)) 
+			res := strings.Join(sp, ",")
+			ustatIndexes = append(ustatIndexes, fmt.Sprintf("CREATE UNIQUE INDEX idx_%s_%s ON %s (%s)", tableName, col, tableName, res))
 		}
 		if statIndexes != "" {
 			if Debug {
@@ -249,7 +249,7 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 					return err
 				}
 			}
-			
+
 		}
 	}
 
@@ -359,9 +359,9 @@ func handleMigrationInt(mi *migrationInput) {
 				}
 			case "notnull":
 				notnull = "NOT NULL"
-			case "index","+index","index+":
+			case "index", "+index", "index+":
 				*mi.indexes = append(*mi.indexes, mi.fName)
-			case "-index","index-":
+			case "-index", "index-":
 				*mi.indexes = append(*mi.indexes, mi.fName+" DESC")
 			case "unique":
 				unique = " UNIQUE"
@@ -560,9 +560,9 @@ func handleMigrationBool(mi *migrationInput) {
 			}
 		} else {
 			switch tag {
-			case "index","+index","index+":
+			case "index", "+index", "index+":
 				*mi.indexes = append(*mi.indexes, mi.fName)
-			case "-index","index-":
+			case "-index", "index-":
 				*mi.indexes = append(*mi.indexes, mi.fName+" DESC")
 			case "default":
 				defaultt = " DEFAULT 0"
@@ -590,15 +590,15 @@ func handleMigrationString(mi *migrationInput) {
 				text = "TEXT"
 			case "notnull":
 				notnull = " NOT NULL"
-			case "index","+index","index+":
+			case "index", "+index", "index+":
 				*mi.indexes = append(*mi.indexes, mi.fName)
-			case "-index","index-":
+			case "-index", "index-":
 				*mi.indexes = append(*mi.indexes, mi.fName+" DESC")
 			case "unique":
 				unique = " UNIQUE"
 			case "iunique":
 				unique = " UNIQUE"
-				(*mi.uindexes)[mi.fName] = "I"+mi.fName
+				(*mi.uindexes)[mi.fName] = "I" + mi.fName
 			case "default":
 				defaultt = " DEFAULT ''"
 			default:
@@ -732,9 +732,9 @@ func handleMigrationFloat(mi *migrationInput) {
 			switch tag {
 			case "notnull":
 				mtags["notnull"] = " NOT NULL"
-			case "index","+index","index+":
+			case "index", "+index", "index+":
 				*mi.indexes = append(*mi.indexes, mi.fName)
-			case "-index","index-":
+			case "-index", "index-":
 				*mi.indexes = append(*mi.indexes, mi.fName+" DESC")
 			case "unique":
 				(*mi.uindexes)[mi.fName] = " UNIQUE"
@@ -887,9 +887,9 @@ func handleMigrationTime(mi *migrationInput) {
 				default:
 					logger.Error("not handled Time for ", mi.fName, mi.fType)
 				}
-			case "index","+index","index+":
+			case "index", "+index", "index+":
 				*mi.indexes = append(*mi.indexes, mi.fName)
-			case "-index","index-":
+			case "-index", "index-":
 				*mi.indexes = append(*mi.indexes, mi.fName+" DESC")
 			default:
 				logger.Error(tag, "tag not handled for time")

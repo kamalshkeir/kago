@@ -69,7 +69,6 @@ func (c *Context) Json(data any) {
 	logger.CheckError(err)
 }
 
-
 // JsonIndent return json indented to the client
 func (c *Context) JsonIndent(data any) {
 	c.SetHeader("Content-Type", "application/json")
@@ -125,11 +124,11 @@ func (c *Context) Html(template_name string, data map[string]any) {
 		data["IsAuthenticated"] = false
 		data["User"] = nil
 	}
-	
+
 	err := allTemplates.ExecuteTemplate(&buff, template_name, data)
 	if logger.CheckError(err) {
-		c.status=http.StatusInternalServerError
-		http.Error(c.ResponseWriter,"could not render "+template_name,c.status)
+		c.status = http.StatusInternalServerError
+		http.Error(c.ResponseWriter, "could not render "+template_name, c.status)
 		return
 	}
 
@@ -139,7 +138,7 @@ func (c *Context) Html(template_name string, data map[string]any) {
 	}
 	c.WriteHeader(c.status)
 
-	_,err = buff.WriteTo(c.ResponseWriter)
+	_, err = buff.WriteTo(c.ResponseWriter)
 	logger.CheckError(err)
 }
 
@@ -204,7 +203,6 @@ func (c *Context) ServeEmbededFile(content_type string, embed_file []byte) {
 	_, _ = c.ResponseWriter.Write(embed_file)
 }
 
-
 func (c *Context) ParseMultipartForm(size ...int64) (formData url.Values, formFiles map[string][]*multipart.FileHeader) {
 	s := int64(32 << 20)
 	if len(size) > 0 {
@@ -215,7 +213,7 @@ func (c *Context) ParseMultipartForm(size ...int64) (formData url.Values, formFi
 	if parseErr != nil {
 		logger.Error("ParseMultipartForm error = ", parseErr)
 	}
-	defer func ()  {
+	defer func() {
 		err := r.MultipartForm.RemoveAll()
 		logger.CheckError(err)
 	}()
@@ -232,42 +230,42 @@ func (c *Context) UploadFile(received_filename, folder_out string, acceptedForma
 	for inputName, files := range formFiles {
 		var buff bytes.Buffer
 		if received_filename == inputName {
-				f := files[0]
-				file, err := f.Open()
-				if logger.CheckError(err) {
-					return "", nil, err
-				}
-				defer file.Close()
-				// copy the uploaded file to the buffer
-				if _, err := io.Copy(&buff, file); err != nil {
-					return "", nil, err
-				}
+			f := files[0]
+			file, err := f.Open()
+			if logger.CheckError(err) {
+				return "", nil, err
+			}
+			defer file.Close()
+			// copy the uploaded file to the buffer
+			if _, err := io.Copy(&buff, file); err != nil {
+				return "", nil, err
+			}
 
-				data_string := buff.String()
+			data_string := buff.String()
 
-				// make DIRS if not exist
-				err = os.MkdirAll(settings.MEDIA_DIR+"/"+folder_out+"/", 0664)
+			// make DIRS if not exist
+			err = os.MkdirAll(settings.MEDIA_DIR+"/"+folder_out+"/", 0664)
+			if err != nil {
+				return "", nil, err
+			}
+			// make file
+			if len(acceptedFormats) == 0 {
+				acceptedFormats = []string{"jpg", "jpeg", "png", "json"}
+			}
+			if utils.StringContains(f.Filename, acceptedFormats...) {
+				dst, err := os.Create(settings.MEDIA_DIR + "/" + folder_out + "/" + f.Filename)
 				if err != nil {
 					return "", nil, err
 				}
-				// make file
-				if len(acceptedFormats) == 0 {
-					acceptedFormats = []string{"jpg", "jpeg", "png", "json"}
-				}
-				if utils.StringContains(f.Filename, acceptedFormats...) {
-					dst, err := os.Create(settings.MEDIA_DIR+"/" + folder_out + "/" + f.Filename)
-					if err != nil {
-						return "", nil, err
-					}
-					defer dst.Close()
-					dst.Write([]byte(data_string))
+				defer dst.Close()
+				dst.Write([]byte(data_string))
 
-					url = settings.MEDIA_DIR+"/" + folder_out + "/" + f.Filename
-					data = []byte(data_string)
-				} else {
-					logger.Info(f.Filename, "not handled")
-					return "", nil, fmt.Errorf("expecting filename to finish to be %v", acceptedFormats)
-				}
+				url = settings.MEDIA_DIR + "/" + folder_out + "/" + f.Filename
+				data = []byte(data_string)
+			} else {
+				logger.Info(f.Filename, "not handled")
+				return "", nil, fmt.Errorf("expecting filename to finish to be %v", acceptedFormats)
+			}
 		}
 
 	}
@@ -304,14 +302,14 @@ func (c *Context) UploadFiles(received_filenames []string, folder_out string, ac
 					acceptedFormats = []string{"jpg", "jpeg", "png", "json"}
 				}
 				if utils.StringContains(f.Filename, acceptedFormats...) {
-					dst, err := os.Create(settings.MEDIA_DIR+"/" + folder_out + "/" + f.Filename)
+					dst, err := os.Create(settings.MEDIA_DIR + "/" + folder_out + "/" + f.Filename)
 					if err != nil {
 						return nil, nil, err
 					}
 					defer dst.Close()
 					dst.Write([]byte(data_string))
 
-					url := settings.MEDIA_DIR+"/" + folder_out + "/" + f.Filename
+					url := settings.MEDIA_DIR + "/" + folder_out + "/" + f.Filename
 					urls = append(urls, url)
 					datas = append(datas, []byte(data_string))
 				} else {

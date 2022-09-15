@@ -83,7 +83,6 @@ func BenchmarkGetAllS(b *testing.B) {
 	}
 }
 
-
 func BenchmarkGetAllM(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()

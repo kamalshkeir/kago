@@ -21,7 +21,7 @@ func FillValues(struct_to_fill any, values_to_fill ...any) {
 	for i := 0; i < rs.NumField(); i++ {
 		field := rs.Field(i)
 		if field.IsValid() {
-			SetFieldValue(field,values_to_fill[i])
+			SetFieldValue(field, values_to_fill[i])
 		}
 	}
 }
@@ -29,14 +29,14 @@ func FillValues(struct_to_fill any, values_to_fill ...any) {
 func FillSelectedValues(struct_to_fill any, fields_comma_separated string, values_to_fill ...any) {
 	cols := strings.Split(fields_comma_separated, ",")
 	if len(values_to_fill) != len(cols) {
-		fmt.Println("error FillSelectedValues: len(values_to_fill) and len(struct fields) should be the same",len(values_to_fill),len(cols))
+		fmt.Println("error FillSelectedValues: len(values_to_fill) and len(struct fields) should be the same", len(values_to_fill), len(cols))
 		return
 	}
 	rs := reflect.ValueOf(struct_to_fill)
 	if rs.Kind() == reflect.Pointer {
 		rs = reflect.ValueOf(struct_to_fill).Elem()
 	}
-	
+
 	for i, col := range cols {
 		var fieldToUpdate *reflect.Value
 		if f := rs.FieldByName(SnakeCaseToTitle(col)); f.IsValid() && f.CanSet() {
@@ -49,7 +49,7 @@ func FillSelectedValues(struct_to_fill any, fields_comma_separated string, value
 		}
 
 		if fieldToUpdate.IsValid() {
-			SetFieldValue(*fieldToUpdate,values_to_fill[i])
+			SetFieldValue(*fieldToUpdate, values_to_fill[i])
 		}
 	}
 }
@@ -63,14 +63,14 @@ func SetFieldValue(fld reflect.Value, value any) {
 		unwrapped := fld.Elem()
 		if !unwrapped.IsValid() {
 			newUnwrapped := reflect.New(fld.Type().Elem())
-			SetFieldValue(newUnwrapped,value)
+			SetFieldValue(newUnwrapped, value)
 			fld.Set(newUnwrapped)
 			return
 		}
-		SetFieldValue(unwrapped,value)
+		SetFieldValue(unwrapped, value)
 	case reflect.Interface:
 		unwrapped := fld.Elem()
-		SetFieldValue(unwrapped,value)
+		SetFieldValue(unwrapped, value)
 	case reflect.Struct:
 		switch v := value.(type) {
 		case string:
@@ -97,9 +97,9 @@ func SetFieldValue(fld reflect.Value, value any) {
 		case []any:
 			// walk the fields
 			for i := 0; i < fld.NumField(); i++ {
-				SetFieldValue(fld.Field(i),v[i])
+				SetFieldValue(fld.Field(i), v[i])
 			}
-		}	
+		}
 	case reflect.String:
 		switch valueToSet.Kind() {
 		case reflect.String:
@@ -110,7 +110,7 @@ func SetFieldValue(fld reflect.Value, value any) {
 			if valueToSet.IsValid() {
 				fld.Set(valueToSet)
 			} else {
-				fmt.Println("value",valueToSet.Interface(),"is not valid")
+				fmt.Println("value", valueToSet.Interface(), "is not valid")
 			}
 		}
 	case reflect.Int:
@@ -189,7 +189,7 @@ func SetFieldValue(fld reflect.Value, value any) {
 	case reflect.Slice:
 		targetType := fld.Type()
 		typeName := targetType.String()
-		if strings.HasPrefix(typeName, "[]") {		
+		if strings.HasPrefix(typeName, "[]") {
 			array := reflect.New(targetType).Elem()
 			for _, v := range strings.Split(valueToSet.String(), ",") {
 				array = reflect.Append(array, reflect.ValueOf(v))

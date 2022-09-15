@@ -18,7 +18,6 @@ type StatusRecorder struct {
 	Status int
 }
 
-
 var LOGS = func(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if utils.StringContains(r.URL.Path, "metrics", "sw.js", "favicon", "/static/", "/sse/", "/ws/", "/wss/") {
@@ -55,20 +54,19 @@ var LOGS = func(h http.Handler) http.Handler {
 	})
 }
 
-
 func (r *StatusRecorder) WriteHeader(status int) {
 	r.Status = status
 	r.ResponseWriter.WriteHeader(status)
 }
 
-func (r *StatusRecorder) Flush()  {
-	if v,ok := r.ResponseWriter.(http.Flusher);ok {
+func (r *StatusRecorder) Flush() {
+	if v, ok := r.ResponseWriter.(http.Flusher); ok {
 		v.Flush()
 	}
 }
 
 func (r *StatusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
-    if hj, ok := r.ResponseWriter.(http.Hijacker); ok {
+	if hj, ok := r.ResponseWriter.(http.Hijacker); ok {
 		return hj.Hijack()
 	}
 	return nil, nil, fmt.Errorf("LOGS MIDDLEWARE: http.Hijacker interface is not supported")

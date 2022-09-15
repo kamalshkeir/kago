@@ -35,7 +35,7 @@ func initTemplatesAndAssets(router *Router) {
 	}()
 	go func() {
 		defer wg.Done()
-		router.initDefaultUrls()		
+		router.initDefaultUrls()
 	}()
 	wg.Wait()
 	if settings.Config.Embed.Templates {
@@ -151,17 +151,17 @@ func (router *Router) initDefaultUrls() {
 	// PROFILER
 	if settings.Config.Profiler {
 		router.GET("/debug/*", func(c *Context) {
-			if strings.Contains(c.Request.URL.Path,"profile") {
+			if strings.Contains(c.Request.URL.Path, "profile") {
 				pprof.Profile(c.ResponseWriter, c.Request)
 				return
-			} else if strings.Contains(c.Request.URL.Path,"trace") {
+			} else if strings.Contains(c.Request.URL.Path, "trace") {
 				pprof.Trace(c.ResponseWriter, c.Request)
 				return
 			}
-			pprof.Index(c.ResponseWriter, c.Request) 
+			pprof.Index(c.ResponseWriter, c.Request)
 		})
 	}
-	
+
 	// STATIC
 	if settings.Config.Embed.Static {
 		//EMBED STATIC
@@ -171,20 +171,20 @@ func (router *Router) initDefaultUrls() {
 		}
 	} else {
 		// LOCAL STATIC
-		if _,err := os.Stat(settings.STATIC_DIR);err == nil {
+		if _, err := os.Stat(settings.STATIC_DIR); err == nil {
 			router.ServeLocalDir(settings.STATIC_DIR, "static")
 			if settings.Config.Docs {
-				if _,err := os.Stat(settings.STATIC_DIR+"/docs");err == nil {
+				if _, err := os.Stat(settings.STATIC_DIR + "/docs"); err == nil {
 					router.ServeLocalDir(settings.STATIC_DIR+"/docs", "docs")
 				} else {
-					logger.Error(settings.STATIC_DIR+"/docs","not found")
+					logger.Error(settings.STATIC_DIR+"/docs", "not found")
 					os.Exit(0)
 				}
 			}
 		}
 	}
 	// MEDIA
-	media_root := http.FileServer(http.Dir("./"+settings.MEDIA_DIR))
+	media_root := http.FileServer(http.Dir("./" + settings.MEDIA_DIR))
 	router.GET(`/`+settings.MEDIA_DIR+`/*`, func(c *Context) {
 		http.StripPrefix("/"+settings.MEDIA_DIR+"/", media_root).ServeHTTP(c.ResponseWriter, c.Request)
 	})

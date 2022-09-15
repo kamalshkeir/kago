@@ -9,7 +9,6 @@ import (
 	"strings"
 )
 
-
 var GZIP = func(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "metrics") {
@@ -34,7 +33,6 @@ var GZIP = func(handler http.Handler) http.Handler {
 		handler.ServeHTTP(w, r)
 	})
 }
-
 
 type WrappedResponseWriter struct {
 	w       http.ResponseWriter

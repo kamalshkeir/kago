@@ -549,9 +549,9 @@ func (b *Builder[T]) queryS(query string, args ...any) ([]T, error) {
 
 		row := new(T)
 		if b.selected != "" && b.selected != "*" {
-			strct.FillSelectedValues(row,b.selected,values...)
+			strct.FillSelectedValues(row, b.selected, values...)
 		} else {
-			strct.FillValues(row,values...)
+			strct.FillValues(row, values...)
 		}
 		res = append(res, *row)
 	}
