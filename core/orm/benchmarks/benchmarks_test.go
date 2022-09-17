@@ -13,7 +13,7 @@ func init() {
 	r := kamux.Router{}
 	r.LoadEnv("../../../.env")
 	_ = orm.InitDB()
-	orm.UseCache = true
+	orm.UseCache = false
 	//migrate
 	err := orm.Migrate()
 	if logger.CheckError(err) {
@@ -131,7 +131,7 @@ func BenchmarkGetAllColumns(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		c := orm.GetAllColumns("users")
+		c := orm.GetAllColumnsTypes("users")
 		if len(c) == 0 {
 			b.Error("error BenchmarkGetAllColumns: no data")
 		}

@@ -63,7 +63,7 @@ func (b *Builder[T]) Database(dbName string) *Builder[T] {
 	if b.database == "" {
 		b.database = settings.Config.Db.Name
 	}
-	db, err := GetDatabase(b.database)
+	db, err := GetMemoryDatabase(b.database)
 	if logger.CheckError(err) {
 		return nil
 	}
@@ -89,7 +89,7 @@ func (b *Builder[T]) Insert(model *T) (int, error) {
 			"database": b.database,
 		})
 	}
-	db, err := GetDatabase(b.database)
+	db, err := GetMemoryDatabase(b.database)
 	if logger.CheckError(err) {
 		return 0, err
 	}
@@ -167,7 +167,7 @@ func (b *Builder[T]) Set(query string, args ...any) (int, error) {
 			"database": b.database,
 		})
 	}
-	db, err := GetDatabase(b.database)
+	db, err := GetMemoryDatabase(b.database)
 	if logger.CheckError(err) {
 		return 0, err
 	}
@@ -219,7 +219,7 @@ func (b *Builder[T]) Delete() (int, error) {
 			"database": b.database,
 		})
 	}
-	db, err := GetDatabase(b.database)
+	db, err := GetMemoryDatabase(b.database)
 	if logger.CheckError(err) {
 		return 0, err
 	}
@@ -270,7 +270,7 @@ func (b *Builder[T]) Drop() (int, error) {
 			"database": b.database,
 		})
 	}
-	db, err := GetDatabase(b.database)
+	db, err := GetMemoryDatabase(b.database)
 	if logger.CheckError(err) {
 		return 0, err
 	}
@@ -495,7 +495,7 @@ func (b *Builder[T]) queryS(query string, args ...any) ([]T, error) {
 	if b.database == "" {
 		b.database = settings.Config.Db.Name
 	}
-	db, err := GetDatabase(b.database)
+	db, err := GetMemoryDatabase(b.database)
 	if logger.CheckError(err) {
 		return nil, err
 	}
@@ -539,7 +539,7 @@ func (b *Builder[T]) queryS(query string, args ...any) ([]T, error) {
 			return nil, err
 		}
 
-		if db.Dialect == MYSQL {
+		if db.Dialect == MYSQL || db.Dialect == MARIA || db.Dialect == "mariadb" {
 			for i := range values {
 				if v, ok := values[i].([]byte); ok {
 					values[i] = string(v)

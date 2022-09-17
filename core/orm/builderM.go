@@ -283,7 +283,7 @@ func (b *BuilderM) Insert(fields_comma_separated string, fields_values []any) (i
 			"database": b.database,
 		})
 	}
-	db, err := GetDatabase(b.database)
+	db, err := GetMemoryDatabase(b.database)
 	if logger.CheckError(err) {
 		return 0, err
 	}
@@ -297,7 +297,7 @@ func (b *BuilderM) Insert(fields_comma_separated string, fields_values []any) (i
 		switch db.Dialect {
 		case POSTGRES, SQLITE:
 			placeholdersSlice = append(placeholdersSlice, "$"+strconv.Itoa(i+1))
-		case MYSQL:
+		case MYSQL,MARIA,"mariadb":
 			placeholdersSlice = append(placeholdersSlice, "?")
 		default:
 			return 0, errors.New("database is neither sqlite, postgres or mysql")
@@ -347,7 +347,7 @@ func (b *BuilderM) Set(query string, args ...any) (int, error) {
 			"database": b.database,
 		})
 	}
-	db, err := GetDatabase(b.database)
+	db, err := GetMemoryDatabase(b.database)
 	if logger.CheckError(err) {
 		return 0, err
 	}
@@ -393,7 +393,7 @@ func (b *BuilderM) Delete() (int, error) {
 			"database": b.database,
 		})
 	}
-	db, err := GetDatabase(b.database)
+	db, err := GetMemoryDatabase(b.database)
 	if logger.CheckError(err) {
 		return 0, err
 	}
@@ -440,7 +440,7 @@ func (b *BuilderM) Drop() (int, error) {
 			"database": b.database,
 		})
 	}
-	db, err := GetDatabase(b.database)
+	db, err := GetMemoryDatabase(b.database)
 	if logger.CheckError(err) {
 		return 0, err
 	}
@@ -465,7 +465,7 @@ func (b *BuilderM) queryM(statement string, args ...any) ([]map[string]interface
 	if b.database == "" {
 		b.database = settings.Config.Db.Name
 	}
-	db, err := GetDatabase(b.database)
+	db, err := GetMemoryDatabase(b.database)
 	if logger.CheckError(err) {
 		return nil, err
 	}
@@ -522,7 +522,7 @@ func Query(dbName string, statement string, args ...any) ([]map[string]interface
 	if dbName == "" {
 		dbName = settings.Config.Db.Name
 	}
-	db, err := GetDatabase(dbName)
+	db, err := GetMemoryDatabase(dbName)
 	if logger.CheckError(err) {
 		return nil, err
 	}

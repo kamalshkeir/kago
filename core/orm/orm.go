@@ -42,6 +42,7 @@ const (
 	SQLITE   = "sqlite"
 	POSTGRES = "postgres"
 	MYSQL    = "mysql"
+	MARIA    = "maria"
 )
 
 type TableEntity struct {
@@ -73,10 +74,11 @@ func InitDB() error {
 		settings.Config.Db.Type = POSTGRES
 	}
 
+	
 	switch settings.Config.Db.Type {
 	case POSTGRES:
 		dsn = fmt.Sprintf("postgres://%s/%s?sslmode=disable", settings.Config.Db.DSN, settings.Config.Db.Name)
-	case MYSQL:
+	case MYSQL,MARIA,"mariadb":
 		if strings.Contains(settings.Config.Db.DSN, "tcp(") {
 			dsn = settings.Config.Db.DSN + "/" + settings.Config.Db.Name
 		} else {
@@ -86,6 +88,7 @@ func InitDB() error {
 			}
 			dsn = split[0] + "@" + "tcp(" + split[1] + ")/" + settings.Config.Db.Name
 		}
+		settings.Config.Db.Type=MARIA
 	case SQLITE, "sqlite3":
 		dsn = settings.Config.Db.Name + ".sqlite?_pragma=foreign_keys(1)"
 		if settings.Config.Db.Name == "" {
@@ -97,9 +100,13 @@ func InitDB() error {
 			dsn = "db.sqlite?_pragma=foreign_keys(1)"
 		}
 	}
-
+	isMariaDb := settings.Config.Db.Type==MARIA || settings.Config.Db.Type=="mariadb"
 	DefaultDB = settings.Config.Db.Name
-	dbConn, err := sql.Open(settings.Config.Db.Type, dsn)
+	dbType := settings.Config.Db.Type
+	if isMariaDb {
+		dbType="mysql"
+	}
+	dbConn, err := sql.Open(dbType, dsn)
 	if logger.CheckError(err) {
 		return err
 	}
@@ -109,7 +116,7 @@ func InitDB() error {
 		return err
 	}
 	// if db exist return
-	_, err = GetDatabase(DefaultDB)
+	_, err = GetMemoryDatabase(DefaultDB)
 	if err == nil {
 		return nil
 	}
@@ -118,6 +125,7 @@ func InitDB() error {
 		Name:    DefaultDB,
 		Conn:    dbConn,
 		Dialect: settings.Config.Db.Type,
+		Tables: []TableEntity{},
 	})
 	mDbNameConnection[DefaultDB] = dbConn
 	mDbNameDialect[DefaultDB] = settings.Config.Db.Type
@@ -162,6 +170,20 @@ func NewDatabaseFromDSN(dbType, dbName string, dbDSN ...string) error {
 			}
 			dsn = split[0] + "@" + "tcp(" + split[1] + ")/" + dbName
 		}
+	case MARIA,"mariadb":
+		if len(dbDSN) == 0 {
+			return errors.New("dbDSN for mysql cannot be empty")
+		}
+		if strings.Contains(dbDSN[0], "tcp(") {
+			dsn = dbDSN[0] + "/" + dbName
+		} else {
+			split := strings.Split(dbDSN[0], "@")
+			if len(split) > 2 {
+				return errors.New("there is 2 or more @ symbol in dsn")
+			}
+			dsn = split[0] + "@" + "tcp(" + split[1] + ")/" + dbName
+		}
+		settings.Config.Db.Type=MARIA
 	case SQLITE, "":
 		if dsn == "" {
 			dsn = "db.sqlite"
@@ -181,6 +203,10 @@ func NewDatabaseFromDSN(dbType, dbName string, dbDSN ...string) error {
 	if dbType == SQLITE {
 		dsn += "?_pragma=foreign_keys(1)"
 	}
+	
+	if dbType == MARIA || dbType == "mariadb" {
+		dbType="mysql"
+	}
 	conn, err := sql.Open(dbType, dsn)
 	if logger.CheckError(err) {
 		return err
@@ -198,11 +224,6 @@ func NewDatabaseFromDSN(dbType, dbName string, dbDSN ...string) error {
 			return errors.New("another database with the same name already registered")
 		}
 	}
-	databases = append(databases, DatabaseEntity{
-		Name:    dbName,
-		Conn:    conn,
-		Dialect: dbType,
-	})
 	mDbNameConnection[dbName] = conn
 	mDbNameDialect[dbName] = dbType
 	conn.SetMaxOpenConns(10)
@@ -228,11 +249,9 @@ func NewDatabaseFromConnection(dbType, dbName string, conn *sql.DB) error {
 			return errors.New("another database with the same name already registered")
 		}
 	}
-	databases = append(databases, DatabaseEntity{
-		Name:    dbName,
-		Conn:    conn,
-		Dialect: dbType,
-	})
+	if dbType == "mariadb" {
+		settings.Config.Db.Type=MARIA
+	}
 	mDbNameConnection[dbName] = conn
 	mDbNameDialect[dbName] = dbType
 	conn.SetMaxOpenConns(10)
@@ -245,13 +264,13 @@ func NewDatabaseFromConnection(dbType, dbName string, conn *sql.DB) error {
 // GetConnection return default connection for orm.DefaultDatabase (if dbName not specified or empty or "default") else it return the specified one
 func GetConnection(dbName ...string) *sql.DB {
 	if len(dbName) > 0 {
-		db, err := GetDatabase(dbName[0])
+		db, err := GetMemoryDatabase(dbName[0])
 		if logger.CheckError(err) {
 			return nil
 		}
 		return db.Conn
 	} else {
-		db, err := GetDatabase(settings.Config.Db.Name)
+		db, err := GetMemoryDatabase(settings.Config.Db.Name)
 		if logger.CheckError(err) {
 			return nil
 		}
@@ -260,7 +279,7 @@ func GetConnection(dbName ...string) *sql.DB {
 }
 
 func UseForAdmin(dbName string) {
-	db, err := GetDatabase(dbName)
+	db, err := GetMemoryDatabase(dbName)
 	if logger.CheckError(err) {
 		logger.Error(dbName, "not found in connections list")
 	} else {
@@ -279,47 +298,6 @@ func UseForAdmin(dbName string) {
 	}
 }
 
-func GetDatabases() []DatabaseEntity {
-	return databases
-}
-
-// GetDatabase return the first connected database orm.DefaultDatabase if dbName "" or "default" else the matched db
-func GetDatabase(dbName string) (*DatabaseEntity, error) {
-	if DefaultDB == "" {
-		DefaultDB = settings.Config.Db.Name
-	}
-	switch dbName {
-	case "", "default":
-		for i := range databases {
-			if databases[i].Name == DefaultDB {
-				return &databases[i], nil
-			}
-		}
-		return nil, errors.New(dbName + "database not found")
-	default:
-		for i := range databases {
-			if databases[i].Name == dbName {
-				return &databases[i], nil
-			}
-		}
-		return nil, errors.New(dbName + "database not found")
-	}
-}
-
-func GetDatabaseTableFromMemory(dbName, tableName string) (*TableEntity, error) {
-	for i := range databases {
-		db := &databases[i]
-		if db.Name == dbName {
-			for j := range db.Tables {
-				if db.Tables[j].Name == tableName {
-					return &db.Tables[j], nil
-				}
-			}
-		}
-	}
-	return &TableEntity{}, errors.New("database or table not found")
-}
-
 func GetAllTables(dbName ...string) []string {
 	var name string
 	if len(dbName) == 0 {
@@ -332,10 +310,26 @@ func GetAllTables(dbName ...string) []string {
 			return v
 		}
 	}
+	tables := []string{}
+	tbs,err := GetMemoryTables(name)
+	if err == nil {
+		for _,t := range tbs {
+			tables = append(tables, t.Name)
+		}
+		if len(tables) > 0 {
+			if UseCache {
+				cacheGetAllTables.Set(name, tables)
+			}
+			return tables
+		}
+	}
 
 	conn := GetConnection(name)
-
-	tables := []string{}
+	if conn == nil {
+		logger.Error("connection is null")
+		return nil
+	}
+	
 	switch settings.Config.Db.Type {
 	case POSTGRES:
 		rows, err := conn.Query(`SELECT tablename FROM pg_catalog.pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema','crdb_internal','pg_extension') AND tableowner != 'node'`)
@@ -351,7 +345,7 @@ func GetAllTables(dbName ...string) []string {
 			}
 			tables = append(tables, table)
 		}
-	case MYSQL:
+	case MYSQL,MARIA:
 		rows, err := conn.Query("SELECT table_name,table_schema FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND table_schema ='" + name + "'")
 		if logger.CheckError(err) {
 			return nil
@@ -390,7 +384,7 @@ func GetAllTables(dbName ...string) []string {
 	return tables
 }
 
-func GetAllColumns(table string, dbName ...string) map[string]string {
+func GetAllColumnsTypes(table string, dbName ...string) map[string]string {
 	dName := settings.Config.Db.Name
 	if len(dbName) > 0 {
 		dName = dbName[0]
@@ -398,6 +392,16 @@ func GetAllColumns(table string, dbName ...string) map[string]string {
 	if UseCache {
 		if v, ok := cacheGetAllColumns.Get(dName + "-" + table); ok {
 			return v
+		}
+	}
+
+	tb,err := GetMemoryTable(table,dName)
+	if err == nil {
+		if len(tb.Types) > 0 {
+			if UseCache {
+				cacheGetAllColumns.Set(dName+"-"+table, tb.Types)
+			}
+			return tb.Types
 		}
 	}
 
@@ -415,7 +419,7 @@ func GetAllColumns(table string, dbName ...string) map[string]string {
 	switch dbType {
 	case POSTGRES:
 		statement = "SELECT column_name,data_type FROM information_schema.columns WHERE table_name = '" + table + "'"
-	case MYSQL:
+	case MYSQL,MARIA:
 		statement = "SELECT column_name,data_type FROM information_schema.columns WHERE table_name = '" + table + "' AND TABLE_SCHEMA = '" + settings.Config.Db.Name + "'"
 	default:
 		statement = "PRAGMA table_info(" + table + ");"
@@ -462,6 +466,62 @@ func GetAllColumns(table string, dbName ...string) map[string]string {
 		cacheGetAllColumns.Set(dName+"-"+table, columns)
 	}
 	return columns
+}
+
+func GetMemoryTable(tbName string, dbName ...string) (TableEntity,error) {
+	dName := settings.Config.Db.Name
+	if len(dbName) > 0 {
+		dName = dbName[0]
+	}
+	db,err := GetMemoryDatabase(dName)
+	if err != nil {
+		return TableEntity{},err
+	}
+	for _,t := range db.Tables {
+		if t.Name == tbName {
+			return t,nil
+		}
+	}
+	return TableEntity{},errors.New("nothing found")
+}
+
+func GetMemoryTables(dbName ...string) ([]TableEntity,error) {
+	dName := settings.Config.Db.Name
+	if len(dbName) > 0 {
+		dName = dbName[0]
+	}
+	db,err := GetMemoryDatabase(dName)
+	if err != nil {
+		return nil,err
+	}
+	return db.Tables,nil
+}
+
+func GetMemoryDatabases() []DatabaseEntity {
+	return databases
+}
+
+// GetMemoryDatabase return the first connected database orm.DefaultDatabase if dbName "" or "default" else the matched db
+func GetMemoryDatabase(dbName string) (*DatabaseEntity, error) {
+	if DefaultDB == "" {
+		DefaultDB = settings.Config.Db.Name
+	}
+	switch dbName {
+	case "", "default":
+		for i := range databases {
+			if databases[i].Name == DefaultDB {
+				return &databases[i], nil
+			}
+		}
+		return nil, errors.New(dbName + "database not found")
+	default:
+		for i := range databases {
+			if databases[i].Name == dbName {
+				return &databases[i], nil
+			}
+		}
+		return nil, errors.New(dbName + "database not found")
+	}
 }
 
 func CreateUser(email, password string, isAdmin int, dbName ...string) error {

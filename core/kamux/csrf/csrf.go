@@ -83,7 +83,7 @@ var CSRF = func(handler http.Handler) http.Handler {
 		case "POST", "PATCH", "PUT", "UPDATE", "DELETE":
 			token := r.Header.Get("X-CSRF-Token")
 			tok, ok := Csrf_tokens.Get(token)
-			if !ok || token == "" || tok.Used || tok.Retry > CSRF_TIMEOUT_RETRY || time.Since(tok.Created) > CSRF_CLEAN_EVERY {
+			if !ok || token == "" || (tok.Used && (tok.Retry > CSRF_TIMEOUT_RETRY || time.Since(tok.Created) > CSRF_CLEAN_EVERY)) {
 				eventbus.Publish("csrf-clean", tok.Value)
 				w.WriteHeader(http.StatusBadRequest)
 				json.NewEncoder(w).Encode(map[string]any{

@@ -94,11 +94,9 @@ func New() *Router {
 	}
 	// migrate initial models
 	err = orm.Migrate()
-	logger.CheckError(err)
+	if logger.CheckError(err) {os.Exit(0)}
 	// init orm shell
-	if shell.InitShell() {
-		os.Exit(0)
-	}
+	if shell.InitShell() {os.Exit(0)}
 	return app
 }
 

@@ -95,11 +95,10 @@ var AllModelsGet = func(c *kamux.Context) {
 		return
 	}
 	idString := "id"
-	t, _ := orm.GetDatabaseTableFromMemory(orm.DefaultDB, model)
+	t, _ := orm.GetMemoryTable(model,orm.DefaultDB)
 	if t.Pk != "" && t.Pk != "id" {
 		idString = t.Pk
 	}
-
 	rows, err := orm.Table(model).OrderBy("-" + idString).Limit(PAGINATION_PER).Page(1).All()
 	if err != nil {
 		rows, err = orm.Table(model).All()
@@ -113,8 +112,7 @@ var AllModelsGet = func(c *kamux.Context) {
 			}
 		}
 	}
-	dbCols := orm.GetAllColumns(model, orm.DefaultDB)
-
+	dbCols := orm.GetAllColumnsTypes(model,orm.DefaultDB)
 	if settings.Config.Db.Type != "" {
 		c.Html("admin/admin_all_models.html", map[string]any{
 			"dbType":     settings.Config.Db.Type,
@@ -152,7 +150,7 @@ var AllModelsPost = func(c *kamux.Context) {
 				pagenum, err := strconv.Atoi(page)
 				if err == nil {
 					idString := "id"
-					t, _ := orm.GetDatabaseTableFromMemory(orm.DefaultDB, model)
+					t, _ := orm.GetMemoryTable(model,orm.DefaultDB)
 					if t.Pk != "" && t.Pk != "id" {
 						idString = t.Pk
 					}
@@ -178,7 +176,7 @@ var DeleteRowPost = func(c *kamux.Context) {
 		if model, ok := data["model_name"]; ok {
 			if mm, ok := model.(string); ok {
 				idString := "id"
-				t, _ := orm.GetDatabaseTableFromMemory(orm.DefaultDB, mm)
+				t, _ := orm.GetMemoryTable(mm,orm.DefaultDB)
 				if t.Pk != "" && t.Pk != "id" {
 					idString = t.Pk
 				}
@@ -294,7 +292,7 @@ var SingleModelGet = func(c *kamux.Context) {
 		return
 	}
 	idString := "id"
-	t, _ := orm.GetDatabaseTableFromMemory(orm.DefaultDB, model)
+	t, _ := orm.GetMemoryTable(model,orm.DefaultDB)
 	if t.Pk != "" && t.Pk != "id" {
 		idString = t.Pk
 	}
@@ -306,7 +304,7 @@ var SingleModelGet = func(c *kamux.Context) {
 		})
 		return
 	}
-	dbCols := orm.GetAllColumns(model, orm.DefaultDB)
+	dbCols := orm.GetAllColumnsTypes(model, orm.DefaultDB)
 	c.Html("admin/admin_single_model.html", map[string]any{
 		"model":      modelRow,
 		"model_name": model,
@@ -325,7 +323,7 @@ var UpdateRowPost = func(c *kamux.Context) {
 	//handle file upload
 	//get model from database
 	idString := "id"
-	t, _ := orm.GetDatabaseTableFromMemory(orm.DefaultDB, data["table"][0])
+	t, _ := orm.GetMemoryTable(data["table"][0],orm.DefaultDB)
 	if t.Pk != "" && t.Pk != "id" {
 		idString = t.Pk
 	}

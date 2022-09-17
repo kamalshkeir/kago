@@ -76,7 +76,7 @@ func InitShell() bool {
 		fmt.Printf(logger.Yellow, helpS)
 		return true
 	case "shell":
-		databases := orm.GetDatabases()
+		databases := orm.GetMemoryDatabases()
 		var conn *sql.DB
 		if len(databases) > 1 {
 			fmt.Printf(logger.Yellow, "-----------------------------------")
@@ -137,7 +137,7 @@ func InitShell() bool {
 					}
 				}
 			case "databases":
-				fmt.Printf(logger.Green, orm.GetDatabases())
+				fmt.Printf(logger.Green, orm.GetMemoryDatabases())
 			case "use":
 				db := input.Input(input.Blue, "database name: ")
 				orm.UseForAdmin(db)
@@ -146,7 +146,7 @@ func InitShell() bool {
 				fmt.Printf(logger.Green, orm.GetAllTables(settings.Config.Db.Name))
 			case "columns":
 				tb := input.Input(input.Blue, "Table name: ")
-				mcols := orm.GetAllColumns(tb, settings.Config.Db.Name)
+				mcols := orm.GetAllColumnsTypes(tb, settings.Config.Db.Name)
 				cols := []string{}
 				for k := range mcols {
 					cols = append(cols, k)
@@ -241,7 +241,7 @@ func createsuperuser() {
 }
 
 func migratefromfile(path string) error {
-	if !utils.SliceContains([]string{orm.POSTGRES, orm.SQLITE, orm.MYSQL}, settings.Config.Db.Type) {
+	if !utils.SliceContains([]string{orm.POSTGRES, orm.SQLITE, orm.MYSQL,orm.MARIA}, settings.Config.Db.Type) {
 		logger.Error("database is neither postgres, sqlite or mysql ")
 		return errors.New("database is neither postgres, sqlite or mysql ")
 	}

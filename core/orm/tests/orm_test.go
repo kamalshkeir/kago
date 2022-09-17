@@ -76,7 +76,7 @@ func TestNewDatabaseFromDSN(t *testing.T) {
 		t.Error("should error because", otherDB, "registered before")
 		return
 	}
-	databases := orm.GetDatabases()
+	databases := orm.GetMemoryDatabases()
 	if len(databases) == 0 {
 		t.Error("no database found")
 		return
@@ -106,7 +106,7 @@ func TestGetConnection(t *testing.T) {
 }
 
 func TestGetDatabases(t *testing.T) {
-	dbs := orm.GetDatabases()
+	dbs := orm.GetMemoryDatabases()
 	if len(dbs) < 1 {
 		t.Error("no database found")
 	}
@@ -120,7 +120,7 @@ func TestGetAllTables(t *testing.T) {
 }
 
 func TestGetAllColumns(t *testing.T) {
-	colsTypes := orm.GetAllColumns("users")
+	colsTypes := orm.GetAllColumnsTypes("users")
 	if len(colsTypes) == 0 {
 		t.Error("no column found:", colsTypes)
 	}

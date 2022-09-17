@@ -33,11 +33,16 @@ type dbCache struct {
 // linkModel link a struct model to a  db_table_name
 func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 	if db.Name == "" {
-		db = &databases[0]
+		var err error
+		db.Name = databases[0].Name
+		db,err = GetMemoryDatabase(db.Name)
+		if logger.CheckError(err) {
+			return
+		}
 	}
 	fields, _, ftypes, ftags := getStructInfos(new(T))
 	// get columns from db
-	colsNameType := GetAllColumns(to_table_name, db.Name)
+	colsNameType := GetAllColumnsTypes(to_table_name, db.Name)
 	cols := []string{}
 	for k := range colsNameType {
 		cols = append(cols, k)
@@ -85,7 +90,7 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 			tFound = true
 		}
 	}
-
+	
 	if !tFound {
 		db.Tables = append(db.Tables, TableEntity{
 			Name:       to_table_name,
@@ -113,13 +118,13 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 			choice := input.Input(input.Yellow, "> do you want to remove '"+d+"' from database ? (Y/n): ")
 			if utils.SliceContains([]string{"yes", "Y", "y"}, choice) {
 				sst := "DROP INDEX IF EXISTS idx_" + to_table_name + "_" + d
-				trigs := "DROP TRIGGER IF EXISTS " + to_table_name + "_update_trig "
+				trigs := "DROP TRIGGER IF EXISTS " + to_table_name + "_update_trig"
 				if len(databases) > 1 && db.Name == "" {
 					ddb := input.Input(input.Blue, "> There are more than one database connected, enter database name: ")
 					conn := GetConnection(ddb)
 					if conn != nil {
 						// triggers
-						if db.Dialect != MYSQL {
+						if db.Dialect != MYSQL && db.Dialect != MARIA {
 							if ts, ok := ftags[d]; ok {
 								for _, t := range ts {
 									if t == "update" {
@@ -172,7 +177,7 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 					conn := db.Conn
 					if conn != nil {
 						// triggers
-						if db.Dialect != MYSQL {
+						if db.Dialect != MYSQL && db.Dialect != MARIA {
 							if ts, ok := ftags[d]; ok {
 								for _, t := range ts {
 									if t == "update" {
@@ -379,7 +384,7 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 					statement += s
 
 					// triggers
-					if db.Dialect != MYSQL {
+					if db.Dialect != MYSQL && db.Dialect != MARIA {
 						if ts, ok := ftags[d]; ok {
 							for _, t := range ts {
 								if t == "update" {
@@ -669,6 +674,7 @@ func handleRename(to_table_name string, fields, cols, diff []string, db *Databas
 	}
 }
 
+
 func GetConstraints(db *DatabaseEntity, tableName string) map[string][]string {
 	res := map[string][]string{}
 	switch db.Dialect {
@@ -710,7 +716,7 @@ func GetConstraints(db *DatabaseEntity, tableName string) map[string][]string {
 				}
 			}
 		}
-	case POSTGRES, MYSQL:
+	case POSTGRES, MYSQL,MARIA:
 		st := "select table_name,constraint_type,constraint_name from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where table_name='" + tableName + "';"
 		d, err := Query(db.Name, st)
 		if !logger.CheckError(err) {
