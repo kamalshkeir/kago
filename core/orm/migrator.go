@@ -26,7 +26,7 @@ func checkUpdatedAtTrigger(dialect, tableName, col, pk string) map[string][]stri
 	triggers := map[string][]string{}
 	t := "datetime('now','localtime')"
 	if dialect == "sqlite" {
-		st := "CREATE TRIGGER IF NOT EXISTS"
+		st := "CREATE TRIGGER IF NOT EXISTS "
 		st += tableName + "_update_trig AFTER UPDATE ON " + tableName
 		st += " BEGIN update " + tableName + " SET " + col + " = " + t
 		st += " WHERE " + col + " = " + "NEW." + col + ";"
