@@ -63,18 +63,10 @@ func AddTrigger(onTable, col, bf_af_UpdateInsertDelete string,ofColumn, stmt str
 	dialect := mDbNameDialect[dbName[0]]
 	switch dialect {
 	case "sqlite","sqlite3","":
-		s := ""
-		if forEachRow {
-			s = " FOR EACH ROW "
-			if !strings.Contains(strings.ToLower(whenEachRow),"when") {
-				s+="WHEN "
-			}
-			s+=whenEachRow
-		}
 		if ofColumn != "" {
 			ofColumn = " OF "+col
 		}
-		st := "CREATE TRIGGER IF NOT EXISTS "+onTable + "_trig_" + col + s + " "
+		st := "CREATE TRIGGER IF NOT EXISTS "+onTable + "_trig_" + col + " "
 		st += bf_af_UpdateInsertDelete+ofColumn+" ON " + onTable
 		st += " BEGIN " + stmt + ";End;"
 		stat = append(stat, st)
@@ -113,6 +105,20 @@ func AddTrigger(onTable, col, bf_af_UpdateInsertDelete string,ofColumn, stmt str
 				return 
 			}
 		}
+	}
+}
+
+func DropTrigger(onField,tableName string) {
+	stat := "DROP TRIGGER "+tableName + "_trig_" + onField+";"
+	if Debug {
+		logger.Info(stat)
+	}
+	err := Exec(settings.Config.Db.Name,stat)
+	if err != nil {
+		if !utils.StringContains(err.Error(),"Trigger does not exist") {
+			return 
+		}
+		logger.Error(err)
 	}
 }
 

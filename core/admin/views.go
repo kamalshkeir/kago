@@ -130,6 +130,33 @@ var AllModelsGet = func(c *kamux.Context) {
 	}
 }
 
+var AllModelsSearch = func(c *kamux.Context) {
+	model, ok := c.Params["model"]
+	if !ok {
+		c.Json(map[string]any{
+			"error": "Error: No model given in params",
+		})
+		return
+	}
+
+	body := c.BodyJson()
+	
+	if query,ok := body["query"];ok {
+		data,err :=orm.Table(model).Where(query.(string)).All()
+		if logger.CheckError(err) {
+			c.Json(map[string]any{
+				"error":err.Error(),
+			})
+			return
+		}
+		c.Json(map[string]any{
+			"rows":data,
+		})
+		return
+	}
+	c.SetStatus(400)
+}
+
 var AllModelsPost = func(c *kamux.Context) {
 	model, ok := c.Params["model"]
 	if !ok {
