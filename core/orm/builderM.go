@@ -325,7 +325,7 @@ func (b *BuilderM) Insert(fields_comma_separated string, fields_values []any) (i
 	}
 	if err != nil {
 		if Debug {
-			logger.Info(b.statement,fields_values)
+			logger.Info(statement,fields_values)
 			logger.Error(err)
 		}
 		return affectedRows, err
