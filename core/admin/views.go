@@ -280,11 +280,11 @@ var CreateModelView = func(c *kamux.Context) {
 			hash, _ := hash.GenerateHash(val[0])
 			fields = append(fields, key)
 			values = append(values, hash)
+		case "":
 		default:
 			fields = append(fields, key)
 			values = append(values, val[0])
 		}
-
 	}
 
 	_, err := orm.Table(model).Insert(
