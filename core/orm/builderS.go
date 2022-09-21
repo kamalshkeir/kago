@@ -138,7 +138,10 @@ func (b *Builder[T]) Insert(model *T) (int, error) {
 		res, err = db.Conn.Exec(b.statement, values...)
 	}
 	if err != nil {
-		logger.Info(b.statement, values)
+		if Debug {
+			logger.Info(b.statement,values)
+			logger.Error(err)
+		}
 		return affectedRows, err
 	}
 	rows, err := res.RowsAffected()
@@ -191,6 +194,10 @@ func (b *Builder[T]) Set(query string, args ...any) (int, error) {
 		res, err = db.Conn.Exec(b.statement, args...)
 	}
 	if err != nil {
+		if Debug {
+			logger.Info(b.statement,args)
+			logger.Error(err)
+		}
 		return 0, err
 	}
 	aff, err := res.RowsAffected()

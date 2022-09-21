@@ -324,6 +324,10 @@ func (b *BuilderM) Insert(fields_comma_separated string, fields_values []any) (i
 		res, err = db.Conn.Exec(statement, fields_values...)
 	}
 	if err != nil {
+		if Debug {
+			logger.Info(b.statement,fields_values)
+			logger.Error(err)
+		}
 		return affectedRows, err
 	}
 	rows, err := res.RowsAffected()
@@ -370,6 +374,10 @@ func (b *BuilderM) Set(query string, args ...any) (int, error) {
 		res, err = db.Conn.Exec(b.statement, args...)
 	}
 	if err != nil {
+		if Debug {
+			logger.Info(b.statement,args)
+			logger.Error(err)
+		}
 		return 0, err
 	}
 	aff, err := res.RowsAffected()
