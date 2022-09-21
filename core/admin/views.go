@@ -282,8 +282,10 @@ var CreateModelView = func(c *kamux.Context) {
 			values = append(values, hash)
 		case "":
 		default:
-			fields = append(fields, key)
-			values = append(values, val[0])
+			if key != "" && val[0] != "" && val[0] != "null" {
+				fields = append(fields, key)
+				values = append(values, val[0])
+			} 
 		}
 	}
 
