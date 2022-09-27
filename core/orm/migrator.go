@@ -14,6 +14,7 @@ import (
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
+
 func Migrate() error {
 	err := AutoMigrate[models.User]("users", settings.Config.Db.Name)
 	if logger.CheckError(err) {
@@ -52,11 +53,6 @@ func AddTrigger(onTable, col, bf_af_UpdateInsertDelete string,ofColumn, stmt str
 	if len(dbName) == 0 {
 		dbName = append(dbName, settings.Config.Db.Name)
 	}
-	// CREATE TRIGGER blabla_trig_ekhtebar_new
-	// AFTER UPDATE OF ekhtebar ON blabla
-	// BEGIN   
-	// UPDATE blabla SET enheyar = 'test', enfejar='test' WHERE id=NEW.id;
-	// END;
 	if strings.Contains(strings.ToLower(ofColumn),"of") {
 		ofColumn=strings.ReplaceAll(strings.ToLower(ofColumn),"of","")
 	} 
@@ -122,7 +118,8 @@ func DropTrigger(onField,tableName string) {
 	}
 }
 
-func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
+func autoMigrate[T comparable](db *DatabaseEntity, tableName string, execute bool) (string,error) {
+	toReturnstats := []string{}
 	dialect := db.Dialect
 	s := reflect.ValueOf(new(T)).Elem()
 	typeOfT := s.Type()
@@ -239,14 +236,18 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 
 	c, cancel := context.WithTimeout(context.TODO(), 3*time.Second)
 	defer cancel()
-	ress, err := db.Conn.ExecContext(c, statement)
-	if err != nil {
-		return err
-	}
-	_, err = ress.RowsAffected()
-	if err != nil {
-		return err
-	}
+	if execute {
+		ress, err := db.Conn.ExecContext(c, statement)
+		if err != nil {
+			return "",err
+		}
+		_, err = ress.RowsAffected()
+		if err != nil {
+			return "",err
+		}
+	} 
+	toReturnstats = append(toReturnstats, statement)
+	
 	if !strings.HasSuffix(tableName, "_temp") {
 		if len(triggers) > 0 {
 			for _, stats := range triggers {
@@ -254,11 +255,14 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 					if Debug {
 						logger.Printfs("trigger updated_at %s: %s", tableName, st)
 					}
-					err := Exec(db.Name, st)
-					if logger.CheckError(err) {
-						logger.Printfs("rdtrigger updated_at %s: %s", tableName, st)
-						return err
+					if execute {
+						err := Exec(db.Name, st)
+						if logger.CheckError(err) {
+							logger.Printfs("rdtrigger updated_at %s: %s", tableName, st)
+							return "",err
+						}
 					}
+					toReturnstats = append(toReturnstats, st)
 				}
 			}
 		}
@@ -297,45 +301,57 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string) error {
 			if Debug {
 				logger.Printfs(statIndexes)
 			}
-			_, err := db.Conn.Exec(statIndexes)
-			if logger.CheckError(err) {
-				logger.Printfs("rdindexes: %s", statIndexes)
-				return err
+			if execute {
+				_, err := db.Conn.Exec(statIndexes)
+				if logger.CheckError(err) {
+					logger.Printfs("rdindexes: %s", statIndexes)
+					return "",err
+				}
 			}
+			
+			toReturnstats = append(toReturnstats, statIndexes)
 		}
 		if mstatIndexes != "" {
 			if Debug {
 				logger.Printfs("mindexes: %s", mstatIndexes)
 			}
-			_, err := db.Conn.Exec(mstatIndexes)
-			if logger.CheckError(err) {
-				logger.Printfs("rdmindexes: %s", mstatIndexes)
-				return err
+			if execute {
+				_, err := db.Conn.Exec(mstatIndexes)
+				if logger.CheckError(err) {
+					logger.Printfs("rdmindexes: %s", mstatIndexes)
+					return "",err
+				}
 			}
+			
+			toReturnstats = append(toReturnstats, mstatIndexes)
 		}
 		if len(ustatIndexes) > 0 {
 			for i := range ustatIndexes {
 				if Debug {
 					logger.Printfs("uindexes: %s", ustatIndexes[i])
 				}
-				_, err := db.Conn.Exec(ustatIndexes[i])
-				if logger.CheckError(err) {
-					logger.Printfs("rduindexes: %s", ustatIndexes)
-					return err
-				}
+				if execute {
+					_, err := db.Conn.Exec(ustatIndexes[i])
+					if logger.CheckError(err) {
+						logger.Printfs("rduindexes: %s", ustatIndexes)
+						return "",err
+					}
+				}		
+				toReturnstats = append(toReturnstats, ustatIndexes[i])
 			}
-
 		}
 	}
-	logger.Printfs("gr%s migrated successfully, restart the server", tableName)
-	return nil
+	if execute {
+		logger.Printfs("gr%s migrated successfully, restart the server", tableName)
+	}
+	toReturnQuery:=strings.Join(toReturnstats,";")
+	return toReturnQuery,nil
 }
 
 func AutoMigrate[T comparable](tableName string, dbName ...string) error {
 	if _, ok := mModelTablename[*new(T)]; !ok {
 		mModelTablename[*new(T)] = tableName
 	}
-	
 	var db *DatabaseEntity
 	var err error
 	dbname := ""
@@ -367,11 +383,11 @@ func AutoMigrate[T comparable](tableName string, dbName ...string) error {
 	if len(db.Tables) == 0 {
 		if tbFoundDB {
 			// found db not local
-			linkModel[T](tableName, db)
+			LinkModel[T](tableName, db)
 			return nil
 		} else {
 			// not db and not local
-			err := autoMigrate[T](db, tableName)
+			_,err := autoMigrate[T](db, tableName,true)
 			if logger.CheckError(err) {
 				return err
 			}
@@ -386,12 +402,12 @@ func AutoMigrate[T comparable](tableName string, dbName ...string) error {
 		}
 	}
 	
-
+	
 	if tbFoundDB || tbFoundLocal {
-		linkModel[T](tableName, db)
+		LinkModel[T](tableName, db)
 		return nil
 	} else {
-		err := autoMigrate[T](db, tableName)
+		_,err := autoMigrate[T](db, tableName,true)
 		if logger.CheckError(err) {
 			return err
 		}
@@ -566,6 +582,9 @@ func handleMigrationBool(mi *migrationInput) {
 	tags := (*mi.fTags)[mi.fName]
 	if len(tags) == 1 && tags[0] == "-" {
 		(*mi.res)[mi.fName] = ""
+		return
+	} else if len(tags) == 0 {
+		(*mi.res)[mi.fName] = "INTEGER NOT NULL CHECK (" + mi.fName + " IN (0, 1))"
 		return
 	}
 	for _, tag := range tags {

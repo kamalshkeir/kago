@@ -30,8 +30,8 @@ type dbCache struct {
 	args       string
 }
 
-// linkModel link a struct model to a  db_table_name
-func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
+// LinkModel link a struct model to a  db_table_name
+func LinkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 	if db.Name == "" {
 		var err error
 		db.Name = databases[0].Name
@@ -69,6 +69,7 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 		}
 		utils.SliceRemove(&diff, "id")
 	}
+
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -83,6 +84,7 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 		handleRename(to_table_name, fields, cols, diff, db, ftags, pk)
 	}()
 	wg.Wait()
+	
 
 	tFound := false
 	for _, t := range db.Tables {
@@ -107,7 +109,11 @@ func linkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []string, db *DatabaseEntity, ftypes map[string]string, ftags map[string][]string, pk string) {
 	if len(cols) > len(fields) { // extra column db
 		for _, d := range diff {
+			fileName := "drop_"+to_table_name+"_"+d+".sql"
 			if v, ok := ftags[d]; ok && v[0] == "-" || d == pk {
+				continue
+			}
+			if _,err := os.Stat("migrations/"+fileName);err == nil {
 				continue
 			}
 			fmt.Println(" ")
@@ -115,7 +121,7 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 
 			statement := "ALTER TABLE " + to_table_name + " DROP COLUMN " + d
 
-			choice := input.Input(input.Yellow, "> do you want to remove '"+d+"' from database ? (Y/n): ")
+			choice := input.Input(input.Yellow, "> do you want to remove '"+d+"' from database ?, you can also generate the query using 'g' (Y/g/n): ")
 			if utils.SliceContains([]string{"yes", "Y", "y"}, choice) {
 				sst := "DROP INDEX IF EXISTS idx_" + to_table_name + "_" + d
 				trigs := "DROP TRIGGER IF EXISTS " + to_table_name + "_update_trig"
@@ -152,7 +158,7 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 						_, err = conn.Exec(statement)
 						if err != nil {
 							temp := to_table_name + "_temp"
-							err := autoMigrate[T](db, temp)
+							_,err := autoMigrate[T](db, temp,true)
 							if logger.CheckError(err) {
 								return
 							}
@@ -205,7 +211,7 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 						_, err = conn.Exec(statement)
 						if err != nil {
 							temp := to_table_name + "_temp"
-							err := autoMigrate[T](db, temp)
+							_,err := autoMigrate[T](db, temp,true)
 							if logger.CheckError(err) {
 								return
 							}
@@ -227,18 +233,146 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 						os.Exit(0)
 					}
 				}
+			} else if  utils.SliceContains([]string{"generate", "G", "g"}, choice) {
+				query := ""
+				sst := "DROP INDEX IF EXISTS idx_" + to_table_name + "_" + d + ";"
+				trigs := "DROP TRIGGER IF EXISTS " + to_table_name + "_update_trig;"
+				
+				if len(databases) > 1 && db.Name == "" {
+					ddb := input.Input(input.Blue, "> There are more than one database connected, enter database name: ")
+					conn := GetConnection(ddb)
+					if conn != nil {
+						// triggers
+						if db.Dialect != MYSQL && db.Dialect != MARIA {
+							if ts, ok := ftags[d]; ok {
+								for _, t := range ts {
+									if t == "update" {
+										if db.Dialect == POSTGRES {
+											trigs += "ON " + to_table_name
+										}
+										if !strings.HasSuffix(trigs,";") {
+											trigs+=";"
+										}
+										query += trigs
+									}
+								}
+							}
+						}
+						if Debug {
+							logger.Info(sst)
+							logger.Info(statement)
+							logger.Info(trigs)
+						}
+						if !strings.HasSuffix(sst,";") {
+							sst+=";"
+						}
+						query += sst
+
+						temp := to_table_name + "_temp"
+						tempQuery,err := autoMigrate[T](db, temp,false)
+						if logger.CheckError(err) {
+							return
+						}
+						query += tempQuery
+						if !strings.HasSuffix(tempQuery,";") {
+							tempQuery+=";"
+						}
+						cls := strings.Join(fields, ",")
+						
+
+						query += "INSERT INTO " + temp + " SELECT " + cls + " FROM " + to_table_name+";"
+						query += "DROP TABLE "+to_table_name+";"
+						query += "ALTER TABLE " + temp + " RENAME TO " + to_table_name+";"
+					}
+				} else {
+					conn := db.Conn
+					if conn != nil {
+						// triggers
+						if db.Dialect != MYSQL && db.Dialect != MARIA {
+							if ts, ok := ftags[d]; ok {
+								for _, t := range ts {
+									if t == "update" {
+										if db.Dialect == POSTGRES {
+											trigs += "ON " + to_table_name
+										}
+										if !strings.HasSuffix(trigs,";") {
+											trigs+=";"
+										}
+										query += trigs
+									}
+								}
+							}
+						}
+						if !strings.HasSuffix(sst,";") {
+							sst+=";"
+						}
+						query += sst
+						if Debug {
+							logger.Info(sst)
+							logger.Info(statement)
+							logger.Info(trigs)
+						}
+						temp := to_table_name + "_temp"
+						tempQuery,err := autoMigrate[T](db, temp,false)
+						if logger.CheckError(err) {
+							return
+						}
+						query += tempQuery
+						cls := strings.Join(fields, ",")
+						
+
+						query += "INSERT INTO " + temp + " SELECT " + cls + " FROM " + to_table_name+";"
+						query += "DROP TABLE "+to_table_name+";"
+						query += "ALTER TABLE " + temp + " RENAME TO " + to_table_name+";"
+					}
+				}
+
+				if _,err := os.Stat("migrations");err != nil {
+					err := os.MkdirAll("migrations",os.ModeDir)
+					logger.CheckError(err)
+				}
+
+				if _,err := os.Stat("migrations/"+fileName);err != nil {
+					f,err := os.Create("migrations/"+fileName)
+					if logger.CheckError(err) {
+						return
+					}
+					_,err = f.WriteString(query)
+					if logger.CheckError(err) {
+						f.Close()
+						return
+					}
+					f.Close()
+					fmt.Printf(logger.Green, "migrations/"+fileName+" created")
+				} else {
+					f,err := os.Open("migrations/"+fileName)
+					if logger.CheckError(err) {
+						return
+					}
+					_,err = f.WriteString(query)
+					if logger.CheckError(err) {
+						f.Close()
+						return
+					}
+					f.Close()
+					fmt.Printf(logger.Green, "migrations/"+fileName+" created")
+				}
 			} else {
 				fmt.Printf(logger.Green, "Nothing changed.")
 			}
 		}
 	} else if len(cols) < len(fields) { // missing column db
 		for _, d := range diff {
+			fileName := "add_"+to_table_name+"_"+d+".sql"
 			if v, ok := ftags[d]; ok && v[0] == "-" || d == pk {
+				continue
+			}
+			if _,err := os.Stat("migrations/"+fileName);err == nil {
 				continue
 			}
 			fmt.Println(" ")
 			logger.Printfs("⚠️ column '%s' is missing from the database table '%s'", d, to_table_name)
-			choice, err := input.String(input.Yellow, "> do you want to add '"+d+"' to the database ? (Y/n):")
+			choice, err := input.String(input.Yellow, "> do you want to add '"+d+"' to the database ?, you can also generate the query using 'g' (Y/g/n):")
 			logger.CheckError(err)
 			statement := "ALTER TABLE " + to_table_name + " ADD " + d + " "
 			if ty, ok := ftypes[d]; ok {
@@ -520,6 +654,147 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 							}
 							logger.Printfs("grDone, '%s' added to '%s', you may want to restart your server", d, to_table_name)
 						}
+					}
+				} else if utils.SliceContains([]string{"generate", "G", "g"}, choice) {
+					query := ""
+					
+					
+					if len(databases) > 1 && db.Name == "" {
+						ddb := input.Input(input.Blue, "> There are more than one database connected, database name:")
+						conn := GetConnection(ddb)
+						if conn != nil {
+							if !strings.HasSuffix(statement,";") {
+								statement+=";"
+							}
+							query += statement
+							if len(trigs) > 0 {
+								for _, st := range trigs {
+									if !strings.HasSuffix(st,";") {
+										st+=";"
+									}
+									query += st
+								}
+							}
+
+							if statIndexes != "" {
+								if !strings.HasSuffix(statIndexes,";") {
+									statIndexes+=";"
+								}
+								query += statIndexes
+							}
+							if mstatIndexes != "" {
+								if !strings.HasSuffix(mstatIndexes,";") {
+									mstatIndexes+=";"
+								}
+								query += mstatIndexes
+							}
+							if ustatIndexes != "" {
+								if !strings.HasSuffix(ustatIndexes,";") {
+									ustatIndexes+=";"
+								}
+								query += ustatIndexes
+							}
+							if Debug {
+								if statement != "" {
+									logger.Printfs("ylstatement: %s", statement)
+								}
+								if statIndexes != "" {
+									logger.Printfs("ylstatIndexes: %s", statIndexes)
+								}
+								if mstatIndexes != "" {
+									logger.Printfs("ylmstatIndexes: %s", mstatIndexes)
+								}
+								if ustatIndexes != "" {
+									logger.Printfs("ylustatIndexes: %s", ustatIndexes)
+								}
+								if len(trigs) > 0 {
+									logger.Printfs("yltriggers: %v", trigs)
+								}
+							}
+						}
+					} else {
+						conn := GetConnection(db.Name)
+						if conn != nil {
+							if !strings.HasSuffix(statement,";") {
+								statement+=";"
+							}
+							query += statement
+							if len(trigs) > 0 {
+								for _, st := range trigs {
+									if !strings.HasSuffix(st,";") {
+										st+=";"
+									}
+									query += st
+								}
+							}
+							if statIndexes != "" {
+								if !strings.HasSuffix(statIndexes,";") {
+									statIndexes+=";"
+								}
+								query += statIndexes
+							}
+							if mstatIndexes != "" {
+								if !strings.HasSuffix(mstatIndexes,";") {
+									mstatIndexes+=";"
+								}
+								query += mstatIndexes
+							}
+							if ustatIndexes != "" {
+								if !strings.HasSuffix(ustatIndexes,";") {
+									ustatIndexes+=";"
+								}
+								query += ustatIndexes
+							}
+							if Debug {
+								if statement != "" {
+									logger.Printfs("ylstatement: %s", statement)
+								}
+								if statIndexes != "" {
+									logger.Printfs("ylstatIndexes: %s", statIndexes)
+								}
+								if mstatIndexes != "" {
+									logger.Printfs("ylmstatIndexes: %s", mstatIndexes)
+								}
+								if ustatIndexes != "" {
+									logger.Printfs("ylustatIndexes: %s", ustatIndexes)
+								}
+								if len(trigs) > 0 {
+									logger.Printfs("yltriggers: %v", trigs)
+								}
+							}
+							logger.Printfs("grDone, '%s' added to '%s', you may want to restart your server", d, to_table_name)
+						}
+					}
+
+					if _,err := os.Stat("migrations");err != nil {
+						err := os.MkdirAll("migrations",os.ModeDir)
+						logger.CheckError(err)
+					}
+
+					if _,err := os.Stat("migrations/"+fileName);err != nil {
+						f,err := os.Create("migrations/"+fileName)
+						if logger.CheckError(err) {
+							return
+						}
+						_,err = f.WriteString(query)
+						if logger.CheckError(err) {
+							f.Close()
+							return
+						}
+						f.Close()
+						fmt.Printf(logger.Green, "migrations/"+fileName+" created")
+					} else {
+						f,err := os.Open("migrations/"+fileName)
+						if logger.CheckError(err) {
+							return
+						}
+						_,err = f.WriteString(query)
+						if logger.CheckError(err) {
+							f.Close()
+							return
+						}
+						f.Close()
+						fmt.Printf(logger.Green, "migrations/"+fileName+" created")
 					}
 				} else {
 					logger.Printfs("grNothing changed")
@@ -846,6 +1121,40 @@ func adaptPlaceholdersToDialect(query *string, dialect string) *string {
 		*query = strings.Join(split, "")
 	}
 	return query
+}
+
+func handleCache(data map[string]string) {
+	switch data["type"] {
+	case "create", "delete", "update":
+		go func() {
+			cachesAllM.Flush()
+			cachesAllS.Flush()
+			cachesOneM.Flush()
+			cachesOneS.Flush()
+		}()
+	case "drop":
+		go func() {
+			if v, ok := data["table"]; ok {
+				cacheGetAllColumns.Delete(v)
+			}
+			cacheGetAllTables.Flush()
+			cachesAllM.Flush()
+			cachesAllS.Flush()
+			cachesOneM.Flush()
+			cachesOneS.Flush()
+		}()
+	case "clean":
+		go func() {
+			cacheGetAllColumns.Flush()
+			cacheGetAllTables.Flush()
+			cachesAllM.Flush()
+			cachesAllS.Flush()
+			cachesOneM.Flush()
+			cachesOneS.Flush()
+		}()
+	default:
+		logger.Info("CACHE DB: default case triggered", data)
+	}
 }
 
 func GenerateUUID() (string, error) {

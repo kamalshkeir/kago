@@ -552,36 +552,3 @@ func CreateUser(email, password string, isAdmin int, dbName ...string) error {
 	return nil
 }
 
-func handleCache(data map[string]string) {
-	switch data["type"] {
-	case "create", "delete", "update":
-		go func() {
-			cachesAllM.Flush()
-			cachesAllS.Flush()
-			cachesOneM.Flush()
-			cachesOneS.Flush()
-		}()
-	case "drop":
-		go func() {
-			if v, ok := data["table"]; ok {
-				cacheGetAllColumns.Delete(v)
-			}
-			cacheGetAllTables.Flush()
-			cachesAllM.Flush()
-			cachesAllS.Flush()
-			cachesOneM.Flush()
-			cachesOneS.Flush()
-		}()
-	case "clean":
-		go func() {
-			cacheGetAllColumns.Flush()
-			cacheGetAllTables.Flush()
-			cachesAllM.Flush()
-			cachesAllS.Flush()
-			cachesOneM.Flush()
-			cachesOneS.Flush()
-		}()
-	default:
-		logger.Info("CACHE DB: default case triggered", data)
-	}
-}

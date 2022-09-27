@@ -34,13 +34,14 @@ KaGo is a high-level web framework, that encourages clean and rapid development.
 You can stop searching for the best framework, and start a new project using 2 lines of code, run a high performance server with Admin Dashboard, interactive shell, easy and very powerful ORM using generics, AutoSSL and many more...
 
 Quick List of latest features :
+- <strong>NEW :</strong>  orm.AutoMigrate generate query to file instead of executing it directly, you can execute it later using go run main.go shell -> migrate
+- <strong>NEW :</strong>  orm.AddTrigger and orm.DropTrigger, [examples](#orm-triggers)
+- <strong>NEW :</strong>  [Admin SQL like Search](#admin-search)
 - <strong>NEW :</strong>  [Auto SSL Letsencrypt Certificates](#run-https-letsencrypt-in-production-using-env-vars-and-tags) and keep them up to date (auto renew 1 month before expire)
-- <strong>NEW :</strong>  [BareBone Mode](#barebone--router-only-no-assets-cloned) Router Only
-- <strong>NEW :</strong>  [ORM Insensitive Unique Indexes](#available-tags-by-struct-field-type-tags-are-separated-by)
-- <strong>NEW :</strong>  ORM handle coakroachdb in addition to sqlite,postgres and mysql (performance better than GORM)
-- <strong>NEW :</strong>  Admin Update can update all fields in the same time, and delete files from media when data deleted from admin dashboard
-- <strong>NEW :</strong> [Watcher/Auto-Reloader](#watcher--auto-reloader)
-- <strong>NEW :</strong> [orm.AutoMigrate](#automigrate-usage) will handle all your migrations from a struct model, if you remove a field from the migrated struct, you will be prompted to do the migration, it can handle foreign_keys, checks, indexes,...
+- [BareBone Mode](#barebone-router-no-assets-cloned) Router Only
+- ORM handle coakroachdb in addition to sqlite, postgres, mysql and mariadb (check Performance at the bottom of this readme)
+- [Watcher/Auto-Reloader](#watcher-or-auto-reloader)
+- [orm.AutoMigrate](#automigrate-usage) will handle all your migrations from a struct model, if you remove a field from the migrated struct, you will be prompted to do the migration, it can handle foreign_keys, checks, indexes,...
 - Fully editable [CRUD Admin Dashboard](#generated-admin-dashboard) (assets folder)
 - Realtime [Logs](#logs) at `/logs` running with flag `go run main.go --logs`
 - Convenient [Router](#routing) that handle params with regex type checking, Websockets and SSE protocols also 
@@ -84,7 +85,7 @@ func main() {
 }
 ```
 
-##### BareBone : Router only (no assets cloned)
+### BareBone Router (no assets cloned)
 ```go
 package main
 
@@ -159,7 +160,7 @@ MONITORING   -monitoring   DEFAULT: false
 ---
 
 
-## Watcher / auto-reloader 
+### Watcher or Auto-reloader 
 ### install
 ```shell
 go install github.com/kamalshkeir/kago/cmd/katcher
@@ -230,6 +231,11 @@ kamux.GZIP = func(handler http.Handler) http.Handler { // Handler
 		...
 }
 ```
+### Admin Search
+<div align="center">
+	<img src="https://user-images.githubusercontent.com/54605903/192404513-a06d82ba-20f8-4744-91fe-777602075648.png" width="auto" height="auto">
+</div>
+
 ---
 # Routing
 ### Using GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS, HandlerFunc
@@ -987,6 +993,17 @@ CREATE TABLE IF NOT EXISTS bookmarks (
 	<img src="https://user-images.githubusercontent.com/54605903/183331872-85647169-0d48-4bca-a79b-c2f87b61fb13.png" width="auto" style="margin:0 auto 0 auto;"/>
 </div>
 
+
+
+# ORM Triggers
+```go
+func AddTrigger(onTable, col, bf_af_UpdateInsertDelete string,ofColumn, stmt string,forEachRow bool,whenEachRow string, dbName ...string)
+func DropTrigger(onField,tableName string)
+
+//example:
+orm.AddTrigger("users","email","AFTER UPDATE","email","UPDATE users SET uuid='test' where users.id=NEW.id",false,"")
+// this trigger will update uuid to 'test' whenever email is updated
+```
 
 
 
