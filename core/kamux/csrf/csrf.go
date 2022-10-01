@@ -7,13 +7,12 @@ import (
 	"time"
 
 	"github.com/kamalshkeir/kago/core/utils"
-	"github.com/kamalshkeir/kago/core/utils/encryption/encryptor"
 	"github.com/kamalshkeir/kago/core/utils/eventbus"
 	"github.com/kamalshkeir/kago/core/utils/safemap"
 )
 
 var Used bool
-var Csrf_rand = utils.GenerateRandomString(10)
+var Csrf_rand = utils.GenerateRandomString(20)
 var CSRF_CLEAN_EVERY = 20 * time.Minute
 var CSRF_TIMEOUT_RETRY = 4
 var Csrf_tokens = safemap.New[string, Token]()
@@ -49,8 +48,8 @@ var CSRF = func(handler http.Handler) http.Handler {
 			token := r.Header.Get("X-CSRF-Token")
 			tok, ok := Csrf_tokens.Get(token)
 
-			if token == "" || !ok || token != tok.Value || tok.Retry > CSRF_TIMEOUT_RETRY {
-				t, _ := encryptor.Encrypt(Csrf_rand)
+			if !ok || token == "" || (tok.Used && (tok.Retry > CSRF_TIMEOUT_RETRY || time.Since(tok.Created) > CSRF_CLEAN_EVERY)) {
+				t := Csrf_rand
 				Csrf_tokens.Set(t, Token{
 					Value:   t,
 					Used:    false,
@@ -85,6 +84,7 @@ var CSRF = func(handler http.Handler) http.Handler {
 			tok, ok := Csrf_tokens.Get(token)
 			if !ok || token == "" || (tok.Used && (tok.Retry > CSRF_TIMEOUT_RETRY || time.Since(tok.Created) > CSRF_CLEAN_EVERY)) {
 				eventbus.Publish("csrf-clean", tok.Value)
+				Csrf_rand=utils.GenerateRandomString(20)
 				w.WriteHeader(http.StatusBadRequest)
 				json.NewEncoder(w).Encode(map[string]any{
 					"error": "CSRF not allowed",
