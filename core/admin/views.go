@@ -145,24 +145,21 @@ var AllModelsSearch = func(c *kamux.Context) {
 	body := c.BodyJson()
 	
 	oB := ""
-	
+	t, _ := orm.GetMemoryTable(model,orm.DefaultDB)
 	if orderby,ok := body["orderby"];ok {
 		if v,ok := orderby.(string);ok {
 			oB=v
 		} 
 	} 
-	if oB == "" {
-		t, _ := orm.GetMemoryTable(model,orm.DefaultDB)
-		if t.Pk != "" {
-			oB="-"+t.Pk
-		}
+	if oB == "" && t.Pk != ""{
+		oB="-"+t.Pk
 	}
 	if query,ok := body["query"];ok {
 		blder := orm.Table(model).Where(query.(string))
 		if oB != "" {
 			blder.OrderBy(oB)
 		} 
-		data,err := blder.All()
+		data,err := blder.Limit(PAGINATION_PER).Page(1).All()
 		if logger.CheckError(err) {
 			c.Json(map[string]any{
 				"error":err.Error(),
@@ -171,6 +168,7 @@ var AllModelsSearch = func(c *kamux.Context) {
 		}
 		c.Json(map[string]any{
 			"rows":data,
+			"cols":t.Columns,
 		})
 		return
 	}
@@ -201,10 +199,15 @@ var AllModelsPost = func(c *kamux.Context) {
 					if t.Pk != "" && t.Pk != "id" {
 						idString = t.Pk
 					}
-					rows, err := orm.Table(model).OrderBy("-" + idString).Limit(PAGINATION_PER).Page(pagenum).All()
+					orderBY := "-" + idString
+					if orderby,ok := received["orderby"];ok {
+						orderBY=orderby.(string)
+					}
+					rows, err := orm.Table(model).OrderBy(orderBY).Limit(PAGINATION_PER).Page(pagenum).All()
 					if err == nil {
 						c.Json(map[string]any{
 							"rows": rows,
+							"cols":t.Columns,
 						})
 					}
 				}

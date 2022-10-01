@@ -236,6 +236,7 @@ func (router *Router) cloneTemplatesAndStatic() {
 		os.Exit(0)
 	} else if generated {
 		fmt.Printf(logger.Green, "assets generated")
+		os.Exit(0)
 	}
 }
 
