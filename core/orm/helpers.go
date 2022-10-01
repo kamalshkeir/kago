@@ -96,7 +96,7 @@ func LinkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 	if !tFound {
 		db.Tables = append(db.Tables, TableEntity{
 			Name:       to_table_name,
-			Columns:    cols,
+			Columns:    fields,
 			ModelTypes: ftypes,
 			Types:      colsNameType,
 			Tags:       ftags,

@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"mime/multipart"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/kamalshkeir/kago/core/kamux"
 	"github.com/kamalshkeir/kago/core/orm"
@@ -121,6 +123,7 @@ var AllModelsGet = func(c *kamux.Context) {
 			"columns":    t.ModelTypes,
 			"dbcolumns":  dbCols,
 			"pk":         t.Pk,
+			"columnsOrdered":t.Columns,
 		})
 	} else {
 		logger.Error("dbType not known, do you have .env", settings.Config.Db.Type, err)
@@ -141,8 +144,25 @@ var AllModelsSearch = func(c *kamux.Context) {
 
 	body := c.BodyJson()
 	
+	oB := ""
+	
+	if orderby,ok := body["orderby"];ok {
+		if v,ok := orderby.(string);ok {
+			oB=v
+		} 
+	} 
+	if oB == "" {
+		t, _ := orm.GetMemoryTable(model,orm.DefaultDB)
+		if t.Pk != "" {
+			oB="-"+t.Pk
+		}
+	}
 	if query,ok := body["query"];ok {
-		data,err :=orm.Table(model).Where(query.(string)).All()
+		blder := orm.Table(model).Where(query.(string))
+		if oB != "" {
+			blder.OrderBy(oB)
+		} 
+		data,err := blder.All()
 		if logger.CheckError(err) {
 			c.Json(map[string]any{
 				"error":err.Error(),
@@ -529,6 +549,22 @@ var ImportView = func(c *kamux.Context) {
 		})
 		return
 	}
+
+	// get old data and backup
+	modelsOld,_ := orm.Table(table).All()
+	if len(modelsOld) > 0 {
+		modelsOldBytes,err := json.Marshal(modelsOld)
+		if !logger.CheckError(err) {
+			_ = os.MkdirAll(settings.MEDIA_DIR+"/backup/", 0664)
+			dst, err := os.Create(settings.MEDIA_DIR + "/backup/" +table+"-"+ time.Now().Format("2006-01-02")+".json")
+			logger.CheckError(err)
+			defer dst.Close()
+			_,err = dst.Write(modelsOldBytes)
+			logger.CheckError(err)
+		}
+	}
+	
+
 	// fill list_map
 	list_map := []map[string]any{}
 	json.Unmarshal(dataBytes, &list_map)
@@ -540,14 +576,13 @@ var ImportView = func(c *kamux.Context) {
 			cols = append(cols, k)
 			values = append(values, v)
 		}
-
 		_, _ = orm.Table(table).Insert(strings.Join(cols, ","), values)
 		cols = cols[:0]
 		values = values[:0]
 	}
 
 	c.Json(map[string]any{
-		"success": "Import Done , you can find backups at settings.MEDIA_DIR folder",
+		"success": fmt.Sprintf("Import Done , you can see uploaded backups at ./%s/backup folder",settings.MEDIA_DIR),
 	})
 }
 
