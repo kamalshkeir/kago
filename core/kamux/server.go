@@ -54,22 +54,6 @@ func (router *Router) initServer() {
 		ReadTimeout:  ReadTimeout,
 		WriteTimeout: WriteTimeout,
 		IdleTimeout:  IdleTimeout,
-		TLSConfig: &tls.Config{
-			MinVersion:               tls.VersionTLS12,
-			PreferServerCipherSuites: true,
-			CurvePreferences: []tls.CurveID{
-				tls.CurveP256,
-				tls.X25519,
-			},
-			CipherSuites: []uint16{
-				tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-				tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-				tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-				tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305,
-				tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-				tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
-			},
-		},
 	}
 	router.Server = &server
 }
@@ -152,9 +136,9 @@ func (router *Router) createAndHandleServerCerts() bool {
 	domains := settings.Config.Domains
 	cert := settings.Config.Cert
 	key := settings.Config.Key
-	domainsToCertify := []string{}
+	domainsToCertify := map[string]bool{}
 
-	if (cert != "" && key != "") || domains == "" || host == "localhost" || host == "127.0.0.1" {
+	if (cert != "" && key != "") || domains == "" || host == "localhost" || host == "127.0.0.1" || host == "0.0.0.0" {
 		router.initServer()
 		return false
 	} else if domains == "" && cert == "" && key == "" {
@@ -165,9 +149,11 @@ func (router *Router) createAndHandleServerCerts() bool {
 		} else {
 			// cree un nouveau single domain for host
 			if strings.HasPrefix(host, "www.") {
-				domainsToCertify = append(domainsToCertify, host[4:], host)
+				domainsToCertify[host[4:]]=true
+				domainsToCertify[host]=true
 			} else {
-				domainsToCertify = append(domainsToCertify, host, "www."+host)
+				domainsToCertify[host]=true
+				domainsToCertify["www."+host]=true
 			}
 		}
 	} else if domains != "" {
@@ -184,43 +170,55 @@ func (router *Router) createAndHandleServerCerts() bool {
 			if _, ok := mmap[host]; !ok {
 				err := checkDomain(host)
 				if err == nil {
-					domainsToCertify = append(domainsToCertify, host)
+					domainsToCertify[host]=true
 				}
 			}
 			for k := range mmap {
-				domainsToCertify = append(domainsToCertify, k, "www."+k)
+				domainsToCertify[k]=true
+				domainsToCertify["www."+k]=true
 			}
 		} else {
 			sp := strings.Split(domains, ".")
 			if strings.HasPrefix(domains, "www.") && domains != host && len(sp) == 3 {
-				domainsToCertify = append(domainsToCertify, domains[4:], domains)
+				domainsToCertify[domains[4:]]=true
+				domainsToCertify[domains]=true
 			} else if domains != host && len(sp) == 2 {
-				domainsToCertify = append(domainsToCertify, domains, "www."+domains)
+				domainsToCertify[domains]=true
+				domainsToCertify["www."+domains]=true
 			} else if domains != host && len(sp) == 3 {
-				domainsToCertify = append(domainsToCertify, domains)
+				domainsToCertify[domains]=true
 			}
 
 			err := checkDomain(host)
 			if err == nil {
 				sp := strings.Split(host, ".")
 				if len(sp) == 2 {
-					domainsToCertify = append(domainsToCertify, host, "www."+host)
+					domainsToCertify[host]=true
+					domainsToCertify["www."+host]=true
 				} else if len(sp) == 3 && sp[0] == "www" {
-					domainsToCertify = append(domainsToCertify, host[4:], host)
+					domainsToCertify[host]=true
+					domainsToCertify[host[4:]]=true
 				} else {
-					domainsToCertify = append(domainsToCertify, host)
+					domainsToCertify[host]=true
 				}
 			}
 		}
+	}
+	
+	uniqueDomains := []string{}
+	for k := range domainsToCertify {
+		uniqueDomains = append(uniqueDomains, k)
 	}
 
 	if len(domainsToCertify) > 0 {
 		m := &autocert.Manager{
 			Prompt:     autocert.AcceptTOS,
 			Cache:      autocert.DirCache("certs"),
-			HostPolicy: autocert.HostWhitelist(domainsToCertify...),
+			HostPolicy: autocert.HostWhitelist(uniqueDomains...),
 		}
-		router.autoServer(m.TLSConfig())
+		tlsConfig := m.TLSConfig()
+		tlsConfig.NextProtos = append([]string{"h2", "http/1.1"}, tlsConfig.NextProtos...) 
+		router.autoServer(tlsConfig)
 		logger.Printfs("grAuto certified domains: %v", domainsToCertify)
 	}
 	return true
