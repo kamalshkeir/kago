@@ -25,18 +25,20 @@
 	
 </div>
 
+###### Join our [discussions here](https://github.com/kamalshkeir/kago/discussions/1)
 ---
+
 
 # KaGo Web Framework 
 <br>
-KaGo is a high-level web framework, that encourages clean and rapid development.
+KaGo is a Django like web framework, that encourages clean and rapid development.
 
-You can stop searching for the best framework, and start a new project using 2 lines of code, run a high performance server with Admin Dashboard, interactive shell, easy and very powerful ORM using generics, AutoSSL and many more...
+You can start a new project using 2 lines of code, run a high performance server with CRUD Admin Dashboard, interactive shell, easy and performant ORM, AutoSSL and lots more...
 
 Quick List of latest features :
 - <strong>NEW :</strong>  orm.AutoMigrate generate query to file instead of executing it directly, you can execute it later using go run main.go shell -> migrate
 - <strong>NEW :</strong>  orm.AddTrigger and orm.DropTrigger, [examples](#orm-triggers)
-- <strong>NEW :</strong>  [Admin SQL like Search](#admin-search)
+- <strong>NEW :</strong>  [Admin Search and OrderBy](#admin-search)
 - <strong>NEW :</strong>  [Auto SSL Letsencrypt Certificates](#run-https-letsencrypt-in-production-using-env-vars-and-tags) and keep them up to date (auto renew 1 month before expire)
 - [BareBone Mode](#barebone-router-no-assets-cloned) Router Only
 - ORM handle coakroachdb in addition to sqlite, postgres, mysql and mariadb (check Performance at the bottom of this readme)
@@ -62,9 +64,10 @@ Join our  [discussions here](https://github.com/kamalshkeir/kago/discussions/1)
 
 ---
 # Installation
+##### get the last version
 
 ```sh
-go get -u github.com/kamalshkeir/kago
+go get -u github.com/kamalshkeir/kago@v1.2.0
 ```
 
 ---
@@ -120,7 +123,7 @@ go run main.go # default: -h localhost -p 9313
 
 --- 
 
-# Run HTTPS letsencrypt in production using env vars and tags :
+# Run HTTPS letsencrypt in production using env vars and tags
 
 ##### if you have already certificates
 
@@ -134,18 +137,17 @@ go run main.go -h example.com -p 443 --cert cerkey.pem --key privkey.pem
 go run main.go -h example.com -p 443 
 # this will generate 2 certificates from letsencrypt example.com and www.example.com to directory ./certs
 ```
-##### to add more domains, you can:
+##### to add more domains, you can use tag 'domains':
 
 ```sh
-go run main.go -h example.com -p 443 -domains example.com, a.example.com, b.example.com,... 
-# again no need for www. for subdomain , handled automatically
+go run main.go -h example.com -p 443 -domains a.example.com, b.example.com,... 
 ```
 
 
 ```zsh
 # most important tags and env vars that you can override:
 HOST         -h            DEFAULT: "localhost"
-PORT         -p			   DEFAULT: "443"
+PORT         -p			   DEFAULT: "9313"
 DOMAINS      -domains	   DEFAULT: ""
 CERT 	     -cert         DEFAULT: ""
 KEY 	     -key          DEFAULT: ""
@@ -233,7 +235,7 @@ kamux.GZIP = func(handler http.Handler) http.Handler { // Handler
 ```
 ### Admin Search
 <div align="center">
-	<img src="https://user-images.githubusercontent.com/54605903/192404513-a06d82ba-20f8-4744-91fe-777602075648.png" width="auto" height="auto">
+	<img src="https://user-images.githubusercontent.com/54605903/193479905-3dcbd6fd-2af6-4169-b409-a8e9dd940994.png" width="auto" height="auto">
 </div>
 
 ---
