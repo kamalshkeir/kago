@@ -158,11 +158,11 @@ func (router *Router) createAndHandleServerCerts() bool {
 		}
 	} else if domains != "" {
 		if strings.Contains(domains, ",") {
-			// plusieurs domaine
+			// many domaine
 			mmap := map[string]uint8{}
 			sp := strings.Split(domains, ",")
 			for i, d := range sp {
-				if d == host || strings.HasPrefix(d, "www.") {
+				if d == host {
 					continue
 				}
 				mmap[d] = uint8(i)
@@ -175,7 +175,9 @@ func (router *Router) createAndHandleServerCerts() bool {
 			}
 			for k := range mmap {
 				domainsToCertify[k]=true
-				domainsToCertify["www."+k]=true
+				if len(strings.Split(k,".")) == 2 && !strings.HasPrefix(k,"www") {
+					domainsToCertify["www."+k]=true
+				}
 			}
 		} else {
 			sp := strings.Split(domains, ".")
