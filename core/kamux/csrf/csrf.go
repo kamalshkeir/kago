@@ -14,7 +14,7 @@ import (
 var Used bool
 var Csrf_rand = utils.GenerateRandomString(20)
 var CSRF_CLEAN_EVERY = 20 * time.Minute
-var CSRF_TIMEOUT_RETRY = 4
+var CSRF_TIMEOUT_RETRY = 20
 var Csrf_tokens = safemap.New[string, Token]()
 var onc sync.Once
 

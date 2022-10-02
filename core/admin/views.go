@@ -20,7 +20,7 @@ import (
 	"github.com/kamalshkeir/kago/core/utils/logger"
 )
 
-var PAGINATION_PER = 6
+var PAGINATION_PER = 10
 
 var IndexView = func(c *kamux.Context) {
 	allTables := orm.GetAllTables()
@@ -144,80 +144,59 @@ var AllModelsSearch = func(c *kamux.Context) {
 
 	body := c.BodyJson()
 	
+	blder := orm.Table(model)
+	if query,ok := body["query"];ok {
+		if v,ok := query.(string);ok {
+			if v != "" {
+				blder.Where(v)
+			}
+		} 
+	} 
+
 	oB := ""
 	t, _ := orm.GetMemoryTable(model,orm.DefaultDB)
 	if orderby,ok := body["orderby"];ok {
-		if v,ok := orderby.(string);ok {
+		if v,ok := orderby.(string);ok && v != ""{
 			oB=v
-		} 
-	} 
-	if oB == "" && t.Pk != ""{
-		oB="-"+t.Pk
-	}
-	if query,ok := body["query"];ok {
-		blder := orm.Table(model).Where(query.(string))
-		if oB != "" {
-			blder.OrderBy(oB)
-		} 
-		data,err := blder.Limit(PAGINATION_PER).Page(1).All()
-		if logger.CheckError(err) {
-			c.Json(map[string]any{
-				"error":err.Error(),
-			})
-			return
-		}
-		c.Json(map[string]any{
-			"rows":data,
-			"cols":t.Columns,
-		})
-		return
-	}
-	c.SetStatus(400)
-}
-
-var AllModelsPost = func(c *kamux.Context) {
-	model, ok := c.Params["model"]
-	if !ok {
-		c.Status(http.StatusBadRequest).Json(map[string]any{
-			"error": "No model given in params",
-		})
-		return
-	}
-	received := c.BodyJson()
-	if received != nil {
-		if v, ok := received["page_num"]; ok {
-			if page, ok := v.(string); !ok {
-				c.Status(http.StatusBadRequest).Json(map[string]any{
-					"error": "expecting page_num to be a sring",
-				})
-				return
-			} else {
-				pagenum, err := strconv.Atoi(page)
-				if err == nil {
-					idString := "id"
-					t, _ := orm.GetMemoryTable(model,orm.DefaultDB)
-					if t.Pk != "" && t.Pk != "id" {
-						idString = t.Pk
-					}
-					orderBY := "-" + idString
-					if orderby,ok := received["orderby"];ok {
-						orderBY=orderby.(string)
-					}
-					rows, err := orm.Table(model).OrderBy(orderBY).Limit(PAGINATION_PER).Page(pagenum).All()
-					if err == nil {
-						c.Json(map[string]any{
-							"rows": rows,
-							"cols":t.Columns,
-						})
-					}
-				}
-			}
 		} else {
-			logger.Error("page_num not given", received)
+			oB="-"+t.Pk
 		}
 	} else {
-		c.Json([]map[string]any{})
+		oB="-"+t.Pk
 	}
+	blder.OrderBy(oB)
+	if v, ok := body["page_num"]; ok && v != "" {
+		if page, ok := v.(string); !ok {
+			c.Status(http.StatusBadRequest).Json(map[string]any{
+				"error": "expecting page_num to be a sring",
+			})
+			return
+		} else {
+			pagenum, err := strconv.Atoi(page)
+			if err == nil {
+				blder.Limit(PAGINATION_PER).Page(pagenum)
+			} else {
+				c.Status(http.StatusBadRequest).Json(map[string]any{
+					"error": err.Error(),
+				})
+				return
+			}
+		}
+	} else {
+		blder.Limit(PAGINATION_PER).Page(1)
+	}
+
+	data,err := blder.All()
+	if err != nil {
+		c.Json(map[string]any{
+			"error":err.Error(),
+		})
+		return
+	}
+	c.Json(map[string]any{
+		"rows":data,
+		"cols":t.Columns,
+	})
 }
 
 var DeleteRowPost = func(c *kamux.Context) {

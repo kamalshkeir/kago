@@ -25,7 +25,6 @@ func UrlPatterns(r *kamux.Router) {
 	r.POST("/admin/drop/table", kamux.Admin(DropTablePost))
 	r.GET("/admin/table/model:str", kamux.Admin(AllModelsGet))
 	r.POST("/admin/table/model:str/search", kamux.Admin(AllModelsSearch))
-	r.POST("/admin/table/model:str", kamux.Admin(AllModelsPost))
 	r.GET("/admin/get/model:str/id:int", kamux.Admin(SingleModelGet))
 	r.GET("/admin/export/table:str", kamux.Admin(ExportView))
 	r.POST("/admin/import", kamux.Admin(ImportView))
