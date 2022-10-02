@@ -204,7 +204,10 @@ func (router *Router) createAndHandleServerCerts() bool {
 			}
 		}
 	}
-	
+	pIP := utils.GetPrivateIp()
+	if _,ok := domainsToCertify[pIP];!ok {
+		domainsToCertify[pIP]=true
+	}
 	uniqueDomains := []string{}
 	for k := range domainsToCertify {
 		uniqueDomains = append(uniqueDomains, k)
@@ -219,7 +222,7 @@ func (router *Router) createAndHandleServerCerts() bool {
 		tlsConfig := m.TLSConfig()
 		tlsConfig.NextProtos = append([]string{"h2", "http/1.1"}, tlsConfig.NextProtos...) 
 		router.autoServer(tlsConfig)
-		logger.Printfs("grAuto certified domains: %v", domainsToCertify)
+		logger.Printfs("grAuto certified domains: %v", uniqueDomains)
 	}
 	return true
 }
