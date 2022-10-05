@@ -10,7 +10,7 @@ import (
 	"sync"
 
 	"github.com/kamalshkeir/kago/core/utils/logger"
-	"github.com/kamalshkeir/kago/core/utils/strct"
+	"github.com/kamalshkeir/kstrct"
 )
 
 func Load(envFiles ...string) {
@@ -80,10 +80,10 @@ func fillStructFromEnv(s reflect.Value) error {
 				required = true
 			}
 			if osv := os.Getenv(strings.TrimSpace(tag)); osv != "" {
-				strct.SetFieldValue(s.Field(i), osv)
+				kstrct.SetReflectFieldValue(s.Field(i), osv)
 			} else {
 				if !required {
-					strct.SetFieldValue(s.Field(i), defau)
+					kstrct.SetReflectFieldValue(s.Field(i), defau)
 				} else {
 					errored = append(errored, t)
 				}

@@ -1082,13 +1082,13 @@ func getTableName[T comparable]() string {
 }
 
 // getStructInfos very useful to access all struct fields data using reflect package
-func getStructInfos[T comparable](strct *T) (fields []string, fValues map[string]any, fTypes map[string]string, fTags map[string][]string) {
+func getStructInfos[T comparable](strctt *T) (fields []string, fValues map[string]any, fTypes map[string]string, fTags map[string][]string) {
 	fields = []string{}
 	fValues = map[string]any{}
 	fTypes = map[string]string{}
 	fTags = map[string][]string{}
 
-	s := reflect.ValueOf(strct).Elem()
+	s := reflect.ValueOf(strctt).Elem()
 	typeOfT := s.Type()
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)

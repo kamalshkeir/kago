@@ -37,6 +37,7 @@ require (
 
 require (
 	github.com/go-sql-driver/mysql v1.6.0
+	github.com/kamalshkeir/kstrct v1.0.0
 	github.com/prometheus/client_golang v1.12.2
 	golang.org/x/net v0.0.0-20220728211354-c7608f3a8462
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035
