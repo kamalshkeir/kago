@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	COOKIES_Expires = 20*time.Second
+	COOKIES_Expires = 7 * 24 * time.Hour
 	COOKIES_SameSite = http.SameSiteStrictMode
 	COOKIES_HttpOnly = true
 	COOKIES_Secure = false
