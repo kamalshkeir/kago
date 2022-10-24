@@ -2,20 +2,42 @@ package kamux
 
 import (
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/kamalshkeir/kago/core/settings"
 )
 
-// COOKIE_EXPIRE global cookie expiry time
-var COOKIE_EXPIRE = time.Now().Add(7 * 24 * time.Hour)
+var (
+	COOKIES_Expires = 20*time.Second
+	COOKIES_SameSite = http.SameSiteStrictMode
+	COOKIES_HttpOnly = true
+	COOKIES_Secure = false
+)
+
+func init() {
+	if strings.Contains(settings.Config.Port,"443") {
+		COOKIES_Secure=true
+	}
+}
+
 
 // SetCookie set cookie given key and value
 func (c *Context) SetCookie(key, value string) {
+	if !COOKIES_Secure {
+		if c.Request.TLS != nil {
+			COOKIES_Secure=true
+		}
+	}
 	http.SetCookie(c.ResponseWriter, &http.Cookie{
 		Name:     key,
 		Value:    value,
 		Path:     "/",
-		Expires:  COOKIE_EXPIRE,
-		HttpOnly: true,
+		Expires:  time.Now().Add(COOKIES_Expires),
+		HttpOnly: COOKIES_HttpOnly,
+		SameSite: COOKIES_SameSite,
+		Secure: COOKIES_Secure,
+		MaxAge: int(COOKIES_Expires.Seconds()),
 	})
 }
 
@@ -35,6 +57,9 @@ func (c *Context) DeleteCookie(key string) {
 		Value:    "",
 		Path:     "/",
 		Expires:  time.Now(),
-		HttpOnly: true,
+		HttpOnly: COOKIES_HttpOnly,
+		SameSite: COOKIES_SameSite,
+		Secure: COOKIES_Secure,
+		MaxAge: -1,
 	})
 }

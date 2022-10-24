@@ -68,7 +68,7 @@ var Admin = func(handler Handler) Handler {
 		if err != nil || session == "" {
 			// NOT AUTHENTICATED
 			c.DeleteCookie("session")
-			http.Redirect(c.ResponseWriter, c.Request, "/admin/login", http.StatusTemporaryRedirect)
+			c.Status(http.StatusTemporaryRedirect).Redirect("/admin/login")
 			return
 		}
 		if SESSION_ENCRYPTION {

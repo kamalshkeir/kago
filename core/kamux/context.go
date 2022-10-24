@@ -101,22 +101,25 @@ func (c *Context) IsAuthenticated() bool {
 	}
 }
 
-func (c *Context) User() models.User {
+func (c *Context) User() (models.User,bool) {
 	const key utils.ContextKey = "user"
-	return c.Request.Context().Value(key).(models.User)
+	user, ok := c.Request.Context().Value(key).(models.User)
+	if ok {
+		return c.Request.Context().Value(key).(models.User),true
+	} else {
+		return user,false
+	}
 }
 
 // Html return template_name with data to the client
 func (c *Context) Html(template_name string, data map[string]any) {
 	var buff bytes.Buffer
-	const key utils.ContextKey = "user"
 	if data == nil {
 		data = make(map[string]any)
 	}
-
 	data["Request"] = c.Request
 	data["Logs"] = settings.Config.Logs
-	user, ok := c.Request.Context().Value(key).(models.User)
+	user, ok := c.User()
 	if ok {
 		data["IsAuthenticated"] = true
 		data["User"] = user
