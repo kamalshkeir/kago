@@ -35,6 +35,12 @@ KaGo is a Django like web framework, that encourages clean and rapid development
 
 You can start a new project using 2 lines of code, run a high performance server with CRUD Admin Dashboard, interactive shell, easy and performant ORM, AutoSSL and lots more...
 
+List of packages extracted from kago in order to make it more composable :
+- ORM [Korm](https://github.com/kamalshkeir/korm)
+- Router [Kmux](https://github.com/kamalshkeir/kmux)
+- Network [KSbus](https://github.com/kamalshkeir/ksbus)
+- Safemap [Kmap](https://github.com/kamalshkeir/kmap)
+
 Quick List of latest features :
 - <strong>NEW :</strong>  orm.AutoMigrate generate query to file instead of executing it directly, you can execute it later using go run main.go shell -> migrate
 - <strong>NEW :</strong>  orm.AddTrigger and orm.DropTrigger, [examples](#orm-triggers)
