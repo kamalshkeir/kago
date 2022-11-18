@@ -40,6 +40,7 @@ List of packages extracted from kago in order to make it more composable :
 - Router [Kmux](https://github.com/kamalshkeir/kmux)
 - Network [KSbus](https://github.com/kamalshkeir/ksbus)
 - Safemap [Kmap](https://github.com/kamalshkeir/kmap)
+- EnvLoader [Kenv](https://github.com/kamalshkeir/kenv)
 
 Quick List of latest features :
 - <strong>NEW :</strong>  orm.AutoMigrate generate query to file instead of executing it directly, you can execute it later using go run main.go shell -> migrate
