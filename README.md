@@ -74,8 +74,13 @@ Join our  [discussions here](https://github.com/kamalshkeir/kago/discussions/1)
 ##### get the last version
 
 ```sh
-go get -u github.com/kamalshkeir/kago@v1.2.0
+go get -u github.com/kamalshkeir/kago@v1.2.5
 ```
+
+# Drivers moved outside this package to not get them all in your go.mod file
+go get github.com/kamalshkeir/sqlitedriver
+go get github.com/kamalshkeir/pgdriver
+go get github.com/kamalshkeir/mysqldriver
 
 ---
 
@@ -87,9 +92,13 @@ package main
 
 import (
 	"github.com/kamalshkeir/kago"
+	"github.com/kamalshkeir/sqlitedriver"
 )
 
 func main() {
+	sqlitedriver.Use() // use one of this drivers
+	mysqldriver.Use()
+	pgdriver.Use()
 	app := kago.New() // router + admin + database + shell
 	app.Run()
 }
@@ -104,7 +113,7 @@ import (
 )
 
 func main() {
-	app := kago.BareBone() // router only
+	app := kago.BareBone() // router only, bot need for sql drivers
 	app.Run()
 }
 ```

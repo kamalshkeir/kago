@@ -139,7 +139,7 @@ func (b *Builder[T]) Insert(model *T) (int, error) {
 	}
 	if err != nil {
 		if Debug {
-			logger.Info(b.statement,values)
+			logger.Info(b.statement, values)
 			logger.Error(err)
 		}
 		return affectedRows, err
@@ -195,7 +195,7 @@ func (b *Builder[T]) Set(query string, args ...any) (int, error) {
 	}
 	if err != nil {
 		if Debug {
-			logger.Info(b.statement,args)
+			logger.Info(b.statement, args)
 			logger.Error(err)
 		}
 		return 0, err
@@ -555,15 +555,20 @@ func (b *Builder[T]) queryS(query string, args ...any) ([]T, error) {
 		}
 
 		row := new(T)
+		m := map[string]any{}
 		if b.selected != "" && b.selected != "*" {
-			m := map[string]any{}
-			keys := strings.Split(b.selected,",")
+			keys := strings.Split(b.selected, ",")
 			for i, key := range keys {
-				m[key]=values[i]
+				m[key] = values[i]
 			}
-			kstrct.FillFromMap(row, m)
 		} else {
-			kstrct.FillFromValues(row, values...)
+			for i, key := range cols {
+				m[key] = values[i]
+			}
+		}
+		err = kstrct.FillFromMap(row, m)
+		if err != nil {
+			return nil, err
 		}
 		res = append(res, *row)
 	}
