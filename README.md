@@ -75,7 +75,7 @@ Join our  [discussions here](https://github.com/kamalshkeir/kago/discussions/1)
 ##### get the last version
 
 ```sh
-go get -u github.com/kamalshkeir/kago@v1.2.6
+go get -u github.com/kamalshkeir/kago@v1.2.7
 ```
 
 # Drivers moved outside this package to not get them all in your go.mod file
