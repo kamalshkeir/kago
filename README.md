@@ -43,6 +43,7 @@ List of packages extracted from kago in order to make it more composable :
 - EnvLoader [Kenv](https://github.com/kamalshkeir/kenv)
 
 Quick List of latest features :
+- <strong>NEW :</strong>  Handle [Many To Many](#many-to-many-example) relationship
 - <strong>NEW :</strong>  orm.AutoMigrate generate query to file instead of executing it directly, you can execute it later using go run main.go shell -> migrate
 - <strong>NEW :</strong>  orm.AddTrigger and orm.DropTrigger, [examples](#orm-triggers)
 - <strong>NEW :</strong>  [Admin Search and OrderBy](#admin-search)
@@ -50,7 +51,7 @@ Quick List of latest features :
 - [BareBone Mode](#barebone-router-no-assets-cloned) Router Only
 - ORM handle coakroachdb in addition to sqlite, postgres, mysql and mariadb (check Performance at the bottom of this readme)
 - [Watcher/Auto-Reloader](#watcher-or-auto-reloader)
-- [orm.AutoMigrate](#automigrate-usage) will handle all your migrations from a struct model, if you remove a field from the migrated struct, you will be prompted to do the migration, it can handle foreign_keys, checks, indexes,...
+- [orm.AutoMigrate](#automigrate-usage) will handle all your migrations from a struct model, if you remove a field from the migrated struct, you will be prompted to do the migration, it can handle foreign_keys,many to many, checks, indexes,...
 - Fully editable [CRUD Admin Dashboard](#generated-admin-dashboard) (assets folder)
 - Realtime [Logs](#logs) at `/logs` running with flag `go run main.go --logs`
 - Convenient [Router](#routing) that handle params with regex type checking, Websockets and SSE protocols also 
@@ -751,9 +752,8 @@ orm.UseCache=false
 orm.NewDatabaseFromDSN(dbType,dbName string,dbDSN ...string) (error)
 orm.NewDatabaseFromConnection(dbType,dbName string,conn *sql.DB) (error)
 orm.GetConnection(dbName ...string) // GetConnection return default connection for orm.DefaultDatabase (if dbName not given or "" or "default") else it return the specified one
-orm.UseForAdmin(dbName string) // UseForAdmin use specific database in admin panel if many
-orm.GetDatabases() []DatabaseEntity // GetDatabases get list of databases available to your app
-orm.GetDatabase() *DatabaseEntity // GetDatabase return the first connected database orm.DefaultDatabase if dbName "" or "default" else the matched db
+orm.UseForAdmin(dbName string) // UseForAdmin use specific database in admin panel if manymatched db
+orm.ManyToMany(table1, table2 string, dbName ...string) error // create m2m_table1_table2 table relations
 ```
 
 #### Utility database queries:
@@ -774,8 +774,6 @@ orm.CreateUser(email,password string,isAdmin int, dbName ...string) error // pas
 ### when kago app executed, all models registered using AutoMigrate will be synchronized with the database so if you add a field to you struct or add a column to your table, you will have a prompt proposing migration
 
 ### execute AutoMigrate and don't think about it, it will handle all synchronisations between your project structs types like in the example Bookmark below
-
-### For instance you can add foreign keys column to your table by adding extra field to your struct and restart your app, you can also remove foreign keys. 
 
 ### If you need to change a tag, remove the field, restart, put the new one with the new tag, restart again, that's it 
 
@@ -1049,6 +1047,10 @@ orm.BuilderS[T comparable]() *Builder[T] // starter
 (b *Builder[T]).Debug() *Builder[T] // print the query statement
 (b *Builder[T]).All() ([]T, error) // finisher
 (b *Builder[T]).One() (T, error) // finisher
+(b *Builder[T]) AddRelated(relatedTable string, whereRelatedTable string, whereRelatedArgs ...any) (int, error) //MANY TO MANY use it after orm.ManyToMany(...)
+(b *Builder[T]) DeleteRelated(relatedTable string, whereRelatedTable string, whereRelatedArgs ...any) (int, error) //MANY TO MANY use it after orm.ManyToMany(...)
+(b *Builder[T]) GetRelated(relatedTable string, dest any) error //MANY TO MANY use it after orm.ManyToMany(...)
+(b *Builder[T]) JoinRelated(relatedTable string, dest any) error //MANY TO MANY use it after orm.ManyToMany(...)
 ```
 # Examples
 ```go
@@ -1107,6 +1109,10 @@ orm.BuilderMap(tableName string) *BuilderM // starter
 (b *BuilderM).Set(query string, args ...any) (int, error)
 (b *BuilderM).Delete() (int, error)
 (b *BuilderM).Drop() (int, error)
+(b *BuilderM) AddRelated(relatedTable string, whereRelatedTable string, whereRelatedArgs ...any) (int, error) //MANY TO MANY use it after orm.ManyToMany(...)
+(b *BuilderM) GetRelated(relatedTable string, dest *[]map[string]any) error //MANY TO MANY use it after orm.ManyToMany(...)
+(b *BuilderM) JoinRelated(relatedTable string, dest *[]map[string]any) error //MANY TO MANY use it after orm.ManyToMany(...)
+(b *BuilderM) DeleteRelated(relatedTable string, whereRelatedTable string, whereRelatedArgs ...any) (int, error) //MANY TO MANY use it after orm.ManyToMany(...)
 ```
 # Examples
 ```go
@@ -1505,6 +1511,85 @@ BenchmarkGetAllColumnsTypes-4        64293176                20.87 ns/op        
 
 ```
 ---
+
+# Many to many example
+```go
+type Class struct {
+	Id          uint   `orm:"pk"`
+	Name        string `orm:"size:100"`
+	IsAvailable bool
+	CreatedAt   time.Time `orm:"now"`
+}
+
+type Student struct {
+	Id        uint      `orm:"pk"`
+	Name      string    `orm:"size:100"`
+	CreatedAt time.Time `orm:"now"`
+}
+
+type Teacher struct {
+	Id        uint      `orm:"pk"`
+	Name      string    `orm:"size:100"`
+	CreatedAt time.Time `orm:"now"`
+}
+
+
+// migrate
+func migrate() {
+	err := orm.AutoMigrate[Class]("classes")
+	if klog.CheckError(err) {
+		return
+	}
+	err = orm.AutoMigrate[Student]("students")
+	if klog.CheckError(err) {
+		return
+	}
+	err = orm.AutoMigrate[Teacher]("teachers")
+	if klog.CheckError(err) {
+		return
+	}
+}
+
+// orm.ManyToMany create relation table named m2m_table1_table2
+// create relations
+err = orm.ManyToMany("classes", "students")
+if logger.CheckError(err) {
+	return
+}
+err = orm.ManyToMany("classes", "teachers")
+if logger.CheckError(err) {
+	return
+}
+
+// then you can use it like so to get related data
+
+// get related to map to struct
+std := []Student{}
+err = orm.Model[Class]().Where("name = ?", "Math").Select("name").OrderBy("-name").Limit(1).GetRelated("students", &std)
+
+// get related to map
+std := []map[string]any{}
+err = orm.Table("classes").Where("name = ?", "Math").Select("name").OrderBy("-name").Limit(1).GetRelated("students", &std)
+
+// join related to map
+std := []map[string]any{}
+err = orm.Table("classes").Where("name = ?", "Math").JoinRelated("students", &std)
+
+// join related to map
+std := []Student{}
+err = orm.Model[Class]().Where("name = ?", "Math").JoinRelated("students", &std)
+
+// to add relation
+_, err = orm.Model[Class]().AddRelated("students", "name = ?", "hisName")
+_, err = orm.Model[Student]().AddRelated("classes", "name = ?", "French")
+_, err = orm.Table("students").AddRelated("classes", "name = ?", "French")
+
+// delete relation
+_, err = orm.Model[Class]().Where("name = ?", "Math").DeleteRelated("students", "name = ?", "hisName")
+_, err = orm.Table("classes").Where("name = ?", "Math").DeleteRelated("students", "name = ?", "hisName")
+
+
+```
 
 # 🔗 Links
 [![portfolio](https://img.shields.io/badge/my_portfolio-000?style=for-the-badge&logo=ko-fi&logoColor=white)](https://kamalshkeir.dev/)

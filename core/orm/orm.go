@@ -27,7 +27,9 @@ var (
 	cacheGetAllColumns = safemap.New[string, map[string]string]()
 	cachesOneM         = safemap.New[dbCache, map[string]any]()
 	cachesAllM         = safemap.New[dbCache, []map[string]any]()
+	relationsMap       = safemap.New[string, struct{}]()
 	DefaultDB          = ""
+	migrationAutoCheck = true
 )
 
 const (
@@ -35,10 +37,11 @@ const (
 	CACHE_TOPIC      = "internale-db-cache"
 )
 const (
-	SQLITE   = "sqlite"
-	POSTGRES = "postgres"
-	MYSQL    = "mysql"
-	MARIA    = "maria"
+	SQLITE    = "sqlite"
+	POSTGRES  = "postgres"
+	MYSQL     = "mysql"
+	MARIA     = "maria"
+	COCKROACH = "cockroach"
 )
 
 type TableEntity struct {
@@ -133,12 +136,21 @@ func InitDB() error {
 		handleCache(data)
 	})
 
-	go utils.RunEvery(30*time.Minute, func() {
+	go utils.RunEvery(10*time.Minute, func() {
 		eventbus.Publish(CACHE_TOPIC, map[string]string{
 			"type": "clean",
 		})
 	})
 	return nil
+}
+
+// DisableCache disable the cache system, if you are having problem with it, you can korm.FlushCache on command too
+func DisableCache() {
+	UseCache = false
+}
+
+func DisableCheck() {
+	migrationAutoCheck = false
 }
 
 func NewDatabaseFromDSN(dbType, dbName string, dbDSN ...string) error {
@@ -281,9 +293,7 @@ func UseForAdmin(dbName string) {
 		if db.Dialect != "" {
 			if UseCache {
 				eventbus.Publish(CACHE_TOPIC, map[string]string{
-					"type":     "clean",
-					"table":    "",
-					"database": "",
+					"type": "clean",
 				})
 			}
 			DefaultDB = db.Name
@@ -545,4 +555,105 @@ func CreateUser(email, password string, isAdmin int, dbName ...string) error {
 		return err
 	}
 	return nil
+}
+
+func ManyToMany(table1, table2 string, dbName ...string) error {
+	fkeys := []string{}
+	autoinc := ""
+	def := GetMemoryDatabases()[0]
+	mdbName := def.Name
+	dbType := def.Dialect
+	if len(dbName) > 0 {
+		mdbName = dbName[0]
+		dben, err := GetMemoryDatabase(dbName[0])
+		if err != nil {
+			dbType = dben.Dialect
+		}
+	}
+
+	defer func() {
+		relationsMap.Set("m2m_"+table1+"-"+mdbName+"-"+table2, struct{}{})
+	}()
+
+	if _, ok := relationsMap.Get("m2m_" + table1 + "-" + mdbName + "-" + table2); ok {
+		return nil
+	}
+
+	tables := GetAllTables(mdbName)
+	if len(tables) == 0 {
+		return errors.New("databse is empty")
+	}
+	for _, t := range tables {
+		if t == table1+"_"+table2 || t == table2+"_"+table1 {
+			return nil
+		}
+	}
+	switch dbType {
+	case SQLITE, "":
+		autoinc = "INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT"
+	case POSTGRES, COCKROACH:
+		autoinc = "SERIAL NOT NULL PRIMARY KEY"
+	case MYSQL, MARIA:
+		autoinc = "INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT"
+	default:
+		logger.Printf("dialect can be sqlite, postgres, coakroach or mysql,maria only, not %s\n", dbType)
+	}
+	//logger.Printfs("many to many field:%v\n", tableName+"_"+table)
+	//logger.Printfs("table: %v, fields: %v, fkeys: %v, cols: %v, ftags:%v \n", tableName+"_"+table, res, fkeys, cols, mFieldName_Tags)
+
+	fkeys = append(fkeys, foreignkeyStat(table1+"_id", table1, "cascade", "cascade"))
+	fkeys = append(fkeys, foreignkeyStat(table2+"_id", table2, "cascade", "cascade"))
+	st := prepareCreateStatement(
+		"m2m_"+table1+"_"+table2,
+		map[string]string{
+			"id":           autoinc,
+			table1 + "_id": "INTEGER",
+			table2 + "_id": "INTEGER",
+		},
+		fkeys,
+		[]string{"id", table1 + "_id", table2 + "_id"},
+	)
+	if Debug {
+		logger.Printfs("yl%s\n", st)
+	}
+	err := Exec(mdbName, st)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// foreignkeyStat options are : "cascade","donothing", "noaction","setnull", "null","setdefault", "default"
+func foreignkeyStat(fName, toTable, onDelete, onUpdate string) string {
+	toPk := "id"
+	if strings.Contains(toTable, ".") {
+		sp := strings.Split(toTable, ".")
+		if len(sp) == 2 {
+			toPk = sp[1]
+		}
+	}
+	fkey := "FOREIGN KEY (" + fName + ") REFERENCES " + toTable + "(" + toPk + ")"
+	switch onDelete {
+	case "cascade":
+		fkey += " ON DELETE CASCADE"
+	case "donothing", "noaction":
+		fkey += " ON DELETE NO ACTION"
+	case "setnull", "null":
+		fkey += " ON DELETE SET NULL"
+	case "setdefault", "default":
+		fkey += " ON DELETE SET DEFAULT"
+	}
+
+	switch onUpdate {
+	case "cascade":
+		fkey += " ON UPDATE CASCADE"
+	case "donothing", "noaction":
+		fkey += " ON UPDATE NO ACTION"
+	case "setnull", "null":
+		fkey += " ON UPDATE SET NULL"
+	case "setdefault", "default":
+		fkey += " ON UPDATE SET DEFAULT"
+	}
+	return fkey
 }

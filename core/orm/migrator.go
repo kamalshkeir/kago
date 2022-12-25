@@ -12,8 +12,8 @@ import (
 	"github.com/kamalshkeir/kago/core/settings"
 	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/logger"
+	"github.com/kamalshkeir/kstrct"
 )
-
 
 func Migrate() error {
 	err := AutoMigrate[models.User]("users", settings.Config.Db.Name)
@@ -48,77 +48,77 @@ func checkUpdatedAtTrigger(dialect, tableName, col, pk string) map[string][]stri
 	return triggers
 }
 
-func AddTrigger(onTable, col, bf_af_UpdateInsertDelete string,ofColumn, stmt string,forEachRow bool,whenEachRow string, dbName ...string) {
+func AddTrigger(onTable, col, bf_af_UpdateInsertDelete string, ofColumn, stmt string, forEachRow bool, whenEachRow string, dbName ...string) {
 	stat := []string{}
 	if len(dbName) == 0 {
 		dbName = append(dbName, settings.Config.Db.Name)
 	}
-	if strings.Contains(strings.ToLower(ofColumn),"of") {
-		ofColumn=strings.ReplaceAll(strings.ToLower(ofColumn),"of","")
-	} 
+	if strings.Contains(strings.ToLower(ofColumn), "of") {
+		ofColumn = strings.ReplaceAll(strings.ToLower(ofColumn), "of", "")
+	}
 	dialect := mDbNameDialect[dbName[0]]
 	switch dialect {
-	case "sqlite","sqlite3","":
+	case "sqlite", "sqlite3", "":
 		if ofColumn != "" {
-			ofColumn = " OF "+col
+			ofColumn = " OF " + col
 		}
-		st := "CREATE TRIGGER IF NOT EXISTS "+onTable + "_trig_" + col + " "
-		st += bf_af_UpdateInsertDelete+ofColumn+" ON " + onTable
+		st := "CREATE TRIGGER IF NOT EXISTS " + onTable + "_trig_" + col + " "
+		st += bf_af_UpdateInsertDelete + ofColumn + " ON " + onTable
 		st += " BEGIN " + stmt + ";End;"
 		stat = append(stat, st)
-	case POSTGRES,"coakroach","pg","coakroachdb":
+	case POSTGRES, "coakroach", "pg", "coakroachdb":
 		if ofColumn != "" {
-			ofColumn = " OF "+col
+			ofColumn = " OF " + col
 		}
 		name := onTable + "_trig_" + col
-		st := "CREATE OR REPLACE FUNCTION "+name+"_func() RETURNS trigger AS $$"
+		st := "CREATE OR REPLACE FUNCTION " + name + "_func() RETURNS trigger AS $$"
 		st += " BEGIN " + stmt + ";RETURN NEW;"
 		st += "END;$$ LANGUAGE plpgsql;"
 		stat = append(stat, st)
 		trigCreate := "CREATE OR REPLACE TRIGGER " + name
-		trigCreate += " " + bf_af_UpdateInsertDelete+ofColumn+" ON public." + onTable
-		trigCreate += " FOR EACH ROW EXECUTE PROCEDURE "+name+"_func();"
+		trigCreate += " " + bf_af_UpdateInsertDelete + ofColumn + " ON public." + onTable
+		trigCreate += " FOR EACH ROW EXECUTE PROCEDURE " + name + "_func();"
 		stat = append(stat, trigCreate)
-	case MYSQL,MARIA:
-		stat=append(stat, "DROP TRIGGER "+onTable + "_trig_" + col+";")
-		st := "CREATE TRIGGER "+onTable + "_trig_" + col + " "
-		st += bf_af_UpdateInsertDelete+" ON " + onTable
+	case MYSQL, MARIA:
+		stat = append(stat, "DROP TRIGGER "+onTable+"_trig_"+col+";")
+		st := "CREATE TRIGGER " + onTable + "_trig_" + col + " "
+		st += bf_af_UpdateInsertDelete + " ON " + onTable
 		st += " FOR EACH ROW " + stmt + ";"
 		stat = append(stat, st)
 	default:
-		return 
+		return
 	}
 
 	if Debug {
-		logger.Info("statement:",stat)
+		logger.Info("statement:", stat)
 	}
-	
-	for _,s := range stat {
-		err := Exec(dbName[0],s)
+
+	for _, s := range stat {
+		err := Exec(dbName[0], s)
 		if err != nil {
-			if !utils.StringContains(err.Error(),"Trigger does not exist") {
-				logger.Error("could not add trigger",err)
-				return 
+			if !utils.StringContains(err.Error(), "Trigger does not exist") {
+				logger.Error("could not add trigger", err)
+				return
 			}
 		}
 	}
 }
 
-func DropTrigger(onField,tableName string) {
-	stat := "DROP TRIGGER "+tableName + "_trig_" + onField+";"
+func DropTrigger(onField, tableName string) {
+	stat := "DROP TRIGGER " + tableName + "_trig_" + onField + ";"
 	if Debug {
 		logger.Info(stat)
 	}
-	err := Exec(settings.Config.Db.Name,stat)
+	err := Exec(settings.Config.Db.Name, stat)
 	if err != nil {
-		if !utils.StringContains(err.Error(),"Trigger does not exist") {
-			return 
+		if !utils.StringContains(err.Error(), "Trigger does not exist") {
+			return
 		}
 		logger.Error(err)
 	}
 }
 
-func autoMigrate[T comparable](db *DatabaseEntity, tableName string, execute bool) (string,error) {
+func autoMigrate[T comparable](db *DatabaseEntity, tableName string, execute bool) (string, error) {
 	toReturnstats := []string{}
 	dialect := db.Dialect
 	s := reflect.ValueOf(new(T)).Elem()
@@ -131,7 +131,7 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string, execute boo
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		fname := typeOfT.Field(i).Name
-		fname = utils.ToSnakeCase(fname)
+		fname = kstrct.ToSnakeCase(fname)
 		ftype := f.Type()
 		cols = append(cols, fname)
 		mFieldName_Type[fname] = ftype.Name()
@@ -187,11 +187,21 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string, execute boo
 			case "Time":
 				handleMigrationTime(mi)
 			default:
-				logger.Error(fName, "of type", ty, "not handled")
+				isM2M := false
+				if tags, ok := mFieldName_Tags[fName]; ok {
+					for _, tag := range tags {
+						if strings.Contains(tag, "m2m") {
+							isM2M = true
+						}
+					}
+				}
+				if !isM2M {
+					logger.Printf(fName, "of type %s not handled", ty)
+				}
 			}
 		}
 	}
-	statement := prepareCreateStatement(tableName, res, fkeys, cols, db, mFieldName_Tags)
+	statement := prepareCreateStatement(tableName, res, fkeys, cols)
 	var triggers map[string][]string
 	tbFound := false
 
@@ -239,15 +249,15 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string, execute boo
 	if execute {
 		ress, err := db.Conn.ExecContext(c, statement)
 		if err != nil {
-			return "",err
+			return "", err
 		}
 		_, err = ress.RowsAffected()
 		if err != nil {
-			return "",err
+			return "", err
 		}
-	} 
+	}
 	toReturnstats = append(toReturnstats, statement)
-	
+
 	if !strings.HasSuffix(tableName, "_temp") {
 		if len(triggers) > 0 {
 			for _, stats := range triggers {
@@ -259,7 +269,7 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string, execute boo
 						err := Exec(db.Name, st)
 						if logger.CheckError(err) {
 							logger.Printfs("rdtrigger updated_at %s: %s", tableName, st)
-							return "",err
+							return "", err
 						}
 					}
 					toReturnstats = append(toReturnstats, st)
@@ -290,7 +300,7 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string, execute boo
 		for col, tagValue := range *mi.uindexes {
 			sp := strings.Split(tagValue, ",")
 			for i := range sp {
-				if sp[i][0] == 'I' && db.Dialect != MYSQL && db.Dialect != MARIA{
+				if sp[i][0] == 'I' && db.Dialect != MYSQL && db.Dialect != MARIA {
 					sp[i] = "LOWER(" + sp[i][1:] + ")"
 				}
 			}
@@ -305,10 +315,10 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string, execute boo
 				_, err := db.Conn.Exec(statIndexes)
 				if logger.CheckError(err) {
 					logger.Printfs("rdindexes: %s", statIndexes)
-					return "",err
+					return "", err
 				}
 			}
-			
+
 			toReturnstats = append(toReturnstats, statIndexes)
 		}
 		if mstatIndexes != "" {
@@ -319,10 +329,10 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string, execute boo
 				_, err := db.Conn.Exec(mstatIndexes)
 				if logger.CheckError(err) {
 					logger.Printfs("rdmindexes: %s", mstatIndexes)
-					return "",err
+					return "", err
 				}
 			}
-			
+
 			toReturnstats = append(toReturnstats, mstatIndexes)
 		}
 		if len(ustatIndexes) > 0 {
@@ -334,9 +344,9 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string, execute boo
 					_, err := db.Conn.Exec(ustatIndexes[i])
 					if logger.CheckError(err) {
 						logger.Printfs("rduindexes: %s", ustatIndexes)
-						return "",err
+						return "", err
 					}
-				}		
+				}
 				toReturnstats = append(toReturnstats, ustatIndexes[i])
 			}
 		}
@@ -344,8 +354,8 @@ func autoMigrate[T comparable](db *DatabaseEntity, tableName string, execute boo
 	if execute {
 		logger.Printfs("gr%s migrated successfully, restart the server", tableName)
 	}
-	toReturnQuery:=strings.Join(toReturnstats,";")
-	return toReturnQuery,nil
+	toReturnQuery := strings.Join(toReturnstats, ";")
+	return toReturnQuery, nil
 }
 
 func AutoMigrate[T comparable](tableName string, dbName ...string) error {
@@ -370,7 +380,7 @@ func AutoMigrate[T comparable](tableName string, dbName ...string) error {
 	} else {
 		return errors.New("cannot migrate more than one database at the same time")
 	}
-	
+
 	tbFoundDB := false
 	tables := GetAllTables(dbname)
 	for _, t := range tables {
@@ -378,16 +388,16 @@ func AutoMigrate[T comparable](tableName string, dbName ...string) error {
 			tbFoundDB = true
 		}
 	}
-	
+
 	tbFoundLocal := false
 	if len(db.Tables) == 0 {
-		if tbFoundDB {
+		if tbFoundDB && migrationAutoCheck {
 			// found db not local
 			LinkModel[T](tableName, db)
 			return nil
 		} else {
 			// not db and not local
-			_,err := autoMigrate[T](db, tableName,true)
+			_, err := autoMigrate[T](db, tableName, true)
 			if logger.CheckError(err) {
 				return err
 			}
@@ -401,18 +411,17 @@ func AutoMigrate[T comparable](tableName string, dbName ...string) error {
 			}
 		}
 	}
-	
-	
-	if tbFoundDB || tbFoundLocal {
+
+	if migrationAutoCheck && (tbFoundDB || tbFoundLocal) {
 		LinkModel[T](tableName, db)
 		return nil
 	} else {
-		_,err := autoMigrate[T](db, tableName,true)
+		_, err := autoMigrate[T](db, tableName, true)
 		if logger.CheckError(err) {
 			return err
 		}
 	}
-	
+
 	return nil
 }
 
@@ -445,7 +454,7 @@ func handleMigrationInt(mi *migrationInput) {
 					autoinc = "INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT"
 				case POSTGRES:
 					autoinc = "SERIAL NOT NULL PRIMARY KEY"
-				case MYSQL,MARIA:
+				case MYSQL, MARIA:
 					autoinc = "INTEGER NOT NULL PRIMARY KEY AUTO_INCREMENT"
 				default:
 					logger.Error("dialect can be sqlite, postgres or mysql only, not ", mi.dialect)
@@ -510,7 +519,7 @@ func handleMigrationInt(mi *migrationInput) {
 					switch mi.dialect {
 					case SQLITE, "":
 						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", -1)
-					case POSTGRES, MYSQL,MARIA:
+					case POSTGRES, MYSQL, MARIA:
 						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", -1)
 					default:
 						logger.Error("check not handled for dialect:", mi.dialect)
@@ -578,7 +587,7 @@ func handleMigrationInt(mi *migrationInput) {
 
 func handleMigrationBool(mi *migrationInput) {
 	defaultt := ""
-	
+
 	tags := (*mi.fTags)[mi.fName]
 	if len(tags) == 1 && tags[0] == "-" {
 		(*mi.res)[mi.fName] = ""
@@ -668,7 +677,7 @@ func handleMigrationBool(mi *migrationInput) {
 		}
 	}
 	if defaultt != "" {
-		(*mi.res)[mi.fName] = "INTEGER NOT NULL"+defaultt+" CHECK (" + mi.fName + " IN (0, 1))"
+		(*mi.res)[mi.fName] = "INTEGER NOT NULL" + defaultt + " CHECK (" + mi.fName + " IN (0, 1))"
 	}
 }
 
@@ -696,7 +705,7 @@ func handleMigrationString(mi *migrationInput) {
 				unique = " UNIQUE"
 				s := ""
 				if mi.dialect != "mysql" {
-					s="I"
+					s = "I"
 				}
 				(*mi.uindexes)[mi.fName] = s + mi.fName
 			case "default":
@@ -779,7 +788,7 @@ func handleMigrationString(mi *migrationInput) {
 					switch mi.dialect {
 					case SQLITE, "":
 						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", -1)
-					case POSTGRES, MYSQL,MARIA:
+					case POSTGRES, MYSQL, MARIA:
 						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", -1)
 					default:
 						logger.Error("check not handled for dialect:", mi.dialect)
@@ -915,7 +924,7 @@ func handleMigrationFloat(mi *migrationInput) {
 					switch mi.dialect {
 					case SQLITE, "":
 						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", -1)
-					case POSTGRES, MYSQL,MARIA:
+					case POSTGRES, MYSQL, MARIA:
 						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", -1)
 					default:
 						logger.Error("check not handled for dialect:", mi.dialect)
@@ -984,7 +993,7 @@ func handleMigrationTime(mi *migrationInput) {
 					defaultt = "TEXT NOT NULL DEFAULT (datetime('now','localtime'))"
 				case POSTGRES:
 					defaultt = "TIMESTAMP NOT NULL DEFAULT (now())"
-				case MYSQL,MARIA:
+				case MYSQL, MARIA:
 					defaultt = "TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
 				default:
 					logger.Error("not handled Time for ", mi.fName, mi.fType)
@@ -1040,7 +1049,7 @@ func handleMigrationTime(mi *migrationInput) {
 					switch mi.dialect {
 					case SQLITE, "":
 						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "length", -1)
-					case POSTGRES ,MARIA:
+					case POSTGRES, MARIA:
 						sp[1] = strings.Replace(strings.ToLower(sp[1]), "len", "char_length", -1)
 					default:
 						logger.Error("check not handled for dialect:", mi.dialect)
@@ -1086,7 +1095,7 @@ func handleMigrationTime(mi *migrationInput) {
 	}
 }
 
-func prepareCreateStatement(tbName string, fields map[string]string, fkeys, cols []string, db *DatabaseEntity, ftags map[string][]string) string {
+func prepareCreateStatement(tbName string, fields map[string]string, fkeys, cols []string) string {
 	st := "CREATE TABLE IF NOT EXISTS "
 	st += tbName + " ("
 	for i, col := range cols {

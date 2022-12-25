@@ -14,6 +14,7 @@ import (
 	"github.com/kamalshkeir/kago/core/utils"
 	"github.com/kamalshkeir/kago/core/utils/input"
 	"github.com/kamalshkeir/kago/core/utils/logger"
+	"github.com/kamalshkeir/kstrct"
 )
 
 type dbCache struct {
@@ -35,7 +36,7 @@ func LinkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 	if db.Name == "" {
 		var err error
 		db.Name = databases[0].Name
-		db,err = GetMemoryDatabase(db.Name)
+		db, err = GetMemoryDatabase(db.Name)
 		if logger.CheckError(err) {
 			return
 		}
@@ -84,7 +85,6 @@ func LinkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 		handleRename(to_table_name, fields, cols, diff, db, ftags, pk)
 	}()
 	wg.Wait()
-	
 
 	tFound := false
 	for _, t := range db.Tables {
@@ -92,7 +92,7 @@ func LinkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 			tFound = true
 		}
 	}
-	
+
 	if !tFound {
 		db.Tables = append(db.Tables, TableEntity{
 			Name:       to_table_name,
@@ -108,13 +108,22 @@ func LinkModel[T comparable](to_table_name string, db *DatabaseEntity) {
 // handleAddOrRemove handle sync with db when adding or removing from a struct auto migrated
 func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []string, db *DatabaseEntity, ftypes map[string]string, ftags map[string][]string, pk string) {
 	if len(cols) > len(fields) { // extra column db
+	loop1:
 		for _, d := range diff {
-			fileName := "drop_"+to_table_name+"_"+d+".sql"
-			if v, ok := ftags[d]; ok && v[0] == "-" || d == pk {
-				continue
+			fileName := "drop_" + to_table_name + "_" + d + ".sql"
+			if v, ok := ftags[d]; ok {
+				if v[0] == "-" || d == pk {
+					continue loop1
+				}
+				for _, vv := range v {
+					if strings.Contains(vv, "m2m") {
+						continue loop1
+					}
+				}
+				continue loop1
 			}
-			if _,err := os.Stat("migrations/"+fileName);err == nil {
-				continue
+			if _, err := os.Stat("migrations/" + fileName); err == nil {
+				continue loop1
 			}
 			fmt.Println(" ")
 			logger.Printfs("⚠️ found extra column '%s' in the database table '%s'", d, to_table_name)
@@ -158,7 +167,7 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 						_, err = conn.Exec(statement)
 						if err != nil {
 							temp := to_table_name + "_temp"
-							_,err := autoMigrate[T](db, temp,true)
+							_, err := autoMigrate[T](db, temp, true)
 							if logger.CheckError(err) {
 								return
 							}
@@ -211,7 +220,7 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 						_, err = conn.Exec(statement)
 						if err != nil {
 							temp := to_table_name + "_temp"
-							_,err := autoMigrate[T](db, temp,true)
+							_, err := autoMigrate[T](db, temp, true)
 							if logger.CheckError(err) {
 								return
 							}
@@ -233,11 +242,11 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 						os.Exit(0)
 					}
 				}
-			} else if  utils.SliceContains([]string{"generate", "G", "g"}, choice) {
+			} else if utils.SliceContains([]string{"generate", "G", "g"}, choice) {
 				query := ""
 				sst := "DROP INDEX IF EXISTS idx_" + to_table_name + "_" + d + ";"
 				trigs := "DROP TRIGGER IF EXISTS " + to_table_name + "_update_trig;"
-				
+
 				if len(databases) > 1 && db.Name == "" {
 					ddb := input.Input(input.Blue, "> There are more than one database connected, enter database name: ")
 					conn := GetConnection(ddb)
@@ -250,8 +259,8 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 										if db.Dialect == POSTGRES {
 											trigs += "ON " + to_table_name
 										}
-										if !strings.HasSuffix(trigs,";") {
-											trigs+=";"
+										if !strings.HasSuffix(trigs, ";") {
+											trigs += ";"
 										}
 										query += trigs
 									}
@@ -263,26 +272,25 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 							logger.Info(statement)
 							logger.Info(trigs)
 						}
-						if !strings.HasSuffix(sst,";") {
-							sst+=";"
+						if !strings.HasSuffix(sst, ";") {
+							sst += ";"
 						}
 						query += sst
 
 						temp := to_table_name + "_temp"
-						tempQuery,err := autoMigrate[T](db, temp,false)
+						tempQuery, err := autoMigrate[T](db, temp, false)
 						if logger.CheckError(err) {
 							return
 						}
 						query += tempQuery
-						if !strings.HasSuffix(tempQuery,";") {
-							tempQuery+=";"
+						if !strings.HasSuffix(tempQuery, ";") {
+							tempQuery += ";"
 						}
 						cls := strings.Join(fields, ",")
-						
 
-						query += "INSERT INTO " + temp + " SELECT " + cls + " FROM " + to_table_name+";"
-						query += "DROP TABLE "+to_table_name+";"
-						query += "ALTER TABLE " + temp + " RENAME TO " + to_table_name+";"
+						query += "INSERT INTO " + temp + " SELECT " + cls + " FROM " + to_table_name + ";"
+						query += "DROP TABLE " + to_table_name + ";"
+						query += "ALTER TABLE " + temp + " RENAME TO " + to_table_name + ";"
 					}
 				} else {
 					conn := db.Conn
@@ -295,16 +303,16 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 										if db.Dialect == POSTGRES {
 											trigs += "ON " + to_table_name
 										}
-										if !strings.HasSuffix(trigs,";") {
-											trigs+=";"
+										if !strings.HasSuffix(trigs, ";") {
+											trigs += ";"
 										}
 										query += trigs
 									}
 								}
 							}
 						}
-						if !strings.HasSuffix(sst,";") {
-							sst+=";"
+						if !strings.HasSuffix(sst, ";") {
+							sst += ";"
 						}
 						query += sst
 						if Debug {
@@ -313,31 +321,30 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 							logger.Info(trigs)
 						}
 						temp := to_table_name + "_temp"
-						tempQuery,err := autoMigrate[T](db, temp,false)
+						tempQuery, err := autoMigrate[T](db, temp, false)
 						if logger.CheckError(err) {
 							return
 						}
 						query += tempQuery
 						cls := strings.Join(fields, ",")
-						
 
-						query += "INSERT INTO " + temp + " SELECT " + cls + " FROM " + to_table_name+";"
-						query += "DROP TABLE "+to_table_name+";"
-						query += "ALTER TABLE " + temp + " RENAME TO " + to_table_name+";"
+						query += "INSERT INTO " + temp + " SELECT " + cls + " FROM " + to_table_name + ";"
+						query += "DROP TABLE " + to_table_name + ";"
+						query += "ALTER TABLE " + temp + " RENAME TO " + to_table_name + ";"
 					}
 				}
 
-				if _,err := os.Stat("migrations");err != nil {
-					err := os.MkdirAll("migrations",os.ModeDir)
+				if _, err := os.Stat("migrations"); err != nil {
+					err := os.MkdirAll("migrations", os.ModeDir)
 					logger.CheckError(err)
 				}
 
-				if _,err := os.Stat("migrations/"+fileName);err != nil {
-					f,err := os.Create("migrations/"+fileName)
+				if _, err := os.Stat("migrations/" + fileName); err != nil {
+					f, err := os.Create("migrations/" + fileName)
 					if logger.CheckError(err) {
 						return
 					}
-					_,err = f.WriteString(query)
+					_, err = f.WriteString(query)
 					if logger.CheckError(err) {
 						f.Close()
 						return
@@ -345,11 +352,11 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 					f.Close()
 					fmt.Printf(logger.Green, "migrations/"+fileName+" created")
 				} else {
-					f,err := os.Open("migrations/"+fileName)
+					f, err := os.Open("migrations/" + fileName)
 					if logger.CheckError(err) {
 						return
 					}
-					_,err = f.WriteString(query)
+					_, err = f.WriteString(query)
 					if logger.CheckError(err) {
 						f.Close()
 						return
@@ -362,15 +369,23 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 			}
 		}
 	} else if len(cols) < len(fields) { // missing column db
+	loop2:
 		for _, d := range diff {
-			fileName := "add_"+to_table_name+"_"+d+".sql"
-			if v, ok := ftags[d]; ok && v[0] == "-" || d == pk {
-				continue
+			fileName := "add_" + to_table_name + "_" + d + ".sql"
+			if v, ok := ftags[d]; ok {
+				if v[0] == "-" || d == pk {
+					continue loop2
+				}
+				for _, vv := range v {
+					if strings.Contains(vv, "m2m") {
+						continue loop2
+					}
+				}
+				continue loop2
 			}
-			if _,err := os.Stat("migrations/"+fileName);err == nil {
-				continue
+			if _, err := os.Stat("migrations/" + fileName); err == nil {
+				continue loop2
 			}
-			fmt.Println(" ")
 			logger.Printfs("⚠️ column '%s' is missing from the database table '%s'", d, to_table_name)
 			choice, err := input.String(input.Yellow, "> do you want to add '"+d+"' to the database ?, you can also generate the query using 'g' (Y/g/n):")
 			logger.CheckError(err)
@@ -657,40 +672,39 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 					}
 				} else if utils.SliceContains([]string{"generate", "G", "g"}, choice) {
 					query := ""
-					
-					
+
 					if len(databases) > 1 && db.Name == "" {
 						ddb := input.Input(input.Blue, "> There are more than one database connected, database name:")
 						conn := GetConnection(ddb)
 						if conn != nil {
-							if !strings.HasSuffix(statement,";") {
-								statement+=";"
+							if !strings.HasSuffix(statement, ";") {
+								statement += ";"
 							}
 							query += statement
 							if len(trigs) > 0 {
 								for _, st := range trigs {
-									if !strings.HasSuffix(st,";") {
-										st+=";"
+									if !strings.HasSuffix(st, ";") {
+										st += ";"
 									}
 									query += st
 								}
 							}
 
 							if statIndexes != "" {
-								if !strings.HasSuffix(statIndexes,";") {
-									statIndexes+=";"
+								if !strings.HasSuffix(statIndexes, ";") {
+									statIndexes += ";"
 								}
 								query += statIndexes
 							}
 							if mstatIndexes != "" {
-								if !strings.HasSuffix(mstatIndexes,";") {
-									mstatIndexes+=";"
+								if !strings.HasSuffix(mstatIndexes, ";") {
+									mstatIndexes += ";"
 								}
 								query += mstatIndexes
 							}
 							if ustatIndexes != "" {
-								if !strings.HasSuffix(ustatIndexes,";") {
-									ustatIndexes+=";"
+								if !strings.HasSuffix(ustatIndexes, ";") {
+									ustatIndexes += ";"
 								}
 								query += ustatIndexes
 							}
@@ -715,33 +729,33 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 					} else {
 						conn := GetConnection(db.Name)
 						if conn != nil {
-							if !strings.HasSuffix(statement,";") {
-								statement+=";"
+							if !strings.HasSuffix(statement, ";") {
+								statement += ";"
 							}
 							query += statement
 							if len(trigs) > 0 {
 								for _, st := range trigs {
-									if !strings.HasSuffix(st,";") {
-										st+=";"
+									if !strings.HasSuffix(st, ";") {
+										st += ";"
 									}
 									query += st
 								}
 							}
 							if statIndexes != "" {
-								if !strings.HasSuffix(statIndexes,";") {
-									statIndexes+=";"
+								if !strings.HasSuffix(statIndexes, ";") {
+									statIndexes += ";"
 								}
 								query += statIndexes
 							}
 							if mstatIndexes != "" {
-								if !strings.HasSuffix(mstatIndexes,";") {
-									mstatIndexes+=";"
+								if !strings.HasSuffix(mstatIndexes, ";") {
+									mstatIndexes += ";"
 								}
 								query += mstatIndexes
 							}
 							if ustatIndexes != "" {
-								if !strings.HasSuffix(ustatIndexes,";") {
-									ustatIndexes+=";"
+								if !strings.HasSuffix(ustatIndexes, ";") {
+									ustatIndexes += ";"
 								}
 								query += ustatIndexes
 							}
@@ -766,17 +780,17 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 						}
 					}
 
-					if _,err := os.Stat("migrations");err != nil {
-						err := os.MkdirAll("migrations",os.ModeDir)
+					if _, err := os.Stat("migrations"); err != nil {
+						err := os.MkdirAll("migrations", os.ModeDir)
 						logger.CheckError(err)
 					}
 
-					if _,err := os.Stat("migrations/"+fileName);err != nil {
-						f,err := os.Create("migrations/"+fileName)
+					if _, err := os.Stat("migrations/" + fileName); err != nil {
+						f, err := os.Create("migrations/" + fileName)
 						if logger.CheckError(err) {
 							return
 						}
-						_,err = f.WriteString(query)
+						_, err = f.WriteString(query)
 						if logger.CheckError(err) {
 							f.Close()
 							return
@@ -784,11 +798,11 @@ func handleAddOrRemove[T comparable](to_table_name string, fields, cols, diff []
 						f.Close()
 						fmt.Printf(logger.Green, "migrations/"+fileName+" created")
 					} else {
-						f,err := os.Open("migrations/"+fileName)
+						f, err := os.Open("migrations/" + fileName)
 						if logger.CheckError(err) {
 							return
 						}
-						_,err = f.WriteString(query)
+						_, err = f.WriteString(query)
 						if logger.CheckError(err) {
 							f.Close()
 							return
@@ -949,7 +963,6 @@ func handleRename(to_table_name string, fields, cols, diff []string, db *Databas
 	}
 }
 
-
 func GetConstraints(db *DatabaseEntity, tableName string) map[string][]string {
 	res := map[string][]string{}
 	switch db.Dialect {
@@ -991,7 +1004,7 @@ func GetConstraints(db *DatabaseEntity, tableName string) map[string][]string {
 				}
 			}
 		}
-	case POSTGRES, MYSQL,MARIA:
+	case POSTGRES, MYSQL, MARIA:
 		st := "select table_name,constraint_type,constraint_name from INFORMATION_SCHEMA.TABLE_CONSTRAINTS where table_name='" + tableName + "';"
 		d, err := Query(db.Name, st)
 		if !logger.CheckError(err) {
@@ -1093,7 +1106,7 @@ func getStructInfos[T comparable](strctt *T) (fields []string, fValues map[strin
 	for i := 0; i < s.NumField(); i++ {
 		f := s.Field(i)
 		fname := typeOfT.Field(i).Name
-		fname = utils.ToSnakeCase(fname)
+		fname = kstrct.ToSnakeCase(fname)
 		fvalue := f.Interface()
 		ftype := f.Type().Name()
 
@@ -1132,18 +1145,7 @@ func handleCache(data map[string]string) {
 			cachesOneM.Flush()
 			cachesOneS.Flush()
 		}()
-	case "drop":
-		go func() {
-			if v, ok := data["table"]; ok {
-				cacheGetAllColumns.Delete(v)
-			}
-			cacheGetAllTables.Flush()
-			cachesAllM.Flush()
-			cachesAllS.Flush()
-			cachesOneM.Flush()
-			cachesOneS.Flush()
-		}()
-	case "clean":
+	case "clean", "drop":
 		go func() {
 			cacheGetAllColumns.Flush()
 			cacheGetAllTables.Flush()
