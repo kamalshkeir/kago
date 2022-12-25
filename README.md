@@ -966,7 +966,7 @@ orm.AutoMigrate[T comparable](tableName string, dbName ...string) error
 // this is the actual user model used initialy
 type User struct {
 	Id        int       `json:"id,omitempty" orm:"pk"`
-	Uuid      string    `json:"uuid,omitempty" orm:"size:40"`
+	Uuid      string    `json:"uuid,omitempty" orm:"size:40;iunique"`
 	Email     string    `json:"email,omitempty" orm:"size:50;iunique"`
 	Password  string    `json:"password,omitempty" orm:"size:150"`
 	IsAdmin   bool      `json:"is_admin,omitempty" orm:"default:false"`
