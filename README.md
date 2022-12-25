@@ -78,9 +78,11 @@ go get -u github.com/kamalshkeir/kago@v1.2.5
 ```
 
 # Drivers moved outside this package to not get them all in your go.mod file
+```sh
 go get github.com/kamalshkeir/sqlitedriver
 go get github.com/kamalshkeir/pgdriver
 go get github.com/kamalshkeir/mysqldriver
+```
 
 ---
 
@@ -93,6 +95,8 @@ package main
 import (
 	"github.com/kamalshkeir/kago"
 	"github.com/kamalshkeir/sqlitedriver"
+	"github.com/kamalshkeir/mysqldriver"
+	"github.com/kamalshkeir/pgdriver"
 )
 
 func main() {
