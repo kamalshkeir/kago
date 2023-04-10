@@ -30,7 +30,7 @@
 
 
 # KaGo Web Framework (not maintained anymore)
-## If you like Kago you will live Korm, this package will not be supported soon
+## If you like Kago you will love Korm, this package will not be supported soon
 ## Korm or Kmux or Ksbus are more composable, faster, and more powerful :
 - Kmux is faster using combination of safemap and radix tree , also it does not have param routing conflicts, you can have `/test/user` and `/test/:table`, if exact route match for the first , the request handled only by the first , otherwise if something like `/test/something` ->  `/test/:table`
 - Kmux also can generate swagger docs from you code or from comments</a><a href="https://www.youtube.com/watch?v=r7rbMrTkVek">
